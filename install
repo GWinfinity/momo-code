@@ -324,6 +324,39 @@ download_with_progress() {
     return $ret
 }
 
+# 如果 release asset 不存在，直接从 GitHub 下载 bin/momo
+if [ "$specific_version" = "latest" ]; then
+    # 尝试下载 release asset
+    http_status=$(curl -sI -o /dev/null -w "%{http_code}" "$url")
+    if [ "$http_status" = "404" ]; then
+        echo "Release asset not found, installing from source..."
+        install_from_source
+        exit 0
+    fi
+fi
+
+install_from_source() {
+    print_message info "\n${MUTED}Installing from source...${NC}"
+    local src_dir="$HOME/.momo/lib/momo-code"
+    rm -rf "$src_dir"
+    mkdir -p "$src_dir"
+    
+    # 下载源码
+    curl -sL "https://github.com/momozi1996/momo-code/archive/refs/tags/v${specific_version}.tar.gz" | tar -xz -C "$src_dir" --strip-components=1
+    
+    # 安装依赖
+    cd "$src_dir/packages/opencode"
+    npm install --production
+    
+    # 创建 wrapper 脚本
+    cat > "$INSTALL_DIR/momo" << 'EOF'
+#!/bin/bash
+export MOMO_HOME="${MOMO_HOME:-$HOME/.momo}"
+node "$HOME/.momo/lib/momo-code/packages/opencode/bin/momo" "$@"
+EOF
+    chmod +x "$INSTALL_DIR/momo"
+}
+
 download_and_install() {
     print_message info "\n${MUTED}Installing ${NC}momo ${MUTED}version: ${NC}$specific_version"
     local tmp_dir="${TMPDIR:-/tmp}/momo_install_$$"
