@@ -1,0 +1,44 @@
+name: Bug Report
+description: Report a bug in momo Code
+labels: ["bug"]
+body:
+  - type: input
+    attributes:
+      label: Version
+      description: What version of momo Code are you using?
+      placeholder: e.g., 1.0.0
+    validations:
+      required: true
+  
+  - type: dropdown
+    attributes:
+      label: Platform
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (ARM64)
+        - Linux (x64)
+        - Windows (ARM64)
+        - Windows (x64)
+    validations:
+      required: true
+  
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected to happen
+    validations:
+      required: true
+  
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to reproduce the issue
+    validations:
+      required: true
+  
+  - type: textarea
+    attributes:
+      label: Relevant log output
+      description: Paste any relevant logs (redact sensitive info)
+      render: shell
