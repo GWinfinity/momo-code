@@ -1,4 +1,4 @@
-# momo Code v1.0.0
+# MOMO CODE v1.0.0
 
 > AI-powered coding agent that evolves with you.
 >
@@ -22,7 +22,8 @@
 
 ## Features
 
-- **19 LLM Providers** — Claude, GPT-4, Gemini, OpenRouter, Groq, Mistral, and more
+- **25+ LLM Providers** — Deepseek, Zhipu (GLM), Moonshot (Kimi), Claude, GPT-4, Gemini, Doubao, OpenRouter, Groq, Mistral, and more
+- **Custom Provider** — Plug in any OpenAI-compatible API with `MOMO_CUSTOM_*` env vars
 - **Model Tiers** — Zero-config selection: `ultra` / `standard` / `lite`
 - **Experience Fast Loop (`/evolve`)** — Second-level prompt injection via KEP protocol. Tactics distilled from success are auto-selected via Thompson sampling
 - **Self-Evolution Training (`/fine-tune`)** — Hour-level weight improvement via Monte Carlo Graph Search (MCGS) + LoRA
