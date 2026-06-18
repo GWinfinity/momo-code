@@ -58,7 +58,7 @@ npm install -g @momo/cli
 ### From source
 
 ```bash
-git clone https://github.com/momo-team/momo-code.git
+git clone https://github.com/momozi1996/momo-code.git
 cd momo-code/packages/opencode
 npm install
 npm run build
@@ -67,7 +67,7 @@ npm run build
 ### Quick install (macOS/Linux)
 
 ```bash
-curl -fsSL https://momocode.ai/install | bash
+curl -fsSL https://momocode.cc/install | bash
 ```
 
 ## Quick Start
@@ -180,7 +180,7 @@ momo models providers    # Show available providers
 
 ```jsonc
 {
-  "$schema": "https://momocode.ai/config.json",
+  "$schema": "https://momocode.cc/config.json",
   "model": "standard",
   "provider": "anthropic",
   "inheritClaudeCode": true,
