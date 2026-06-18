@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json.scastore.org/package.json",
+  "name": "@momo/cli",
+  "version": "1.0.0",
+  "description": "momo Code — AI coding agent that evolves with you",
+  "type": "module",
+  "license": "MIT",
+  "author": "momo Team <team@momozi.co>",
+  "homepage": "https://momozi.co",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/momozi1996/momo-code.git",
+    "directory": "packages/opencode"
+  },
+  "bugs": {
+    "url": "https://github.com/momozi1996/momo-code/issues"
+  },
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "cli",
+    "llm",
+    "code-assistant",
+    "self-evolution",
+    "momo"
+  ],
+  "bin": {
+    "momo": "./bin/momo"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./cli": {
+      "import": "./dist/cli/index.js",
+      "types": "./dist/cli/index.d.ts"
+    },
+    "./evolve": {
+      "import": "./dist/experience/index.js",
+      "types": "./dist/experience/index.d.ts"
+    }
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "npx tsx --test src/test/tactic.test.ts src/test/provider.test.ts",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "echo 'oxlint not installed'",
+    "start": "node bin/momo",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^3.0.10",
+    "ai": "^6.0.205",
+    "effect": "^3.14.0",
+    "fuzzysort": "^3.1.0",
+    "remeda": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}

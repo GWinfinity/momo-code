@@ -1,0 +1,172 @@
+#!/usr/bin/env node
+/**
+ * MOMO CODE — CLI entry point (ESM)
+ *
+ * Routes commands between Node.js handlers and native binary.
+ */
+
+import { spawn } from "child_process"
+import { existsSync, readFileSync } from "fs"
+import { dirname, join } from "path"
+import { fileURLToPath } from "url"
+import { createRequire } from "module"
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// ── Built-in commands handled by Node.js ──────────────────────────
+const NODE_COMMANDS = new Set([
+  "models",
+  "/evolve",
+  "/fine-tune",
+  "/finetune",
+  "evolve",
+  "fine-tune",
+  "finetune",
+  "help",
+  "--help",
+  "-h",
+  "version",
+  "--version",
+  "-v",
+])
+
+function isNodeCommand(argv) {
+  if (argv.length === 0) return false
+  const first = argv[0]
+  if (first.startsWith("/")) return true
+  return NODE_COMMANDS.has(first)
+}
+
+// ── Find native binary ────────────────────────────────────────────
+function findNativeBinary() {
+  if (process.env.MOMO_BIN_PATH && existsSync(process.env.MOMO_BIN_PATH)) {
+    return process.env.MOMO_BIN_PATH
+  }
+
+  const cached = join(__dirname, ".momo")
+  if (existsSync(cached)) return cached
+
+  const { platform, arch } = process
+  const pMap = { darwin: "darwin", linux: "linux", win32: "win32" }
+  const aMap = { x64: "x64", arm64: "arm64", arm: "arm" }
+  const p = pMap[platform] || platform
+  const a = aMap[arch] || arch
+  const base = `momo-${p}-${a}`
+  const binary = p === "win32" ? "momo.exe" : "momo"
+
+  let current = __dirname
+  for (;;) {
+    const modules = join(current, "node_modules")
+    if (existsSync(modules)) {
+      const candidate = join(modules, base, "bin", binary)
+      if (existsSync(candidate)) return candidate
+    }
+    const parent = dirname(current)
+    if (parent === current) break
+    current = parent
+  }
+  return null
+}
+
+// ── Run native binary ─────────────────────────────────────────────
+function runNative(binary, argv) {
+  const child = spawn(binary, argv, { stdio: "inherit" })
+  child.on("error", (err) => {
+    console.error(`momo: ${err.message}`)
+    process.exit(1)
+  })
+  child.on("exit", (code, signal) => {
+    if (signal) {
+      process.kill(process.pid, signal)
+      return
+    }
+    process.exit(typeof code === "number" ? code : 0)
+  })
+}
+
+// ── Main ──────────────────────────────────────────────────────────
+const argv = process.argv.slice(2)
+
+// ── ASCII Banner (MOMO CODE — ANSI Shadow) ────────────────────────
+// NOTE: Keep this in sync with src/cli/banner.ts
+const BANNER = [
+  "\x1b[95m███╗   ███╗ ██████╗ ███╗   ███╗ ██████╗    ██████╗ ██████╗ ██████╗ ███████╗\x1b[0m",
+  "\x1b[95m████╗ ████║██╔═══██╗████╗ ████║██╔═══██╗  ██╔════╝██╔═══██╗██╔══██╗██╔════╝\x1b[0m",
+  "\x1b[95m██╔████╔██║██║   ██║██╔████╔██║██║   ██║  ██║     ██║   ██║██║  ██║█████╗  \x1b[0m",
+  "\x1b[95m██║╚██╔╝██║██║   ██║██║╚██╔╝██║██║   ██║  ██║     ██║   ██║██║  ██║██╔══╝  \x1b[0m",
+  "\x1b[95m██║ ╚═╝ ██║╚██████╔╝██║ ╚═╝ ██║╚██████╔╝  ╚██████╗╚██████╔╝██████╔╝███████╗\x1b[0m",
+  "\x1b[95m╚═╝     ╚═╝ ╚═════╝ ╚═╝     ╚═╝ ╚═════╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝\x1b[0m",
+].join("\n")
+
+// Quick help / version
+if (argv.length === 0 || ["help", "--help", "-h"].includes(argv[0])) {
+  console.log(BANNER)
+  console.log()
+  console.log("\x1b[36m\x1b[1m  The coding agent that evolves\x1b[0m")
+  console.log()
+  console.log(`\x1b[1mUSAGE:\x1b[0m`)
+  console.log(`  momo <prompt>              Start a coding session`)
+  console.log(`  momo /evolve               Run experience fast loop (KEP)`)
+  console.log(`  momo /fine-tune            Run self-evolution training (MCGS)`)
+  console.log(`  momo models                List available models & providers`)
+  console.log(`  momo help                  Show this help`)
+  console.log(``)
+  console.log(`\x1b[1mEXAMPLES:\x1b[0m`)
+  console.log(`  momo "Refactor auth to use Effect"`)
+  console.log(`  momo /evolve --mode=explore`)
+  console.log(`  momo /fine-tune run`)
+  console.log(`  momo models list`)
+  console.log(``)
+  console.log(`\x1b[1mENV:\x1b[0m`)
+  console.log(`  MOMO_API_KEY               API key for LLM provider`)
+  console.log(`  MOMO_PROVIDER              Default provider (claude, openai, etc.)`)
+  console.log(`  MOMO_MODEL                 Default model or tier (ultra/standard/lite)`)
+  console.log(`  MOMO_XP_MODE               Evolution: balanced|explore|harden|convention-only`)
+  console.log(``)
+  console.log(`\x1b[1mDOCS:\x1b[0m https://momozi.co`)
+  console.log(``)
+  process.exit(0)
+}
+
+if (["version", "--version", "-v"].includes(argv[0])) {
+  try {
+    const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"))
+    console.log(pkg.version || "0.1.0")
+  } catch {
+    console.log("0.1.0")
+  }
+  process.exit(0)
+}
+
+// Route to Node.js CLI for built-in commands
+if (isNodeCommand(argv)) {
+  import("../dist/cli/index.js")
+    .then(({ runCli }) => runCli(argv))
+    .catch((err) => {
+      if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
+        console.error("\x1b[31mError:\x1b[0m Build output not found. Run `npm run build` first.")
+      } else {
+        console.error(`\x1b[31mError:\x1b[0m ${err.message}`)
+        if (err.stack) console.error(err.stack)
+      }
+      process.exit(1)
+    })
+} else {
+  // Try native binary first, then fall back to Node.js
+  const binary = findNativeBinary()
+  if (binary) {
+    runNative(binary, argv)
+  } else {
+    import("../dist/cli/index.js")
+      .then(({ runCli }) => runCli(argv))
+      .catch((err) => {
+        if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
+          console.error("\x1b[31mError:\x1b[0m Build output not found. Run `npm run build` first.")
+        } else {
+          console.error(`\x1b[31mError:\x1b[0m ${err.message}`)
+          if (err.stack) console.error(err.stack)
+        }
+        process.exit(1)
+      })
+  }
+}
