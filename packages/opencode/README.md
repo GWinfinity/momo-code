@@ -38,10 +38,10 @@
 - **Node.js** >= 20.0.0
 - **npm** >= 10.0
 
-### From npm
+### From curl
 
 ```bash
-npm install -g @momo/cli
+curl -fsSL https://momozi.cc/install | bash
 ```
 
 ### From source
