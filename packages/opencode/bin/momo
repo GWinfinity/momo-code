@@ -123,7 +123,7 @@ if (argv.length === 0 || ["help", "--help", "-h"].includes(argv[0])) {
   console.log(`  MOMO_MODEL                 Default model or tier (ultra/standard/lite)`)
   console.log(`  MOMO_XP_MODE               Evolution: balanced|explore|harden|convention-only`)
   console.log(``)
-  console.log(`\x1b[1mDOCS:\x1b[0m https://momozi.co`)
+  console.log(`\x1b[1mDOCS:\x1b[0m https://momozi.cc`)
   console.log(``)
   process.exit(0)
 }
