@@ -20,8 +20,8 @@ Options:
         --no-modify-path    Don't modify shell config files (.zshrc, .bashrc, etc.)
 
 Examples:
-    curl -fsSL https://momocode.ai/install | bash
-    curl -fsSL https://momocode.ai/install | bash -s -- --version 1.0.180
+    curl -fsSL https://momocode.cc/install | bash
+    curl -fsSL https://momocode.cc/install | bash -s -- --version 1.0.180
     ./install --binary /path/to/momo
 EOF
 }
@@ -345,6 +345,43 @@ download_and_install() {
     rm -rf "$tmp_dir"
 }
 
+install_from_source() {
+    print_message info "\n${MUTED}Cloning from GitHub...${NC}"
+    local src_dir="$HOME/.momo/lib/momo-code"
+    rm -rf "$src_dir"
+    mkdir -p "$src_dir"
+
+    if ! git clone --depth 1 --branch "v${specific_version}" https://github.com/momozi1996/momo-code.git "$src_dir" 2>/dev/null; then
+        print_message info "${MUTED}Tag not found, cloning main branch...${NC}"
+        git clone --depth 1 https://github.com/momozi1996/momo-code.git "$src_dir"
+    fi
+
+    print_message info "${MUTED}Installing dependencies...${NC}"
+    cd "$src_dir/packages/opencode"
+
+    if ! npm install 2>&1 | tail -3; then
+        print_message error "${RED}Failed to install dependencies. Is Node.js >= 20 installed?${NC}"
+        print_message info "${MUTED}Install Node.js from https://nodejs.org${NC}"
+        exit 1
+    fi
+
+    print_message info "${MUTED}Building...${NC}"
+    npm run build 2>&1 || {
+        print_message error "${RED}Build failed. Try: cd $src_dir/packages/opencode && npm run build${NC}"
+        exit 1
+    }
+
+    cat > "$INSTALL_DIR/momo" << 'WRAPPER'
+#!/usr/bin/env bash
+export MOMO_HOME="${MOMO_HOME:-$HOME/.momo}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+node "$HOME/.momo/lib/momo-code/packages/opencode/bin/momo" "$@"
+WRAPPER
+    chmod +x "$INSTALL_DIR/momo"
+
+    print_message info "${MUTED}Installed from source to ${NC}$src_dir${NC}"
+}
+
 install_from_binary() {
     print_message info "\n${MUTED}Installing ${NC}momo ${MUTED}from: ${NC}$binary_path"
     cp "$binary_path" "${INSTALL_DIR}/momo"
@@ -355,7 +392,10 @@ if [ -n "$binary_path" ]; then
     install_from_binary
 else
     check_version
-    download_and_install
+    if ! download_and_install 2>/dev/null; then
+        print_message warning "${ORANGE}Binary download failed, falling back to source install...${NC}"
+        install_from_source
+    fi
 fi
 
 # Add to PATH if not already present
@@ -379,7 +419,7 @@ if [ "$no_modify_path" != true ]; then
     if [ -n "$config_file" ] && [ -f "$config_file" ]; then
         if ! grep -q "$INSTALL_DIR" "$config_file" 2>/dev/null; then
             echo "" >> "$config_file"
-            echo "# momo Code CLI" >> "$config_file"
+            echo "# MOMO Code CLI" >> "$config_file"
             case "$shell" in
                 fish)
                     echo "set -gx PATH $INSTALL_DIR \$PATH" >> "$config_file"
@@ -394,5 +434,5 @@ if [ "$no_modify_path" != true ]; then
     fi
 fi
 
-print_message info "\n${MUTED}momo Code ${NC}v${specific_version} ${MUTED}installed to ${NC}${INSTALL_DIR}/momo"
+print_message info "\n${MUTED}MOMO CODE${NC} v${specific_version} ${MUTED}installed to ${NC}${INSTALL_DIR}/momo"
 print_message info "${MUTED}Run 'momo --help' to get started${NC}\n"
