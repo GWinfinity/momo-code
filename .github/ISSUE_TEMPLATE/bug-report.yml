@@ -1,0 +1,7 @@
+name: Bug Report
+description: 报告一个 bug
+body:
+  - type: textarea
+    attributes:
+      label: 描述
+      description: 清晰地描述 bug
