@@ -5,8 +5,8 @@
   "description": "momo Code — AI coding agent that evolves with you",
   "type": "module",
   "license": "MIT",
-  "author": "momo Team <team@momozi.co>",
-  "homepage": "https://momozi.co",
+  "author": "momo Team <team@momozi.cc>",
+  "homepage": "https://momozi.cc",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/momozi1996/momo-code.git",
