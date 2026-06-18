@@ -56,7 +56,7 @@ npm run build
 ### Quick install (macOS/Linux)
 
 ```bash
-curl -fsSL https://momozi.co/install | bash
+curl -fsSL https://momozi.cc/install | bash
 ```
 
 ## Quick Start
@@ -169,7 +169,7 @@ momo models providers    # Show available providers
 
 ```jsonc
 {
-  "$schema": "https://momozi.co/config.json",
+  "$schema": "https://momozi.cc/config.json",
   "model": "standard",
   "provider": "anthropic",
   "inheritClaudeCode": true,
@@ -382,7 +382,7 @@ packages/opencode/src/
 - CI workflow (`.github/workflows/ci.yml`)
 
 **Fixed:**
-- Brand cleanup: `momocode.ai` → `momozi.co`
+- Brand cleanup: `momocode.ai` → `momozi.cc`
 - `bin/momo`: dist missing hint + doc URL fix
 
 ### v1.0.0 (2026-06-16)
