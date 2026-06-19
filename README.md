@@ -20,9 +20,7 @@
 [![Forks](https://img.shields.io/github/forks/momozi1996/momo-code)](https://github.com/momozi1996/momo-code/forks)
 [![License](https://img.shields.io/github/license/momozi1996/momo-code)](./LICENSE)
 </p>
-<p>
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)](https://www.typescriptlang.org/)
-[![NPM Version](https://img.shields.io/npm/v/@momo/cli)](https://www.npmjs.com/package/@momo/cli)
+
 </p>
 
 <br>
