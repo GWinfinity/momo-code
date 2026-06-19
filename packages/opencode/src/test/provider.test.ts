@@ -203,7 +203,7 @@ describe("provider", () => {
   // ---------------------------------------------------------------------------
 
   describe("brand headers", () => {
-    it("all brand headers use momozi.cc, not momocode.ai", () => {
+    it("all brand headers use momozi.co, not momocode.ai", () => {
       const providersWithHeaders = [
         "nvidia",
         "openrouter",
@@ -223,11 +223,11 @@ describe("provider", () => {
       }
     })
 
-    it("llmgateway uses momozi.cc domain", () => {
+    it("llmgateway uses momozi.co domain", () => {
       const config = PROVIDER_FACTORIES.llmgateway()
       assert.ok(
-        config.baseUrl?.includes("momozi.cc") || config.baseUrl?.startsWith("https://gateway.momozi.cc"),
-        "LLM Gateway should use momozi.cc domain",
+        config.baseUrl?.includes("momozi.co") || config.baseUrl?.startsWith("https://gateway.momozi.co"),
+        "LLM Gateway should use momozi.co domain",
       )
     })
   })
