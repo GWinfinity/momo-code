@@ -38,6 +38,12 @@
 > **AI-powered coding agent that evolves with you.**  
 > Built on [opencode](https://github.com/sst/opencode) with a unique dual-speed self-evolution system based on [Pioneer Agent](https://arxiv.org/abs/2604.09791).
 
+
+## Architecture
+| Two-Speed Evolution Algorithm |System Technical Architecture |
+|------|----------|
+|https://github.com/momozi1996/momo-code/blob/main/pic/AG.png|https://github.com/momozi1996/momo-code/blob/main/pic/SS.png|
+
 ## Table of Contents
 
 - [Features](#features)
