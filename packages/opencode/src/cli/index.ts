@@ -31,7 +31,7 @@ export async function runCli(argv: string[]): Promise<void> {
     case "/finetune":
     case "fine-tune":
     case "finetune":
-      await Effect.runPromise(runFinetuneCommand(args))
+      runFinetuneCommand(args)
       break
     case "models":
       await Effect.runPromise(
@@ -58,6 +58,6 @@ function showHelp(): void {
   console.log(`  ${C.c}momo models${C.B}            List models & providers`)
   console.log(`  ${C.c}momo help${C.B}              Show help`)
   console.log(``)
-  console.log(`${DIM}Docs: https://momozi.cc${RESET}`)
+  console.log(`${DIM}Docs: https://momozi.co${RESET}`)
   console.log(``)
 }
