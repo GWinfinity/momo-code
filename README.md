@@ -33,6 +33,7 @@
 </div>
 
 <br>
+<img width="1289" height="663" alt="截屏2026-06-19 16 28 16" src="https://github.com/user-attachments/assets/58441d82-7faf-4fbe-a132-b2fcf02fb7b4" />
 
 
 > **AI-powered coding agent that evolves with you.**  
