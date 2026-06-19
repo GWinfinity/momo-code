@@ -223,7 +223,8 @@ check_version() {
 download_with_progress() {
     local url="$1"
     local output="$2"
-    curl -# -L -o "$output" "$url" 2>&1
+    # --max-time 60: fail fast if download hangs, triggers source fallback
+    curl --max-time 60 -# -L -o "$output" "$url" 2>&1
 }
 
 download_and_install() {
@@ -281,9 +282,17 @@ install_from_source() {
     print_message info "${MUTED}Installing dependencies (this may take a minute)...${NC}"
     cd "$src_dir/packages/opencode"
 
-    if ! npm install --production 2>&1 | tail -3; then
+
+    # Install ALL dependencies (including devDependencies) — build needs TypeScript
+    if ! npm install 2>&1 | tail -5; then
         print_message error "${RED}Failed to install dependencies. Is Node.js >= 20 installed?${NC}"
         print_message info "${MUTED}Install Node.js from https://nodejs.org${NC}"
+        exit 1
+    fi
+    # Build: compiles TypeScript + fixes ESM imports automatically
+    print_message info "${MUTED}Building from source...${NC}"
+    if ! npm run build 2>&1 | tail -5; then
+        print_message error "${RED}Build failed. Please check the error messages above.${NC}"
         exit 1
     fi
 
