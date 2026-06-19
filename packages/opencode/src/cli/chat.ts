@@ -329,7 +329,7 @@ export async function runChat(prompt: string): Promise<number> {
     console.error(`  export MOMO_PROVIDER=minimax`)
     console.error(`\nSupported providers: openai, anthropic, google, openrouter,`)
     console.error(`  minimax, zhipu, moonshot, doubao, stepfun, alibaba, ...`)
-    console.error(`\nDocs: https://momozi.cc`)
+    console.error(`\nDocs: https://momozi.co`)
     return 1
   }
 
