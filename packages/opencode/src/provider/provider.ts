@@ -663,7 +663,7 @@ export const PROVIDER_FACTORIES: Record<string, ProviderFactory> = {
     defaultModel: "meta/llama-3.1-70b-instruct",
     timeout: 120_000,
     headers: {
-      "HTTP-Referer": "https://momozi.cc/",
+      "HTTP-Referer": "https://momozi.co/",
       "X-Title": "momo",
     },
   }),
@@ -777,7 +777,7 @@ export const PROVIDER_FACTORIES: Record<string, ProviderFactory> = {
     defaultModel: "anthropic/claude-sonnet-4",
     timeout: 180_000,
     headers: {
-      "HTTP-Referer": "https://momozi.cc/",
+      "HTTP-Referer": "https://momozi.co/",
       "X-Title": "momo",
       "X-OpenRouter-Categories": "programming,programming-app,cli-agent",
     },
@@ -788,11 +788,11 @@ export const PROVIDER_FACTORIES: Record<string, ProviderFactory> = {
    * Injected with momo brand headers for routing and analytics.
    */
   llmgateway: () => ({
-    baseUrl: process.env.MOMO_LLMGATEWAY_URL || "https://gateway.momozi.cc/v1",
+    baseUrl: process.env.MOMO_LLMGATEWAY_URL || "https://gateway.momozi.co/v1",
     defaultModel: "momo-coder-pro",
     timeout: DEFAULT_CHUNK_TIMEOUT,
     headers: {
-      "HTTP-Referer": "https://momozi.cc/",
+      "HTTP-Referer": "https://momozi.co/",
       "X-Title": "momo",
       "X-Source": "momo",
     },
@@ -807,7 +807,7 @@ export const PROVIDER_FACTORIES: Record<string, ProviderFactory> = {
     defaultModel: "gpt-4.1",
     timeout: 120_000,
     headers: {
-      "HTTP-Referer": "https://momozi.cc/",
+      "HTTP-Referer": "https://momozi.co/",
       "X-Title": "momo",
     },
   }),
