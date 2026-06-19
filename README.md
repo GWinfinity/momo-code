@@ -13,41 +13,36 @@
 
 # MOMO CODE 🔥v1.0.0
 
-
-<!-- ========== 新增顶部导航组件 开始 ========== -->
 <div align="center">
-<!-- 状态徽章组件（标准开源项目润色小组件） -->
+<p>
 [![Release](https://img.shields.io/github/v/release/momozi1996/momo-code?label=Release&color=orange)](https://github.com/momozi1996/momo-code/releases)
 [![Stars](https://img.shields.io/github/stars/momozi1996/momo-code?style=flat)](https://github.com/momozi1996/momo-code/stargazers)
 [![Forks](https://img.shields.io/github/forks/momozi1996/momo-code)](https://github.com/momozi1996/momo-code/forks)
 [![License](https://img.shields.io/github/license/momozi1996/momo-code)](./LICENSE)
-
+</p>
+<p>
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)](https://www.typescriptlang.org/)
 [![NPM Version](https://img.shields.io/npm/v/@momo/cli)](https://www.npmjs.com/package/@momo/cli)
+</p>
 
-<br/>
+<br>
 
-<!-- 图标导航链接，预留可修改URL占位 -->
+<p>
 <a href="##Website##" target="_blank">
-  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/web.svg" width="24" alt="Official Website">
+  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/web.svg" width="24" alt="官方网站">
 </a>
-<span>&nbsp;&nbsp;</span>
+ 
 <a href="##Huggingface##" target="_blank">
   <img src="https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/huggingface.svg" width="24" alt="Hugging Face">
 </a>
-<span>&nbsp;&nbsp;</span>
-<a href="./README_zh.md" target="_self">
-  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/translate.svg" width="24" alt="Switch to Chinese">
+ 
+<a href="./README.md">
+  <img src="https://github.com/momozi1996/momo-code/blob/main/README_zh.md" width="24" alt="切换英文">
 </a>
-
-<p style="margin-top:8px;">
-  <a href="##Website##">Official Website</a> · 
-  <a href="##Huggingface##">Hugging Face</a> · 
-  <a href="./README_zh.md">中文文档</a>
 </p>
 </div>
-<!-- ========== 新增顶部导航组件 结束 ========== -->
 
+<br>
 
 
 > **AI-powered coding agent that evolves with you.**  
