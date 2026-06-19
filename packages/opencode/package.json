@@ -46,13 +46,14 @@
   "files": [
     "bin/",
     "dist/",
+    "scripts/",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "npx tsx --test src/test/tactic.test.ts src/test/provider.test.ts",
-    "build": "tsc",
+    "build": "tsc && node scripts/fix-esm.mjs",
     "dev": "tsc --watch",
     "lint": "echo 'oxlint not installed'",
     "start": "node bin/momo",
