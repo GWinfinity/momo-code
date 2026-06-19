@@ -14,20 +14,12 @@
 # MOMO CODE 🔥v1.0.0
 
 <div align="center">
-<p>
-[![Release](https://img.shields.io/github/v/release/momozi1996/momo-code?label=Release&color=orange)](https://github.com/momozi1996/momo-code/releases)
-[![Stars](https://img.shields.io/github/stars/momozi1996/momo-code?style=flat)](https://github.com/momozi1996/momo-code/stargazers)
-[![Forks](https://img.shields.io/github/forks/momozi1996/momo-code)](https://github.com/momozi1996/momo-code/forks)
-[![License](https://img.shields.io/github/license/momozi1996/momo-code)](./LICENSE)
-</p>
-
-</p>
 
 <br>
 
 <p>
 <a href="##Website##" target="_blank">
-  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/web.svg" width="24" alt="官方网站">
+  <img src="https://momozi.cc/" width="24" alt="官方网站">
 </a>
  
 <a href="##Huggingface##" target="_blank">
@@ -35,7 +27,7 @@
 </a>
  
 <a href="./README.md">
-  <img src="https://github.com/momozi1996/momo-code/blob/main/README_zh.md" width="24" alt="切换英文">
+  <img src="https://github.com/momozi1996/momo-code/blob/main/README_zh.md" width="24" alt="切换中文">
 </a>
 </p>
 </div>
