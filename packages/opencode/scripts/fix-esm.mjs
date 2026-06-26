@@ -7,7 +7,8 @@
  *   2. Missing .js extensions on relative imports
  */
 
-import { readdir, readFile, writeFile } from "fs/promises" import { statSync } from "fs"
+import { readdir, readFile, writeFile } from "fs/promises" 
+import { statSync } from "fs"
 import { join, relative, dirname, extname } from "path"
 import { fileURLToPath } from "url"
 
