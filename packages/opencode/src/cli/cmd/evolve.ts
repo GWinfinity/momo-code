@@ -691,26 +691,39 @@ export async function runEvolveCommand(args: string[]): Promise<void> {
     return
   }
 
-  // ---- Default: full evolution loop with minimal signals --------------------
-  const signals = [SignalScorer.fromExitCode(0, "bash"), SignalScorer.fromEdit(true)]
-  const evolveProgram = Evolve({
-    sessionId: opts.sessionId,
-    signals,
-    mode: (opts.mode as any) || "balanced",
-  }).pipe(
-    Effect.provide(ExperienceStoreLive),
-    Effect.provide(DistillerLive),
-    Effect.provide(CollectorLive),
-    Effect.provide(GateLive),
-    Effect.provide(BridgeLive),
-    Effect.provide(ExperienceGuardLive),
-  )
+   // ---- Default: no input source given — show what to do ---------------------
+  if (!opts.json) {
+    console.log(`
+\x1b[1;36m🧬 momo /evolve\x1b[0m
 
-  const result = await Effect.runPromise(
-    opts.quiet ? applyQuiet(evolveProgram) : evolveProgram,
-  )
-  console.log(buildEvolveOutput(
-    { sessionId: opts.sessionId, mode: (opts.mode as any) || "balanced", tacticsCreated: result.tacticsCreated, promoted: result.promoted, verdict: result.verdict },
-    opts.json,
-  ))
+  No signal source specified. Pick one of:
+
+  \x1b[36mmomo /evolve --demo\x1b[0m
+      Run with 9 synthetic signals (6 pass + 3 fail) — best for first-time smoke test.
+
+  \x1b[36mmomo /evolve --auto\x1b[0m
+      Auto-detect signals from the current directory (git status, package.json).
+
+  \x1b[36mmomo /evolve --signals path.jsonl\x1b[0m
+      Load signals from a JSONL file (one Signal object per line).
+
+  \x1b[36mmomo /evolve --observe test-pass:bash --observe edit-accepted::src/x.ts\x1b[0m
+      Inline signal spec(s); repeat --observe to add more.
+
+  \x1b[36mmomo /evolve --list\x1b[0m
+      Print the current tactic library and Bayesian stats.
+
+  See \x1b[36mmomo /evolve --help\x1b[0m for all options.
+`)
+    return
+  }
+
+  // JSON consumers still get a structured no-op result
+  console.log(JSON.stringify({
+    sessionId: opts.sessionId,
+    tacticsCreated: 0,
+    promoted: 0,
+    verdict: "no-input",
+    hint: "Use --demo, --auto, --signals, or --observe to provide signal input.",
+  }))
 }
