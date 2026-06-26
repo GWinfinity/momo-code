@@ -224,7 +224,7 @@ download_with_progress() {
     local url="$1"
     local output="$2"
     # --max-time 60: fail fast if download hangs, triggers source fallback
-    curl --max-time 60 -# -L -o "$output" "$url" 2>&1
+    curl --max-time 60 -s -L -o "$output" "$url" 2>/dev/null
 }
 
 download_and_install() {
