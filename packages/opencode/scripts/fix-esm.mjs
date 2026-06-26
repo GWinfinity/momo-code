@@ -7,7 +7,7 @@
  *   2. Missing .js extensions on relative imports
  */
 
-import { readdir, readFile, writeFile, stat } from "fs/promises"
+import { readdir, readFile, writeFile } from "fs/promises" import { statSync } from "fs"
 import { join, relative, dirname, extname } from "path"
 import { fileURLToPath } from "url"
 
@@ -41,17 +41,19 @@ function relativeImportPath(fromFile, toFile) {
 }
 
 /** Resolve a logical import path to a physical dist/ file path */
-async function resolveImport(sourceFile, importPath) {
+function resolveImport(sourceFile, importPath) {
   const sourceDir = dirname(sourceFile)
   if (importPath.startsWith("@/")) {
     const subPath = importPath.slice(2)
-    const candidate = join(DIST_DIR, subPath)
+    const candidate = join(DIST_DIR, subPath + ".js")
     try {
-      const s = await stat(candidate)
+      const s = statSync(candidate)
       if (s.isFile()) return candidate
-      const indexCandidate = join(candidate, "index.js")
-      const s2 = await stat(indexCandidate)
-      if (s2.isFile()) return indexCandidate
+    } catch { /* try index */ }
+    const indexCandidate = join(DIST_DIR, subPath, "index.js")
+    try {
+      const s = statSync(indexCandidate)
+      if (s.isFile()) return indexCandidate
     } catch { /* not found */ }
     return null
   }
@@ -64,7 +66,7 @@ async function resolveImport(sourceFile, importPath) {
     ]
     for (const c of candidates) {
       try {
-        const s = await stat(c)
+        const s = statSync(c)
         if (s.isFile()) return c
       } catch { /* not found */ }
     }
@@ -76,7 +78,7 @@ async function resolveImport(sourceFile, importPath) {
 async function fixFile(filePath) {
   const content = await readFile(filePath, "utf-8")
   let changed = false
-  const regex = /((?:import|export)\s+.*?\s+from\s+|}]\s*from\s+)["']([^"']+)["']/g
+  const regex = /((?:import|export)\s+.*?\s+from\s+|\}\s*from\s+)["']([^"']+)["']/g
   const newContent = content.replace(regex, (match, prefix, importPath) => {
     if (!importPath.startsWith(".") && !importPath.startsWith("@/")) {
       return match
@@ -92,11 +94,6 @@ async function fixFile(filePath) {
     changed = true
     return `${prefix}"${newPath}"`
   })
-  if (changed) {
-    await writeFile(filePath, newContent, "utf-8")
-    const relPath = relative(DIST_DIR, filePath)
-    console.log(`  ✓ ${relPath}`)
-  }
 }
 
 console.log("🔧 Fixing ESM imports in dist/...")
