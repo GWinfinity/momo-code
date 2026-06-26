@@ -284,15 +284,22 @@ install_from_source() {
 
 
     # Install ALL dependencies (including devDependencies) — build needs TypeScript
-    if ! npm install 2>&1 | tail -5; then
-        print_message error "${RED}Failed to install dependencies. Is Node.js >= 20 installed?${NC}"
-        print_message info "${MUTED}Install Node.js from https://nodejs.org${NC}"
+       # Install ALL dependencies (including devDependencies) — build needs TypeScript
+    print_message info "${MUTED}Installing dependencies (this may take a minute)...${NC}"
+    if ! npm install >> /tmp/momo-install.log 2>&1; then
+        print_message error "${RED}Failed to install dependencies. Last 20 lines:${NC}"
+        tail -20 /tmp/momo-install.log
+        print_message info "${MUTED}Full log: /tmp/momo-install.log${NC}"
+        print_message info "${MUTED}Install Node.js >= 20 from https://nodejs.org${NC}"
         exit 1
     fi
+
     # Build: compiles TypeScript + fixes ESM imports automatically
     print_message info "${MUTED}Building from source...${NC}"
-    if ! npm run build 2>&1 | tail -5; then
-        print_message error "${RED}Build failed. Please check the error messages above.${NC}"
+    if ! npm run build >> /tmp/momo-install.log 2>&1; then
+        print_message error "${RED}Build failed. Last 20 lines:${NC}"
+        tail -20 /tmp/momo-install.log
+        print_message info "${MUTED}Full log: /tmp/momo-install.log${NC}"
         exit 1
     fi
 
