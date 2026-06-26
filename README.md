@@ -72,35 +72,71 @@
 - **Local-first** — Your code never leaves your machine. Open source, auditable
 - **Effect-powered** — Built with Effect for composable, type-safe code
 
+
 ## Installation
 
 ### Prerequisites
 
-- **Node.js** >= 20.0.0
-- **npm** >= 10.0
+- **macOS** or **Linux** (Windows via WSL)
+- **Node.js** ≥ 20.0.0 — install from https://nodejs.org if you don't have it
+- **git** and **curl**
 
-### From npm （暂不支持，先使用git clone或者curl）
+Check with:
 
-```bash
-npm install -g @momo/cli
-```
+\`\`\`bash
+node -v   # should print v20.x or later
+npm -v
+git --version
+curl --version
+\`\`\`
 
-### From source
+### Quick install (recommended)
 
-```bash
+\`\`\`bash
+curl -fsSL https://momozi.cc/install | bash
+\`\`\`
+
+The installer:
+1. Clones the repo into \`~/.momo/lib/momo-code\`
+2. Runs \`npm install\` + \`npm run build\` (about 30-60 s)
+3. Drops a wrapper at \`~/.momo/bin/momo\`
+4. Appends \`~/.momo/bin\` to your PATH in \`~/.zshrc\` or \`~/.bashrc\`
+
+**Open a new terminal** (or run \`source ~/.zshrc\`) and then:
+
+\`\`\`bash
+momo --version    # 1.0.0
+momo --help
+\`\`\`
+
+If you see \`command not found: momo\`, your PATH didn't pick up the change — see [INSTALL.md](./INSTALL.md#troubleshooting).
+
+### From source (manual)
+
+\`\`\`bash
 git clone https://github.com/momozi1996/momo-code.git
 cd momo-code/packages/opencode
-npm install
-npm run build
-```
+npm install                # installs all deps including TypeScript
+npm run build              # compiles TS + fixes ESM imports
+node bin/momo --version
+\`\`\`
 
-### Quick install (macOS/Linux)
+### From npm
 
-```bash
-curl -fsSL https://momocode.cc/install | bash
-```
+> npm package coming in v1.1. Use the **Quick install** above for v1.0.
 
-## Quick Start
+### Uninstall
+
+\`\`\`bash
+# Remove install artifacts
+rm -rf ~/.momo
+
+# Remove the PATH line from your shell rc
+sed -i.bak '/# momo Code CLI/,+1d' ~/.zshrc    # zsh
+sed -i.bak '/# momo Code CLI/,+1d' ~/.bashrc   # bash
+\`\`\`
+
+
 
 ### 1. Set up API key
 
