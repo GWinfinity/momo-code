@@ -7,17 +7,14 @@
   "type": "module",
   "scripts": {
     "dev": "cd packages/opencode && npm run dev",
-    "dev:web": "cd packages/app && npm run dev",
     "typecheck": "cd packages/opencode && npm run typecheck",
     "lint": "cd packages/opencode && npm run lint",
     "test": "cd packages/opencode && npm test",
-    "build": "cd packages/opencode && npm run build",
-    "postinstall": "cd packages/opencode && npm install",
-    "prepare": "husky"
+    "build": "cd packages/opencode && npm run build"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/momo-team/momo-code"
+    "url": "https://github.com/momozi1996/momo-code"
   },
   "license": "MIT",
   "prettier": {
