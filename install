@@ -283,8 +283,7 @@ install_from_source() {
     cd "$src_dir/packages/opencode"
 
 
-    # Install ALL dependencies (including devDependencies) — build needs TypeScript
-       # Install ALL dependencies (including devDependencies) — build needs TypeScript
+   # Install ALL dependencies (including devDependencies) — build needs TypeScript
     print_message info "${MUTED}Installing dependencies (this may take a minute)...${NC}"
     if ! npm install >> /tmp/momo-install.log 2>&1; then
         print_message error "${RED}Failed to install dependencies. Last 20 lines:${NC}"
