@@ -5,3 +5,6 @@ packages/opencode/dist/
 .env
 .env.local
 *.log
+packages/opencode/.test-momo/
+packages/opencode/coverage/
+*.exe

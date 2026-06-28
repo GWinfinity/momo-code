@@ -52,7 +52,7 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "npx tsx --test src/test/tactic.test.ts src/test/provider.test.ts",
+    "test": "npx tsx --test src/test/*.test.ts",
     "build": "tsc && node scripts/fix-esm.mjs",
     "dev": "tsc --watch",
     "lint": "echo 'oxlint not installed'",
