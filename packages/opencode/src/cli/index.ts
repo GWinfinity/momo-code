@@ -19,8 +19,28 @@ const RESET = "\x1b[0m"
 export async function runCli(argv: string[]): Promise<void> {
   if (argv.length === 0) { showHelp(); return }
 
-  const cmd = argv[0]
-  const args = argv.slice(1)
+// Parse --model / --provider / -m / -p options
+  let parsedModel: string | undefined
+  let parsedProvider: string | undefined
+  const remaining: string[] = []
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if ((arg === "--model" || arg === "-m") && i + 1 < argv.length) {
+      parsedModel = argv[++i]
+    } else if ((arg === "--provider" || arg === "-p") && i + 1 < argv.length) {
+      parsedProvider = argv[++i]
+    } else {
+      remaining.push(arg)
+    }
+  }
+
+  // Apply parsed options to environment variables for downstream consumption
+  if (parsedModel) process.env.MOMO_MODEL = parsedModel
+  if (parsedProvider) process.env.MOMO_PROVIDER = parsedProvider
+
+  const cmd = remaining[0]
+  const args = remaining.slice(1)
 
   switch (cmd) {
     case "/evolve":
@@ -37,15 +57,18 @@ export async function runCli(argv: string[]): Promise<void> {
       await Effect.runPromise(
         runModelsCommand(args).pipe(
           Effect.provide(AuthLive),
-          Effect.catchAll(() => Effect.void),
+          Effect.catchAll((err) => Effect.sync(() => {
+            console.error("Error:", err instanceof Error ? err.message : String(err))
+            process.exit(1)
+          })),
         ),
       )
       break
     default:
-      // Treat all arguments as a coding prompt
       const prompt = [cmd, ...args].join(" ")
       const code = await runChat(prompt)
-      process.exit(code)
+      if (code !== 0) process.exit(code)
+      return
   }
 }
 
