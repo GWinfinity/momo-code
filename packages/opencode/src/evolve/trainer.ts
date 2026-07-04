@@ -194,7 +194,7 @@ function launchTinker(
     return {
       id: jobId,
       modelId,
-      status: "running" as const,
+      status: "completed" as const,
       datasetSize: dataset.length,
       hparams,
       startedAt: new Date(),
@@ -236,7 +236,7 @@ function launchFelix(
     return {
       id: jobId,
       modelId,
-      status: "running" as const,
+      status: "completed" as const,
       datasetSize: dataset.length,
       hparams,
       startedAt: new Date(),
@@ -292,7 +292,7 @@ function launchLocal(
     return {
       id: jobId,
       modelId,
-      status: "running" as const,
+      status: "completed" as const,
       datasetSize: dataset.length,
       hparams,
       startedAt: new Date(),
