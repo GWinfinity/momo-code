@@ -237,6 +237,11 @@ export class Selector extends Effect.Service<Selector>()(
           const candidates: Tactic[] = []
 
           for (const tactic of allTactics) {
+            // Filter by status: only active or promoted tactics
+            if (tactic.status !== "active" && tactic.status !== "promoted") {
+              continue
+            }
+
             // Filter by minimum win rate
             const wr = winRate(tactic.stats)
             if (wr < (mergedOpts.minWinRate ?? 0)) {
