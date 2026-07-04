@@ -118,8 +118,22 @@ export class Distiller extends Effect.Service<Distiller>()("experience/Distiller
             if (useDedup) {
               const existingTac = findExisting(draft, existing)
               if (existingTac) {
-                // Dedup hit — just update stats in memory
+                // Dedup hit — update existing tactic stats with new evidence
                 dedupHitCount++
+                const idx = (existing as Tactic[]).indexOf(existingTac)
+                if (idx !== -1) {
+                  (existing as Tactic[])[idx] = {
+                    ...existingTac,
+                    stats: {
+                      ...existingTac.stats,
+                      wins: existingTac.stats.wins + draft.stats.wins,
+                      uses: existingTac.stats.uses + draft.stats.uses,
+                      alpha: existingTac.stats.alpha + Math.max(0, draft.stats.alpha - 1),
+                      beta: existingTac.stats.beta + Math.max(0, draft.stats.beta - 1),
+                      lastUsed: new Date().toISOString(),
+                    },
+                  }
+                }
                 continue
               }
             }
