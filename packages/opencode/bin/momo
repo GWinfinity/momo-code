@@ -144,7 +144,9 @@ if (isNodeCommand(argv)) {
     .then(({ runCli }) => runCli(argv))
     .catch((err) => {
       if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
-        console.error("\x1b[31mError:\x1b[0m Build output not found. Run `npm run build` first.")
+        console.error("\x1b[31mError:\x1b[0m Build output not found or ESM import broken.")
+        console.error("Original error:", err.message)
+        console.error("Try: npm run build")
       } else {
         console.error(`\x1b[31mError:\x1b[0m ${err.message}`)
         if (err.stack) console.error(err.stack)
@@ -161,8 +163,10 @@ if (isNodeCommand(argv)) {
       .then(({ runCli }) => runCli(argv))
       .catch((err) => {
         if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
-          console.error("\x1b[31mError:\x1b[0m Build output not found. Run `npm run build` first.")
-        } else {
+        console.error("\x1b[31mError:\x1b[0m Build output not found or ESM import broken.")
+        console.error("Original error:", err.message)
+        console.error("Try: npm run build")
+      } else {
           console.error(`\x1b[31mError:\x1b[0m ${err.message}`)
           if (err.stack) console.error(err.stack)
         }
