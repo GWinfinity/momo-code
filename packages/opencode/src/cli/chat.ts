@@ -12,6 +12,14 @@
 // Types
 // ---------------------------------------------------------------------------
 
+import { Effect } from "effect"
+import {
+  InjectForTask,
+  SelectorLive,
+  InjectorLive,
+  ExperienceStoreLive,
+} from "../experience/index.js"
+
 interface ChatMessage {
   role: "system" | "user" | "assistant"
   content: string
@@ -218,10 +226,21 @@ export function resolveProviderFromEnv(): {
   // Use factory to get defaults
   const factory = getFactoryConfig(provider)
 
+// Resolve model, handling tier names (ultra/standard/lite)
+  let resolvedModel = modelFromEnv || factory.defaultModel || "gpt-4"
+  const tierModels: Record<string, string> = {
+    ultra: "claude-sonnet-4-20250514",
+    standard: "gpt-4.1",
+    lite: "gpt-4.1-mini",
+  }
+  if (resolvedModel && tierModels[resolvedModel.toLowerCase()]) {
+    resolvedModel = tierModels[resolvedModel.toLowerCase()]
+  }
+
   return {
     baseUrl: baseUrlFromEnv || factory.baseUrl || "",
     apiKey,
-    model: modelFromEnv || factory.defaultModel || "gpt-4",
+    model: resolvedModel,
     providerName: provider,
   }
 }
@@ -348,12 +367,33 @@ export async function runChat(prompt: string): Promise<number> {
   console.error(``)
 
   try {
+    // Resolve system prompt with tactic injection
+    let systemPrompt = DEFAULT_SYSTEM_PROMPT
+    try {
+      const result = await Effect.runPromise(
+        InjectForTask({
+          id: `chat_${Date.now()}`,
+          description: prompt,
+          signals: [],
+        }).pipe(
+          Effect.provide(SelectorLive),
+          Effect.provide(InjectorLive),
+          Effect.provide(ExperienceStoreLive),
+        ),
+      )
+      if (result.block && result.block.length > 0) {
+        systemPrompt = DEFAULT_SYSTEM_PROMPT + "\n\n---\n\n" + result.block
+      }
+    } catch {
+      // Tactic injection failed, use default prompt
+    }
+
     // Call the model
     const response = await chatComplete({
       baseUrl: config.baseUrl,
       apiKey: config.apiKey,
       model: config.model,
-      system: DEFAULT_SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: "user", content: prompt }],
       stream: true,
       temperature: 0.7,
