@@ -309,8 +309,10 @@ function generateCurriculum(tactics: Tactic[], _runDir: string): CurriculumEntry
 	for (const t of goldTactics) {
 		entries.push({
 			context: t.title,
-			action: t.steps.join("; "),
-			expected: t.steps.join("; "),
+			action: `Apply tactic "${t.title}"`,
+			expected: `Steps: ${t.steps.join("; ")}. ` +
+					`Preconditions: ${t.preconditions?.join(", ") || "none"}. ` +
+					`Verification: ${t.checks?.join(", ") || "none"}`,
 			category: "gold",
 			tacticId: t.id,
 		})
@@ -323,8 +325,10 @@ function generateCurriculum(tactics: Tactic[], _runDir: string): CurriculumEntry
 	for (const t of replayTactics) {
 		entries.push({
 			context: t.title,
-			action: t.steps.join("; "),
-			expected: t.steps.join("; "),
+			action: `Apply tactic "${t.title}"`,
+			expected: `Steps: ${t.steps.join("; ")}. ` +
+					`Preconditions: ${t.preconditions?.join(", ") || "none"}. ` +
+					`Verification: ${t.checks?.join(", ") || "none"}`,
 			category: "replay",
 			tacticId: t.id,
 		})
@@ -465,7 +469,7 @@ function ratchetCheck(
 	for (const [taskId, baseScore] of Object.entries(baseline.perTask)) {
 		const candScore = candidate.perTask[taskId]
 		if (baseScore !== undefined && candScore !== undefined) {
-			if (baseScore >= 0.5 && candScore < 0.5) {
+			if ((baseScore - candScore) > 0.05) {
 				regressions.push(taskId)
 			}
 		}
@@ -533,8 +537,15 @@ function doPromote(runId: string): void {
 	const backupPath = path.join(runDir, "tactics.production.backup.json")
 
 	if (!fs.existsSync(candidatePath)) {
-		console.log("❌ No candidate found. Run /fine-tune run first.")
+		console.error(`Candidate file not found: ${candidatePath}`)
 		return
+	}
+
+	// Validate candidate file before promoting
+	const candidate = JSON.parse(fs.readFileSync(candidatePath, "utf-8"))
+	if (!candidate || !Array.isArray(candidate.tactics)) {
+		console.error("Invalid candidate file. Aborting promote.")
+		process.exit(1)
 	}
 
 	// 1. Backup current tactics
