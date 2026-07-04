@@ -18,11 +18,11 @@
 <br>
 
 <p>
-<a href="##Website##" target="_blank">
-  <img src="https://momozi.cc/" width="24" alt="官方网站">
+<a href="https://momozi.cc" target="_blank">
+  <img src="https://momozi.cc/favicon.ico" width="24" alt="官方网站">
 </a>
  
-<a href="##Huggingface##" target="_blank">
+<a href="https://huggingface.co/momozi" target="_blank">
   <img src="https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/huggingface.svg" width="24" alt="Hugging Face">
 </a>
  
@@ -63,7 +63,7 @@
 
 ## Features
 
-- **25+ LLM Providers** — Deepseek, Zhipu (GLM), Moonshot (Kimi), Claude, GPT-4, Gemini, Doubao, OpenRouter, Groq, Mistral, and more
+- **25+ LLM Providers** — Deepseek, Zhipu (GLM), Moonshot (Kimi), Claude, GPT-4, Gemini, Doubao, OpenRouter, Groq, Mistral, and more. The \chat` command uses OpenAI-compatible protocol only`
 - **Custom Provider** — Plug in any OpenAI-compatible API with `MOMO_CUSTOM_*` env vars
 - **Model Tiers** — Zero-config selection: `ultra` / `standard` / `lite`
 - **Experience Fast Loop (`/evolve`)** — Second-level prompt injection via KEP protocol. Tactics distilled from success are auto-selected via Thompson sampling
@@ -173,7 +173,7 @@ On first run, momo creates `~/.momo/`:
 ├── momo.jsonc          # Config
 ├── sessions/           # History
 ├── experience/         # Learned tactics (auto-created)
-│   ├── tactics.jsonl
+│   ├── tactics.json
 │   └── ledger.jsonl
 └── ...
 ```
@@ -205,7 +205,7 @@ Options:
 ### Coding Session
 
 ```bash
-momo                     # Interactive mode
+momo                     # Show help and banner
 momo "prompt"            # One-shot task
 momo --model claude-sonnet-4 "task"
 ```
