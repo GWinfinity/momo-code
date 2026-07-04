@@ -98,6 +98,7 @@ async function fixFile(filePath) {
     if (changed) {
     await writeFile(filePath, newContent, "utf-8")
 }
+}
 
 console.log("🔧 Fixing ESM imports in dist/...")
 let count = 0
