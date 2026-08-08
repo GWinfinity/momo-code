@@ -14,6 +14,7 @@ import { runGoalCommand } from "./cmd/goal.js"
 import { runScheduleCommand } from "./cmd/schedule.js"
 import { runHeartbeatCommand } from "./cmd/heartbeat.js"
 import { runDaemonCommand } from "./cmd/daemon.js"
+import { runSimCommand } from "./cmd/sim.js"
 import { runChat } from "./chat.js"
 
 const require = createRequire(import.meta.url)
@@ -89,6 +90,10 @@ export async function runCli(argv: string[]): Promise<void> {
     case "/daemon":
     case "daemon":
       await runDaemonCommand(args)
+      break
+    case "/sim":
+    case "sim":
+      await runSimCommand(args)
       break
     case "models":
       await Effect.runPromise(

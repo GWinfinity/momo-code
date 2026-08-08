@@ -147,6 +147,18 @@ export const ENV_NAMES = {
 
   /** Stop the daemon after N hours (default: 24). */
   DAEMON_MAX_HOURS: "MOMO_DAEMON_MAX_HOURS",
+
+  /** Python executable for the Genesis world server. */
+  SIM_PYTHON: "MOMO_SIM_PYTHON",
+
+  /** Override path of the genesis_world server script. */
+  SIM_SERVER: "MOMO_SIM_SERVER",
+
+  /** Max LLM control-loop steps for /sim run (default: 20). */
+  SIM_MAX_STEPS: "MOMO_SIM_MAX_STEPS",
+
+  /** Genesis backend for simulation: cpu or gpu (default: cpu). */
+  SIM_BACKEND: "MOMO_SIM_BACKEND",
 } as const
 
 /**

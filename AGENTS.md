@@ -35,6 +35,8 @@ Bypass only in emergencies: `--no-verify`. Never commit red tests to `main`.
 - `packages/opencode/src/subagent/` -- Process-level RLM subagent spawning & orchestration
 - `packages/opencode/src/goal/` -- Persistent long-term goals (/goal)
 - `packages/opencode/src/schedule/` -- Timed tasks, heartbeat runner (/schedule, /heartbeat, /daemon)
+- `packages/opencode/src/sim/` -- Genesis world bridge + LLM control loop (/sim)
+- `packages/opencode/python/genesis_world/` -- Persistent world server (JSON-RPC) + examples
 - `packages/opencode/src/session/` -- Prompt routing + session trajectory recorder
 - `packages/opencode/src/provider/` -- Model providers
 - `packages/core/` -- Shared utilities and types
@@ -51,3 +53,6 @@ Bypass only in emergencies: `--no-verify`. Never commit red tests to `main`.
 - `MOMO_RLM_BUDGET` -- Max subagents per orchestration (default: 8)
 - `MOMO_DAEMON_INTERVAL` -- Daemon poll interval seconds (default: 60)
 - `MOMO_DAEMON_MAX_RUNS` / `MOMO_DAEMON_MAX_HOURS` -- Daemon budget rails
+- `MOMO_SIM_PYTHON` -- Python executable for the Genesis world server
+- `MOMO_SIM_BACKEND` -- Genesis backend: cpu or gpu (default: cpu)
+- `MOMO_SIM_MAX_STEPS` -- Max /sim control-loop steps (default: 20)

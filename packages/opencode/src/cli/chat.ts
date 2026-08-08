@@ -450,7 +450,7 @@ export async function runChat(prompt: string): Promise<number> {
     })
 
     // Persist trajectory for /refine and signal mining (best-effort)
-    void recordSession({
+    await recordSession({
       provider: config.providerName,
       model: config.model,
       prompt,
@@ -470,7 +470,7 @@ export async function runChat(prompt: string): Promise<number> {
 
     // Persist failed trajectories too — they are the most valuable
     // evidence for /refine proposals.
-    void recordSession({
+    await recordSession({
       provider: config.providerName,
       model: config.model,
       prompt,

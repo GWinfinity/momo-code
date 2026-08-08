@@ -71,6 +71,7 @@
 - **Self-Refinement (`/refine`)** — Reviews session trajectories and proposes small, evidence-based improvements (tactics/prompt patches) that only take effect after human approval
 - **Recursive Subagents (`/agent`)** — RLM-style task decomposition: plan → parallel child processes → synthesis, with depth/budget rails
 - **Long-Running Work (`/goal` + `/heartbeat` + `/daemon`)** — Persistent goals injected into every session, timed tasks, and a daemon loop for multi-hour autonomy
+- **Simulation Agent (`/sim`)** — LLM-driven control of a persistent Genesis physics world: the agent writes Python into a long-lived namespace (RLM-style), with skills-as-code loaded from `~/.momo/sim/skills/`
 - **Claude Code Interop** — Seamless migration, inherits `.claude/` config, MCP servers, prompts
 - **Local-first** — Your code never leaves your machine. Open source, auditable
 - **Effect-powered** — Built with Effect for composable, type-safe code
@@ -276,6 +277,32 @@ Active goals are injected into every chat session. The daemon is a
 foreground process by design — background it with nohup/systemd/Task
 Scheduler. Budget rails: `MOMO_DAEMON_MAX_RUNS`, `MOMO_DAEMON_MAX_HOURS` (24).
 
+### Simulation Agent (`/sim`)
+
+An LLM-driven agent that controls a persistent [Genesis](https://genesis-embodied-ai.github.io/)
+physics world. Requires Python with `genesis-world` installed
+(`pip install genesis-world`).
+
+```bash
+momo /sim doctor                      # Check python/genesis/provider setup
+momo /sim run "Stack the red cube on the blue cube"   # LLM control loop
+momo /sim run "<task>" --steps=40 --viewer            # Budget + live viewer
+momo /sim exec "print(42)"            # One-shot world REPL
+momo /sim exec --file=scene.py        # Run a script in a fresh world
+momo /sim skills                      # List installed world skills
+```
+
+How it works: the CLI spawns a persistent Python process
+(`python/genesis_world/server.py`) holding a Genesis scene. Each loop
+step, the model replies with `{"thought": ..., "code": ...}`; the code
+runs in the persistent world namespace (`gs`, `scene`, `step(n)`, your
+variables survive across steps). Skills are plain `.py` files dropped
+into `~/.momo/sim/skills/` — auto-loaded into every world. Sim runs are
+recorded as trajectories, feeding the `/refine` self-improvement loop.
+
+Env: `MOMO_SIM_PYTHON`, `MOMO_SIM_BACKEND` (cpu/gpu),
+`MOMO_SIM_MAX_STEPS` (20), `MOMO_SIM_SERVER`.
+
 ### Models
 
 ```bash
@@ -412,6 +439,9 @@ export MOMO_ONLY=1
 | `MOMO_RLM_BUDGET` | Max subagents per orchestration (default: 8) |
 | `MOMO_DAEMON_INTERVAL` | Daemon poll seconds (default: 60) |
 | `MOMO_DAEMON_MAX_RUNS` / `MOMO_DAEMON_MAX_HOURS` | Daemon budget rails |
+| `MOMO_SIM_PYTHON` | Python executable for the sim world server |
+| `MOMO_SIM_BACKEND` | Genesis backend: cpu or gpu (default: cpu) |
+| `MOMO_SIM_MAX_STEPS` | Max LLM control-loop steps (default: 20) |
 | `MOMO_EVOLVE_ENABLED` | Enable self-evolution |
 | `MOMO_EVOLVE_BUDGET_USD` | Training budget |
 | `MOMO_ANTHROPIC_API_KEY` | Anthropic key |
