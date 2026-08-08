@@ -72,6 +72,7 @@
 - **Recursive Subagents (`/agent`)** — RLM-style task decomposition: plan → parallel child processes → synthesis, with depth/budget rails
 - **Long-Running Work (`/goal` + `/heartbeat` + `/daemon`)** — Persistent goals injected into every session, timed tasks, and a daemon loop for multi-hour autonomy
 - **Simulation Agent (`/sim`)** — LLM-driven control of a persistent Genesis physics world: the agent writes Python into a long-lived namespace (RLM-style), with skills-as-code loaded from `~/.momo/sim/skills/`
+- **Voice Input (`/voice`)** — Speak your prompt: mic recording (sounddevice) → OpenAI-compatible STT (Whisper/Groq) → coding session
 - **Claude Code Interop** — Seamless migration, inherits `.claude/` config, MCP servers, prompts
 - **Local-first** — Your code never leaves your machine. Open source, auditable
 - **Effect-powered** — Built with Effect for composable, type-safe code
@@ -303,6 +304,26 @@ recorded as trajectories, feeding the `/refine` self-improvement loop.
 Env: `MOMO_SIM_PYTHON`, `MOMO_SIM_BACKEND` (cpu/gpu),
 `MOMO_SIM_MAX_STEPS` (20), `MOMO_SIM_SERVER`.
 
+### Voice Input (`/voice`)
+
+Speak your prompt instead of typing. Requires `pip install sounddevice scipy`
+for recording, and an OpenAI-compatible speech-to-text endpoint.
+
+```bash
+momo /voice                       # Record 5s → transcribe → run as prompt
+momo /voice --seconds=10 --lang=zh
+momo /voice --file=meeting.mp3    # Transcribe an audio file → run
+momo /voice transcribe --file=x.wav  # Print transcription only
+```
+
+```bash
+export MOMO_STT_API_KEY=sk-...       # falls back to MOMO_OPENAI_API_KEY / MOMO_API_KEY
+export MOMO_STT_MODEL=whisper-1      # default
+# Groq (fast, generous free tier):
+export MOMO_STT_BASE_URL=https://api.groq.com/openai/v1
+export MOMO_STT_MODEL=whisper-large-v3
+```
+
 ### Models
 
 ```bash
@@ -442,6 +463,9 @@ export MOMO_ONLY=1
 | `MOMO_SIM_PYTHON` | Python executable for the sim world server |
 | `MOMO_SIM_BACKEND` | Genesis backend: cpu or gpu (default: cpu) |
 | `MOMO_SIM_MAX_STEPS` | Max LLM control-loop steps (default: 20) |
+| `MOMO_STT_API_KEY` | STT key for /voice (OpenAI-compatible) |
+| `MOMO_STT_BASE_URL` / `MOMO_STT_MODEL` | STT endpoint/model (default: OpenAI whisper-1) |
+| `MOMO_VOICE_SECONDS` | Default voice recording length (default: 5) |
 | `MOMO_EVOLVE_ENABLED` | Enable self-evolution |
 | `MOMO_EVOLVE_BUDGET_USD` | Training budget |
 | `MOMO_ANTHROPIC_API_KEY` | Anthropic key |

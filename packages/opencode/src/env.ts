@@ -159,6 +159,21 @@ export const ENV_NAMES = {
 
   /** Genesis backend for simulation: cpu or gpu (default: cpu). */
   SIM_BACKEND: "MOMO_SIM_BACKEND",
+
+  /** Python executable for voice recording. */
+  VOICE_PYTHON: "MOMO_VOICE_PYTHON",
+
+  /** Default voice recording length in seconds (default: 5). */
+  VOICE_SECONDS: "MOMO_VOICE_SECONDS",
+
+  /** STT (speech-to-text) API key for /voice. */
+  STT_API_KEY: "MOMO_STT_API_KEY",
+
+  /** STT base URL (default: https://api.openai.com/v1). */
+  STT_BASE_URL: "MOMO_STT_BASE_URL",
+
+  /** STT model (default: whisper-1). */
+  STT_MODEL: "MOMO_STT_MODEL",
 } as const
 
 /**

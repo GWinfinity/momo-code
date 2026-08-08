@@ -37,6 +37,7 @@ Bypass only in emergencies: `--no-verify`. Never commit red tests to `main`.
 - `packages/opencode/src/schedule/` -- Timed tasks, heartbeat runner (/schedule, /heartbeat, /daemon)
 - `packages/opencode/src/sim/` -- Genesis world bridge + LLM control loop (/sim)
 - `packages/opencode/python/genesis_world/` -- Persistent world server (JSON-RPC) + examples
+- `packages/opencode/src/voice/` + `python/voice/` -- Voice input: recording + STT (/voice)
 - `packages/opencode/src/session/` -- Prompt routing + session trajectory recorder
 - `packages/opencode/src/provider/` -- Model providers
 - `packages/core/` -- Shared utilities and types
@@ -56,3 +57,5 @@ Bypass only in emergencies: `--no-verify`. Never commit red tests to `main`.
 - `MOMO_SIM_PYTHON` -- Python executable for the Genesis world server
 - `MOMO_SIM_BACKEND` -- Genesis backend: cpu or gpu (default: cpu)
 - `MOMO_SIM_MAX_STEPS` -- Max /sim control-loop steps (default: 20)
+- `MOMO_STT_API_KEY` / `MOMO_STT_BASE_URL` / `MOMO_STT_MODEL` -- Speech-to-text for /voice
+- `MOMO_VOICE_SECONDS` -- Default recording length (default: 5)
