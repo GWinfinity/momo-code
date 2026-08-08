@@ -9,6 +9,10 @@ import { Effect } from "effect"
 import fs from "fs"
 import path from "path"
 import os from "os"
+import { fileURLToPath } from "url"
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 /** Name of the momo-specific system prompt file. */
 export const MOMO_PROMPT_FILE = "momo.txt"

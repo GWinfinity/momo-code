@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "momocode",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI-powered coding agent -- momo Code",
   "private": true,
   "type": "module",

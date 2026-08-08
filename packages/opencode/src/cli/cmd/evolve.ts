@@ -213,38 +213,64 @@ function detectSignalsFromCwd(sessionId: string): Signal[] {
     // fs or exec error
   }
 
-  // Check package.json for test script
+ 
+  // Check package.json for test script — actually run tests
   try {
     const pkgPath = path.join(cwd, "package.json")
     if (fs.existsSync(pkgPath)) {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"))
       if (pkg.scripts?.test) {
-        signals.push({
-          sessionId,
-          timestamp: new Date(),
-          type: "test-pass",
-          verdict: "pass",
-          confidence: 0.85,
-          metadata: { toolName: "bash", exitCode: 0, filePath: pkgPath, language: "javascript" },
-        })
+        try {
+          execSync("npm test", { cwd, stdio: "pipe", timeout: 120000 })
+          signals.push({
+            sessionId,
+            timestamp: new Date(),
+            type: "test-pass",
+            verdict: "pass",
+            confidence: 1.0,
+            metadata: { toolName: "bash", exitCode: 0, filePath: pkgPath, language: "javascript" },
+          })
+        } catch {
+          signals.push({
+            sessionId,
+            timestamp: new Date(),
+            type: "test-fail",
+            verdict: "fail",
+            confidence: 1.0,
+            metadata: { toolName: "bash", exitCode: 1, filePath: pkgPath, language: "javascript" },
+          })
+        }
       }
     }
   } catch {
     // ignore
   }
 
-  // Check for tsconfig.json
+
+// Check for TypeScript — actually run type check
   try {
     const tsconfigPath = path.join(cwd, "tsconfig.json")
     if (fs.existsSync(tsconfigPath)) {
-      signals.push({
-        sessionId,
-        timestamp: new Date(),
-        type: "test-pass",
-        verdict: "pass",
-        confidence: 0.8,
-        metadata: { toolName: "tsc", exitCode: 0, filePath: tsconfigPath, language: "typescript" },
-      })
+      try {
+        execSync("npx tsc --noEmit", { cwd, stdio: "pipe", timeout: 120000 })
+        signals.push({
+          sessionId,
+          timestamp: new Date(),
+          type: "test-pass",
+          verdict: "pass",
+          confidence: 1.0,
+          metadata: { toolName: "tsc", exitCode: 0, filePath: tsconfigPath, language: "typescript" },
+        })
+      } catch {
+        signals.push({
+          sessionId,
+          timestamp: new Date(),
+          type: "compile-error",
+          verdict: "fail",
+          confidence: 1.0,
+          metadata: { toolName: "tsc", exitCode: 2, filePath: tsconfigPath, language: "typescript" },
+        })
+      }
     }
   } catch {
     // ignore
