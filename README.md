@@ -68,6 +68,9 @@
 - **Model Tiers** — Zero-config selection: `ultra` / `standard` / `lite`
 - **Experience Fast Loop (`/evolve`)** — Second-level prompt injection via KEP protocol. Tactics distilled from success are auto-selected via Thompson sampling
 - **Self-Evolution Training (`/fine-tune`)** — Hour-level weight improvement via Monte Carlo Graph Search (MCGS) + LoRA
+- **Self-Refinement (`/refine`)** — Reviews session trajectories and proposes small, evidence-based improvements (tactics/prompt patches) that only take effect after human approval
+- **Recursive Subagents (`/agent`)** — RLM-style task decomposition: plan → parallel child processes → synthesis, with depth/budget rails
+- **Long-Running Work (`/goal` + `/heartbeat` + `/daemon`)** — Persistent goals injected into every session, timed tasks, and a daemon loop for multi-hour autonomy
 - **Claude Code Interop** — Seamless migration, inherits `.claude/` config, MCP servers, prompts
 - **Local-first** — Your code never leaves your machine. Open source, auditable
 - **Effect-powered** — Built with Effect for composable, type-safe code
@@ -232,6 +235,47 @@ momo /fine-tune status       # Check training status
 momo /fine-tune promote      # Promote candidate to production
 ```
 
+### Self-Refinement (`/refine`)
+
+Reviews recent session trajectories and proposes small, reviewable
+improvements. Nothing is applied without human approval.
+
+```bash
+momo /refine                 # Generate proposals from recent sessions
+momo /refine list            # List proposals
+momo /refine show <id>       # Inspect evidence + content
+momo /refine approve <id>    # Approve (review gate)
+momo /refine apply <id>      # Apply: tactic → draft, patch → prompt file
+momo /refine reject <id>     # Reject
+```
+
+### Recursive Subagents (`/agent`)
+
+RLM-style recursion: the model decomposes a complex task, subagents run
+as child `momo` processes (parallel where possible), and a synthesizer
+merges results.
+
+```bash
+momo /agent "Refactor the provider layer and update all callers and tests"
+```
+
+Rails: `MOMO_RLM_MAX_DEPTH` (3), `MOMO_RLM_BUDGET` (8), `MOMO_RLM_TIMEOUT_MS` (300000).
+
+### Long-Running Work (`/goal`, `/schedule`, `/heartbeat`, `/daemon`)
+
+```bash
+momo /goal add "Ship v2.0" "with full test coverage"   # Persistent goal
+momo /goal list | log <id> "progress" | done <id>      # Manage goals
+momo /schedule add --every=60m "run tests and report"  # Timed task
+momo /schedule add --at=07:30 "daily standup summary"  # Daily task
+momo /heartbeat            # Run due tasks once
+momo /daemon               # Foreground loop (Ctrl+C to stop)
+```
+
+Active goals are injected into every chat session. The daemon is a
+foreground process by design — background it with nohup/systemd/Task
+Scheduler. Budget rails: `MOMO_DAEMON_MAX_RUNS`, `MOMO_DAEMON_MAX_HOURS` (24).
+
 ### Models
 
 ```bash
@@ -363,6 +407,11 @@ export MOMO_ONLY=1
 | `MOMO_PROVIDER` | Default provider |
 | `MOMO_XP_MODE` | Evolution mode (balanced/explore/harden/convention-only) |
 | `MOMO_XP_DIR` | Experience storage dir |
+| `MOMO_SESSION_RECORD` | Set `false` to disable session trajectory recording |
+| `MOMO_RLM_MAX_DEPTH` | Subagent recursion limit (default: 3) |
+| `MOMO_RLM_BUDGET` | Max subagents per orchestration (default: 8) |
+| `MOMO_DAEMON_INTERVAL` | Daemon poll seconds (default: 60) |
+| `MOMO_DAEMON_MAX_RUNS` / `MOMO_DAEMON_MAX_HOURS` | Daemon budget rails |
 | `MOMO_EVOLVE_ENABLED` | Enable self-evolution |
 | `MOMO_EVOLVE_BUDGET_USD` | Training budget |
 | `MOMO_ANTHROPIC_API_KEY` | Anthropic key |

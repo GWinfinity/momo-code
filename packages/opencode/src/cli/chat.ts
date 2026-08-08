@@ -1,3 +1,10 @@
+import { loadActiveCcSwitchProvider } from "../provider/cc-switch.js"
+import { recordSession } from "../session/recorder.js"
+import { SignalScorer } from "../evolve/signals.js"
+import { getPromptPatchPath } from "../refine/apply.js"
+import { activeGoalsBlock } from "../goal/store.js"
+import * as fs from "fs"
+
 /**
  * MOMO CODE — Core agent chat loop.
  *
@@ -200,13 +207,25 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
  * Resolve provider config from environment variables.
  * Returns null if no credentials found.
  */
-export function resolveProviderFromEnv(): {
+export async function resolveProviderConfig(): Promise<{
   baseUrl: string
   apiKey: string
   model: string
   providerName: string
-} | null {
-  // Generic key + provider
+} | null> {
+  // 1. Try CC Switch active provider first (white-collar zero-config path).
+  const ccProvider = await loadActiveCcSwitchProvider("claude")
+  if (ccProvider) {
+    const factory = getFactoryConfig(ccProvider.providerName)
+    return {
+      baseUrl: ccProvider.baseUrl || factory.baseUrl || "",
+      apiKey: ccProvider.apiKey,
+      model: ccProvider.model || factory.defaultModel || "gpt-4",
+      providerName: ccProvider.providerName,
+    }
+  }
+
+  // 2. Fall back to environment variables.
   const genericKey = process.env.MOMO_API_KEY
   const provider = process.env.MOMO_PROVIDER || "openai"
 
@@ -243,6 +262,11 @@ export function resolveProviderFromEnv(): {
     model: resolvedModel,
     providerName: provider,
   }
+}
+
+/** @deprecated Use resolveProviderConfig() instead. */
+export function resolveProviderFromEnv(): ReturnType<typeof resolveProviderConfig> {
+  return resolveProviderConfig()
 }
 
 /** Get factory defaults for a provider name. */
@@ -332,7 +356,7 @@ Guidelines:
  */
 export async function runChat(prompt: string): Promise<number> {
   // Resolve provider configuration
-  const config = resolveProviderFromEnv()
+  const config = await resolveProviderConfig()
 
   if (!config) {
     console.error(`${RESET}`)
@@ -374,7 +398,9 @@ export async function runChat(prompt: string): Promise<number> {
         InjectForTask({
           id: `chat_${Date.now()}`,
           description: prompt,
-          signals: [],
+          // Synthetic session-start signal so trigger patterns can match
+          // (same convention as `momo /evolve --inject`).
+          signals: [SignalScorer.fromExitCode(0, "bash")],
         }).pipe(
           Effect.provide(SelectorLive),
           Effect.provide(InjectorLive),
@@ -388,7 +414,31 @@ export async function runChat(prompt: string): Promise<number> {
       // Tactic injection failed, use default prompt
     }
 
+    // Inject human-approved /refine prompt patches (persistent self-improvement)
+    try {
+      const patchPath = getPromptPatchPath()
+      if (fs.existsSync(patchPath)) {
+        const patch = fs.readFileSync(patchPath, "utf-8").trim()
+        if (patch) {
+          systemPrompt += "\n\n---\n\n## Refined Behavior (approved patches)\n" + patch
+        }
+      }
+    } catch {
+      // Prompt patch injection is best-effort
+    }
+
+    // Inject active persistent goals (long-term objectives across sessions)
+    try {
+      const goalsBlock = activeGoalsBlock()
+      if (goalsBlock) {
+        systemPrompt += "\n\n---\n\n" + goalsBlock
+      }
+    } catch {
+      // Goal injection is best-effort
+    }
+
     // Call the model
+    const startMs = Date.now()
     const response = await chatComplete({
       baseUrl: config.baseUrl,
       apiKey: config.apiKey,
@@ -399,6 +449,17 @@ export async function runChat(prompt: string): Promise<number> {
       temperature: 0.7,
     })
 
+    // Persist trajectory for /refine and signal mining (best-effort)
+    void recordSession({
+      provider: config.providerName,
+      model: config.model,
+      prompt,
+      response,
+      exitCode: 0,
+      durationMs: Date.now() - startMs,
+      rlmDepth: Number(process.env.MOMO_RLM_DEPTH || 0) || 0,
+    })
+
     console.error(``) // newline after stream
     return 0
   } catch (err) {
@@ -406,6 +467,18 @@ export async function runChat(prompt: string): Promise<number> {
     console.error(
       `${MAGENTA}MOMO CODE${RESET} ${RESET}Error: ${err instanceof Error ? err.message : String(err)}${RESET}`,
     )
+
+    // Persist failed trajectories too — they are the most valuable
+    // evidence for /refine proposals.
+    void recordSession({
+      provider: config.providerName,
+      model: config.model,
+      prompt,
+      response: `ERROR: ${err instanceof Error ? err.message : String(err)}`,
+      exitCode: 1,
+      durationMs: 0,
+      rlmDepth: Number(process.env.MOMO_RLM_DEPTH || 0) || 0,
+    })
 
     // Helpful hints for common errors
     const msg = err instanceof Error ? err.message : ""

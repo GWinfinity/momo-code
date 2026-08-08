@@ -8,6 +8,12 @@ import { printHelp } from "./help.js"
 import { runEvolveCommand } from "./cmd/evolve.js"
 import { runFinetuneCommand } from "./cmd/finetune.js"
 import { runModelsCommand } from "./cmd/models.js"
+import { runRefineCommand } from "./cmd/refine.js"
+import { runAgentCommand } from "./cmd/agent.js"
+import { runGoalCommand } from "./cmd/goal.js"
+import { runScheduleCommand } from "./cmd/schedule.js"
+import { runHeartbeatCommand } from "./cmd/heartbeat.js"
+import { runDaemonCommand } from "./cmd/daemon.js"
 import { runChat } from "./chat.js"
 
 const require = createRequire(import.meta.url)
@@ -59,6 +65,30 @@ export async function runCli(argv: string[]): Promise<void> {
     case "fine-tune":
     case "finetune":
       runFinetuneCommand(args)
+      break
+    case "/refine":
+    case "refine":
+      await runRefineCommand(args)
+      break
+    case "/agent":
+    case "agent":
+      await runAgentCommand(args)
+      break
+    case "/goal":
+    case "goal":
+      runGoalCommand(args)
+      break
+    case "/schedule":
+    case "schedule":
+      runScheduleCommand(args)
+      break
+    case "/heartbeat":
+    case "heartbeat":
+      await runHeartbeatCommand(args)
+      break
+    case "/daemon":
+    case "daemon":
+      await runDaemonCommand(args)
       break
     case "models":
       await Effect.runPromise(

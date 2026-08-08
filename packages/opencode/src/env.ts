@@ -46,6 +46,12 @@ export const ENV_NAMES = {
   /** Disable Claude Code settings inheritance. */
   NO_CLAUDE_SETTINGS: "MOMO_NO_CLAUDE_SETTINGS",
 
+  /** Enable CC Switch provider inheritance. */
+  CC_SWITCH_INHERIT: "MOMO_CC_SWITCH_INHERIT",
+
+  /** Disable CC Switch provider inheritance. */
+  NO_CC_SWITCH: "MOMO_NO_CC_SWITCH",
+
   /** OpenRouter API key. */
   OPENROUTER_API_KEY: "MOMO_OPENROUTER_API_KEY",
 
@@ -117,6 +123,30 @@ export const ENV_NAMES = {
 
   /** Session ID for resuming conversations. */
   SESSION_ID: "MOMO_SESSION_ID",
+
+  /** Disable session trajectory recording when set to 'false'. */
+  SESSION_RECORD: "MOMO_SESSION_RECORD",
+
+  /** Current subagent recursion depth (set automatically). */
+  RLM_DEPTH: "MOMO_RLM_DEPTH",
+
+  /** Maximum subagent recursion depth (default: 3). */
+  RLM_MAX_DEPTH: "MOMO_RLM_MAX_DEPTH",
+
+  /** Maximum subagents per orchestration run (default: 8). */
+  RLM_BUDGET: "MOMO_RLM_BUDGET",
+
+  /** Per-subagent timeout in ms (default: 300000). */
+  RLM_TIMEOUT_MS: "MOMO_RLM_TIMEOUT_MS",
+
+  /** Daemon poll interval in seconds (default: 60). */
+  DAEMON_INTERVAL: "MOMO_DAEMON_INTERVAL",
+
+  /** Stop the daemon after N heartbeat passes. */
+  DAEMON_MAX_RUNS: "MOMO_DAEMON_MAX_RUNS",
+
+  /** Stop the daemon after N hours (default: 24). */
+  DAEMON_MAX_HOURS: "MOMO_DAEMON_MAX_HOURS",
 } as const
 
 /**
