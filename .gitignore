@@ -8,3 +8,4 @@ packages/opencode/dist/
 packages/opencode/.test-momo/
 packages/opencode/coverage/
 *.exe
+__pycache__/

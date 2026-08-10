@@ -14,6 +14,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { SimBridge } from "../../sim/bridge.js"
 import { runSimLoop } from "../../sim/loop.js"
+import { runEval, saveReport, type EvalTask } from "../../sim/eval.js"
 import { recordSession, getMomoHome } from "../../session/recorder.js"
 import { resolveProviderConfig } from "../chat.js"
 
@@ -36,6 +37,7 @@ function printUsage(): void {
   console.log(`  momo /sim exec "<python>" [--file=x.py]   Run code in a fresh world`)
   console.log(`  momo /sim run "<task>" [options]       LLM autonomous control loop`)
   console.log(`  momo /sim skills                       List installed world skills`)
+  console.log(`  momo /sim eval --tasks=x.json [-episodes=N]  Batch evaluation`)
   console.log(``)
   console.log(`Options: --steps=N  --viewer  --backend=cpu|gpu  --file=x.py  --json`)
   console.log(``)
@@ -198,6 +200,61 @@ function simSkills(): void {
   }
 }
 
+async function simEval(args: string[]): Promise<void> {
+  let tasksFile: string | undefined
+  let episodes = 1
+  let json = false
+  for (const a of args) {
+    if (a.startsWith("--tasks=")) tasksFile = a.slice(8)
+    else if (a.startsWith("--episodes=")) episodes = Number(a.slice(11)) || 1
+    else if (a === "--json") json = true
+  }
+  if (!tasksFile || !fs.existsSync(tasksFile)) {
+    console.error(`Usage: momo /sim eval --tasks=<file.json> [--episodes=N] [--json]`)
+    console.error(`tasks file: [{"task": "...", "max_steps": 15}, ...]`)
+    process.exit(1)
+  }
+
+  let tasks: EvalTask[]
+  try {
+    const raw = JSON.parse(fs.readFileSync(tasksFile, "utf-8"))
+    if (!Array.isArray(raw)) throw new Error("expected a JSON array")
+    tasks = raw.filter((t) => t && typeof t.task === "string")
+  } catch (err) {
+    console.error(`Invalid tasks file: ${err instanceof Error ? err.message : err}`)
+    process.exit(1)
+  }
+  if (tasks.length === 0) {
+    console.error(`No valid tasks in ${tasksFile}`)
+    process.exit(1)
+  }
+
+  console.error(
+    `${DIM}→ evaluating ${tasks.length} task(s) × ${episodes} episode(s)…${RESET}`,
+  )
+  const report = await runEval(tasks, episodes, (r) => {
+    if (!json) {
+      const mark = r.success ? `${GREEN}✓` : `${MAGENTA}✗`
+      console.error(
+        `  ${mark}${RESET} [${r.episode}] ${r.task.slice(0, 60)} ${DIM}(${r.steps} steps, ${(r.durationMs / 1000).toFixed(0)}s)${RESET}`,
+      )
+    }
+  })
+
+  const file = saveReport(report)
+  if (json) {
+    console.log(JSON.stringify(report, null, 2))
+    return
+  }
+  const m = report.metrics
+  console.log(``)
+  console.log(`${MAGENTA}Eval report${RESET} — ${DIM}${file}${RESET}`)
+  console.log(`  success rate: ${GREEN}${(m.successRate * 100).toFixed(0)}%${RESET} (${m.successes}/${m.episodes})`)
+  console.log(`  avg steps:    ${m.avgSteps}`)
+  console.log(`  avg duration: ${(m.avgDurationMs / 1000).toFixed(1)}s`)
+  if (m.successRate < 1) process.exit(1)
+}
+
 // ---------------------------------------------------------------------------
 // Entry
 // ---------------------------------------------------------------------------
@@ -239,6 +296,9 @@ export async function runSimCommand(args: string[]): Promise<void> {
     }
     case "skills":
       simSkills()
+      return
+    case "eval":
+      await simEval(args.slice(1))
       return
     default:
       if (sub && !sub.startsWith("--")) {

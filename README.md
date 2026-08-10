@@ -291,6 +291,7 @@ momo /sim run "<task>" --steps=40 --viewer            # Budget + live viewer
 momo /sim exec "print(42)"            # One-shot world REPL
 momo /sim exec --file=scene.py        # Run a script in a fresh world
 momo /sim skills                      # List installed world skills
+momo /sim eval --tasks=tasks.json     # Batch evaluation (fresh world per episode)
 ```
 
 How it works: the CLI spawns a persistent Python process

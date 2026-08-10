@@ -33,6 +33,10 @@ import os
 import sys
 import traceback
 
+# Make the bundled genesis_world runtime package importable from agent code:
+#   from genesis_world import sensors, safety, perception
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 MAX_OUTPUT_CHARS = 16384
 PROTO_PREFIX = "@@RPC@@"
 
@@ -110,10 +114,22 @@ def _load_skills(namespace):
 
 
 def _pristine_namespace():
-    ns = {"WORLD": WORLD, "step": _step, "__name__": "__world__"}
+    ns = {"WORLD": WORLD, "step": _step, "ESTOP": False, "__name__": "__world__"}
     WORLD.clear()
     WORLD.update(ns)
     return WORLD
+
+
+def _inject_world_into_runtime():
+    """Bind runtime modules (sensors/safety/perception) to this WORLD."""
+    for mod_name in ("sensors", "safety", "perception"):
+        try:
+            mod = __import__(f"genesis_world.{mod_name}", fromlist=[mod_name])
+            mod.WORLD = WORLD
+        except ImportError:
+            continue  # module not shipped in this installation
+        except Exception:
+            log(f"warning: failed to inject WORLD into genesis_world.{mod_name}")
 
 
 WORLD.update(_pristine_namespace())
@@ -146,6 +162,8 @@ def m_init(params):
     WORLD.update(_pristine_namespace())
     WORLD["gs"] = gs
     WORLD["scene"] = scene
+
+    _inject_world_into_runtime()
 
     skills = _load_skills(WORLD)
 
@@ -218,6 +236,18 @@ def m_reset(_params):
     return {"reset": True}
 
 
+def m_estop(_params):
+    """Emergency stop: set the ESTOP flag honored by safety.smooth_move."""
+    WORLD["ESTOP"] = True
+    return {"estop": True}
+
+
+def m_resume(_params):
+    """Clear the ESTOP flag (explicit human/agent action required)."""
+    WORLD["ESTOP"] = False
+    return {"estop": False}
+
+
 def m_shutdown(_params):
     send({"id": None, "ok": True, "result": {"bye": True}})
     sys.exit(0)
@@ -230,6 +260,8 @@ METHODS = {
     "eval": m_eval,
     "observe": m_observe,
     "reset": m_reset,
+    "estop": m_estop,
+    "resume": m_resume,
     "shutdown": m_shutdown,
 }
 
