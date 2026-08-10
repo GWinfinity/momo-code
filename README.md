@@ -19,15 +19,15 @@
 
 <p>
 <a href="https://momozi.cc" target="_blank">
-  <img src="https://momozi.cc/favicon.ico" width="24" alt="官方网站">
+  <img src="https://img.shields.io/badge/website-momozi.cc-blue" alt="Website">
 </a>
  
 <a href="https://huggingface.co/momozi" target="_blank">
-  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/huggingface.svg" width="24" alt="Hugging Face">
+  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v12/icons/huggingface.svg" width="24" alt="Hugging Face">
 </a>
  
-<a href="./README.md">
-  <img src="https://github.com/momozi1996/momo-code/blob/main/README_zh.md" width="24" alt="切换中文">
+<a href="./README_zh.md">
+  <img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-orange" alt="中文文档">
 </a>
 </p>
 </div>
@@ -305,6 +305,52 @@ recorded as trajectories, feeding the `/refine` self-improvement loop.
 Env: `MOMO_SIM_PYTHON`, `MOMO_SIM_BACKEND` (cpu/gpu),
 `MOMO_SIM_MAX_STEPS` (20), `MOMO_SIM_SERVER`.
 
+### Reasoning-Driven Optimization (`/optim`)
+
+Parameter tuning driven by **code understanding + explicit reasoning**
+(inspired by [optim-agent](https://optim-agent.github.io/optim-agent/)).
+The agent reads your code first and infers the physical/business meaning of
+every parameter, then proposes configurations with explicit `_reasoning` and
+a `_note` scratchpad fed forward across trials. Invalid proposals degrade to
+random sampling — a flaky agent can never crash a study.
+
+```bash
+momo /optim scan src/serve.py --param=threshold:0.05:0.95   # read code → semantic map
+momo /optim init quality --target=src/serve.py \
+  --param=threshold:0.05:0.95 --param=budget:10:200:int,log \
+  --metric=score --direction=max --cmd="python eval.py --threshold {threshold}"
+momo /optim semantics quality approve     # human review gate
+momo /optim run quality --trials=20       # reasoning-driven loop
+momo /optim history quality               # full reasoning trace
+```
+
+Evaluators: `--cmd` (business command, metric from stdout) or `--sim`
+(experiment in the Genesis world, ESTOP-honored). Studies persist under
+`~/.momo/optim/studies/<name>/` and resume automatically. See
+[docs/optim.md](docs/optim.md).
+
+Env: `MOMO_OPTIM_HISTORY` (5), `MOMO_OPTIM_N_INIT` (2), `MOMO_OPTIM_TIMEOUT` (300).
+
+### Local Server & Dashboard (`serve`)
+
+A zero-dependency local HTTP server that exposes momo's state as a JSON
+API + SSE live feed, with a single-file dashboard (no build step).
+
+```bash
+momo serve                      # http://127.0.0.1:4097 (dashboard at /)
+momo serve --port=8080 --token=s3cret
+```
+
+- API: `GET /api/sessions|goals|schedule`, `GET /api/optim/studies[/:name[/trials]]`,
+  `GET /api/sim/observe`, SSE `GET /api/optim/studies/:name/stream`
+- Actions: `POST /api/optim/studies/:name/run`, `POST /api/sim/estop|resume`, `POST /api/chat`
+- Dashboard tabs: Overview / Sessions / **Optim (live reasoning trace + best-so-far chart)** /
+  Sim (ESTOP control) / Schedule & Goals / Chat
+- Binds loopback by default; non-loopback requires `--token` (Bearer auth,
+  `?token=` fallback for browser EventSource)
+
+Env: `MOMO_SERVE_PORT` (4097), `MOMO_SERVE_HOST` (127.0.0.1), `MOMO_SERVE_TOKEN`.
+
 ### Voice Input (`/voice`)
 
 Speak your prompt instead of typing. Requires `pip install sounddevice scipy`
@@ -339,7 +385,7 @@ momo models providers    # Show available providers
 
 ```jsonc
 {
-  "$schema": "https://momocode.cc/config.json",
+  "$schema": "https://momozi.cc/config.json",
   "model": "standard",
   "provider": "anthropic",
   "inheritClaudeCode": true,

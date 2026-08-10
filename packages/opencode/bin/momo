@@ -16,6 +16,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // ── Built-in commands handled by Node.js ──────────────────────────
 const NODE_COMMANDS = new Set([
   "models",
+  "/optim",
+  "optim",
+  "/serve",
+  "serve",
   "/evolve",
   "/fine-tune",
   "/finetune",

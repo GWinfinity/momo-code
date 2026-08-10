@@ -36,6 +36,8 @@ Bypass only in emergencies: `--no-verify`. Never commit red tests to `main`.
 - `packages/opencode/src/goal/` -- Persistent long-term goals (/goal)
 - `packages/opencode/src/schedule/` -- Timed tasks, heartbeat runner (/schedule, /heartbeat, /daemon)
 - `packages/opencode/src/sim/` -- Genesis world bridge + LLM control loop (/sim)
+- `packages/opencode/src/optim/` -- Reasoning-driven parameter optimization (/optim)
+- `packages/opencode/src/serve/` -- Local HTTP server + dashboard (momo serve)
 - `packages/opencode/python/genesis_world/` -- Persistent world server (JSON-RPC) + examples
 - `packages/opencode/src/voice/` + `python/voice/` -- Voice input: recording + STT (/voice)
 - `packages/opencode/src/session/` -- Prompt routing + session trajectory recorder
@@ -57,5 +59,11 @@ Bypass only in emergencies: `--no-verify`. Never commit red tests to `main`.
 - `MOMO_SIM_PYTHON` -- Python executable for the Genesis world server
 - `MOMO_SIM_BACKEND` -- Genesis backend: cpu or gpu (default: cpu)
 - `MOMO_SIM_MAX_STEPS` -- Max /sim control-loop steps (default: 20)
+- `MOMO_OPTIM_HISTORY` -- Trials shown to the /optim sampler (default: 5)
+- `MOMO_OPTIM_N_INIT` -- /optim random warmup trials (default: 2)
+- `MOMO_OPTIM_TIMEOUT` -- /optim sampler LLM call timeout seconds (default: 300)
+- `MOMO_SERVE_PORT` -- momo serve port (default: 4097)
+- `MOMO_SERVE_HOST` -- momo serve bind address (default: 127.0.0.1; non-loopback requires token)
+- `MOMO_SERVE_TOKEN` -- Bearer token for momo serve (unset = loopback-only, no auth)
 - `MOMO_STT_API_KEY` / `MOMO_STT_BASE_URL` / `MOMO_STT_MODEL` -- Speech-to-text for /voice
 - `MOMO_VOICE_SECONDS` -- Default recording length (default: 5)

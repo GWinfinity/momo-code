@@ -37,6 +37,65 @@ interface PendingRequest {
   timer: NodeJS.Timeout
 }
 
+// -- Workbench types ----------------------------------------------------------
+
+export interface SimClock {
+  readonly t: number
+  readonly steps: number
+  readonly playing: boolean
+  readonly speed: number
+  readonly dt?: number
+}
+
+export interface SceneEntity {
+  readonly idx: number
+  readonly name: string
+  readonly type: string
+  readonly pos: number[]
+  readonly quat: number[]
+  readonly link_count: number
+}
+
+export interface SceneInfo {
+  readonly entities: SceneEntity[]
+  readonly is_built: boolean
+  readonly dt: number
+  readonly clock: SimClock
+}
+
+export interface ScenePose {
+  readonly node: string
+  readonly pos: number[]
+  readonly quat: number[]
+}
+
+export interface PreviewResult {
+  readonly ok: boolean
+  readonly error?: string
+  readonly entities?: SceneEntity[]
+  readonly cameras?: string[]
+  readonly export?: { glb: string; manifest: string; nodes: number; skipped: number }
+  readonly clock?: SimClock
+  readonly errors?: string[]
+}
+
+export interface CameraSpec {
+  readonly name: string
+  readonly pos?: number[]
+  readonly lookat?: number[]
+  readonly fov?: number
+  readonly res?: number[]
+  readonly external?: boolean
+}
+
+export interface CameraAddSpec {
+  readonly name: string
+  readonly pos?: number[]
+  readonly lookat?: number[]
+  readonly fov?: number
+  readonly res?: number[]
+}
+
 const RPC_PREFIX = "@@RPC@@"
 const LOG_PREFIX = "@@LOG@@"
 
@@ -153,6 +212,68 @@ export class SimBridge {
   observe() {
     return this.request<{ observation: unknown; source: string; error?: string }>(
       "observe",
+    )
+  }
+
+  // -- Workbench wrappers (time / scene / camera) ----------------------------
+
+  timeControl(action: "play" | "pause" | "step" | "speed", opts: { n?: number; speed?: number } = {}) {
+    return this.request<SimClock>(`time/${action}`, { ...opts })
+  }
+
+  timeStatus() {
+    return this.request<SimClock>("time/status")
+  }
+
+  sceneInfo() {
+    return this.request<SceneInfo>("scene/info")
+  }
+
+  scenePoses() {
+    return this.request<{ poses: ScenePose[]; clock: SimClock }>("scene/poses")
+  }
+
+  sceneExport() {
+    return this.request<{ glb: string; manifest: string; nodes: number; skipped: number }>(
+      "scene/export",
+      {},
+      { timeoutMs: 300_000 },
+    )
+  }
+
+  scenePreview(code: string) {
+    return this.request<PreviewResult>("scene/preview", { code }, { timeoutMs: 300_000 })
+  }
+
+  sceneRebuild(params: { viewer?: boolean; backend?: string } = {}) {
+    return this.request<{ initialized: boolean; backend: string }>(
+      "scene/rebuild",
+      params,
+      { timeoutMs: 300_000 },
+    )
+  }
+
+  cameraList() {
+    return this.request<{ cameras: CameraSpec[] }>("camera/list")
+  }
+
+  cameraAdd(spec: CameraAddSpec) {
+    return this.request<{ added: string }>("camera/add", { ...spec })
+  }
+
+  cameraRemove(name: string) {
+    return this.request<{ removed: string }>("camera/remove", { name })
+  }
+
+  cameraMove(name: string, pose: { pos?: number[]; lookat?: number[] }) {
+    return this.request<{ moved: string }>("camera/move", { name, ...pose })
+  }
+
+  cameraSnapshot(name: string) {
+    return this.request<{ rgb?: string; depth?: string }>(
+      "camera/snapshot",
+      { name },
+      { timeoutMs: 120_000 },
     )
   }
 

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>momo dashboard</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --border:#30363d; --fg:#e6edf3; --dim:#8b949e; --accent:#c678dd; --green:#3fb950; --red:#f85149; --yellow:#d29922; --cyan:#39c5cf; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; }
+  header { display:flex; align-items:center; gap:16px; padding:10px 20px; background:var(--panel); border-bottom:1px solid var(--border); }
+  header .logo { color:var(--accent); font-weight:bold; font-size:16px; }
+  header .meta { color:var(--dim); font-size:12px; }
+  #conn { margin-left:auto; font-size:12px; }
+  #conn.ok { color:var(--green); } #conn.bad { color:var(--red); }
+  #tokenBox { display:none; gap:6px; }
+  #tokenBox input { background:var(--bg); color:var(--fg); border:1px solid var(--border); padding:3px 8px; border-radius:4px; }
+  nav { display:flex; gap:2px; padding:8px 20px 0; border-bottom:1px solid var(--border); }
+  nav button { background:none; border:none; color:var(--dim); padding:8px 14px; cursor:pointer; font:inherit; border-bottom:2px solid transparent; }
+  nav button.active { color:var(--fg); border-bottom-color:var(--accent); }
+  main { padding:20px; max-width:1100px; margin:0 auto; }
+  .tab { display:none; } .tab.active { display:block; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin-bottom:12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+  .stat { font-size:26px; color:var(--cyan); } .stat-label { color:var(--dim); font-size:12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { color:var(--dim); font-weight:normal; }
+  .ok { color:var(--green); } .fail { color:var(--red); } .dim { color:var(--dim); }
+  .reasoning { color:var(--dim); font-size:12px; white-space:pre-wrap; }
+  button.act { background:var(--accent); color:#fff; border:none; padding:6px 14px; border-radius:5px; cursor:pointer; font:inherit; }
+  button.ghost { background:none; border:1px solid var(--border); color:var(--fg); padding:5px 12px; border-radius:5px; cursor:pointer; font:inherit; }
+  button.danger { background:var(--red); color:#fff; border:none; padding:6px 14px; border-radius:5px; cursor:pointer; font:inherit; }
+  input,textarea { background:var(--bg); color:var(--fg); border:1px solid var(--border); padding:6px 10px; border-radius:5px; font:inherit; }
+  textarea { width:100%; min-height:70px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  details { margin:4px 0; } summary { cursor:pointer; color:var(--cyan); }
+  pre { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px; overflow:auto; font-size:12px; white-space:pre-wrap; }
+  #chatLog .bubble { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin:8px 0; white-space:pre-wrap; }
+  #chatLog .bubble.user { border-color:var(--cyan); }
+  canvas { background:var(--bg); border:1px solid var(--border); border-radius:6px; width:100%; height:160px; }
+  .estop-on { color:var(--red); font-weight:bold; } .estop-off { color:var(--green); }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">◉ momo</span>
+  <span class="meta" id="meta">connecting…</span>
+  <span id="tokenBox"><input id="tokenInput" placeholder="token" size="12"><button class="ghost" onclick="saveToken()">set</button></span>
+  <span id="conn">…</span>
+</header>
+<nav id="nav"></nav>
+<main>
+  <div class="tab" id="tab-overview"></div>
+  <div class="tab" id="tab-sessions"></div>
+  <div class="tab" id="tab-optim"></div>
+  <div class="tab" id="tab-sim"></div>
+  <div class="tab" id="tab-sched"></div>
+  <div class="tab" id="tab-chat"></div>
+</main>
+<script>
+const TABS = [["overview","Overview"],["sessions","Sessions"],["optim","Optim"],["sim","Sim"],["sched","Schedule & Goals"],["chat","Chat"]];
+let token = localStorage.getItem("momo_token") || "";
+let currentTab = "overview";
+let currentStudy = null;
+let eventSource = null;
+
+function authHeaders() { return token ? { "Authorization": "Bearer " + token } : {}; }
+function tokenQuery() { return token ? "?token=" + encodeURIComponent(token) : ""; }
+async function api(path, opts) {
+  const r = await fetch(path, { headers: { "Content-Type": "application/json", ...authHeaders() }, ...opts });
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401) { document.getElementById("tokenBox").style.display = "flex"; throw new Error("401 unauthorized — set token"); }
+  if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
+  return data;
+}
+function saveToken() { token = document.getElementById("tokenInput").value.trim(); localStorage.setItem("momo_token", token); location.reload(); }
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ---- nav ----------------------------------------------------------------
+const nav = document.getElementById("nav");
+for (const [id, label] of TABS) {
+  const b = document.createElement("button");
+  b.textContent = label; b.dataset.tab = id;
+  b.onclick = () => showTab(id);
+  nav.appendChild(b);
+}
+function showTab(id) {
+  currentTab = id;
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === id));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + id));
+  if (eventSource) { eventSource.close(); eventSource = null; }
+  ({ overview: renderOverview, sessions: renderSessions, optim: renderOptim, sim: renderSim, sched: renderSched, chat: renderChat })[id]();
+}
+
+// ---- overview -------------------------------------------------------------
+async function renderOverview() {
+  const el = document.getElementById("tab-overview");
+  const [sessions, studies, goals, sched] = await Promise.all([
+    api("/api/sessions?limit=50"), api("/api/optim/studies"), api("/api/goals"), api("/api/schedule"),
+  ]);
+  el.innerHTML = `<div class="grid">
+    <div class="card"><div class="stat">${sessions.sessions.length}</div><div class="stat-label">recent sessions</div></div>
+    <div class="card"><div class="stat">${studies.studies.length}</div><div class="stat-label">optim studies</div></div>
+    <div class="card"><div class="stat">${goals.goals.filter(g=>g.status==="active").length}</div><div class="stat-label">active goals</div></div>
+    <div class="card"><div class="stat">${sched.entries.filter(e=>e.enabled).length}</div><div class="stat-label">scheduled tasks</div></div>
+  </div>
+  <h3>Studies</h3>` + (studies.studies.length === 0 ? `<p class="dim">No studies yet — momo /optim init …</p>` :
+    `<table><tr><th>name</th><th>direction</th><th>metric</th><th>trials</th><th>semantics</th><th>best</th><th></th></tr>` +
+    studies.studies.map(s => `<tr><td>${esc(s.name)}</td><td>${s.direction}</td><td>${esc(s.metric)}</td>
+      <td>${s.completed}/${s.trials}${s.running ? ' <span class="ok">●running</span>' : ""}</td>
+      <td>${s.semantics}</td><td class="ok">${s.best ? esc(s.best.value) : "—"}</td>
+      <td><button class="ghost" onclick="openStudy('${esc(s.name)}')">open</button></td></tr>`).join("") + `</table>`);
+}
+
+// ---- sessions -------------------------------------------------------------
+async function renderSessions() {
+  const el = document.getElementById("tab-sessions");
+  const { sessions } = await api("/api/sessions?limit=50");
+  el.innerHTML = sessions.length === 0 ? `<p class="dim">No sessions recorded.</p>` :
+    sessions.map(s => `<div class="card"><div class="row">
+      <span class="${s.exitCode === 0 ? "ok" : "fail"}">${s.exitCode === 0 ? "✓" : "✗"}</span>
+      <b>${esc(s.provider)}</b><span class="dim">${esc(s.model)} · ${esc(s.ts)} · ${(s.durationMs/1000).toFixed(1)}s</span></div>
+      <details><summary>${esc(s.prompt.slice(0, 140))}</summary><pre>${esc(s.prompt)}</pre><pre>${esc(s.response)}</pre></details>
+    </div>`).join("");
+}
+
+// ---- optim ----------------------------------------------------------------
+function openStudy(name) { currentStudy = name; showTab("optim"); }
+async function renderOptim() {
+  const el = document.getElementById("tab-optim");
+  if (!currentStudy) {
+    const { studies } = await api("/api/optim/studies");
+    el.innerHTML = `<h3>Pick a study</h3>` + (studies.length === 0 ? `<p class="dim">No studies.</p>` :
+      studies.map(s => `<div class="card row"><b>${esc(s.name)}</b><span class="dim">${s.direction} ${esc(s.metric)} · ${s.trials} trials</span>
+        <button class="ghost" onclick="openStudy('${esc(s.name)}')">open</button></div>`).join(""));
+    return;
+  }
+  const [detail, trialsData] = await Promise.all([
+    api("/api/optim/studies/" + encodeURIComponent(currentStudy)),
+    api("/api/optim/studies/" + encodeURIComponent(currentStudy) + "/trials"),
+  ]);
+  const trials = trialsData.trials;
+  el.innerHTML = `<div class="row"><button class="ghost" onclick="currentStudy=null;renderOptim()">← back</button>
+      <h2 style="margin:0">${esc(currentStudy)}</h2>
+      <span class="dim">${detail.direction} "${esc(detail.metric)}" · semantics: ${detail.semantics ? detail.semantics.status : "none"}</span>
+      <span id="runState" class="${detail.running ? "ok" : "dim"}">${detail.running ? "● running" : "idle"}</span></div>
+    <div class="card row">run <input id="nTrials" type="number" value="10" min="1" max="1000" style="width:70px"> trials
+      <label class="dim"><input type="checkbox" id="mockChk"> mock sampler</label>
+      <button class="act" onclick="startRun()">▶ run</button></div>
+    ${detail.best ? `<div class="card"><span class="stat-label">best (trial #${detail.best.number})</span>
+      <div class="stat">${esc(detail.best.value)}</div><pre>${esc(JSON.stringify(detail.best.params, null, 1))}</pre></div>` : ""}
+    <div class="card"><span class="stat-label">best-so-far</span><canvas id="chart" width="1000" height="160"></canvas></div>
+    <div class="card"><table id="trialTable"><tr><th>#</th><th>state</th><th>value</th><th>params</th><th>reasoning / note</th></tr></table></div>`;
+  for (const t of trials) appendTrialRow(t);
+  drawChart(trials, detail.direction);
+  eventSource = new EventSource("/api/optim/studies/" + encodeURIComponent(currentStudy) + "/stream" + tokenQuery());
+  eventSource.addEventListener("trial", ev => { const t = JSON.parse(ev.data); appendTrialRow(t, true); });
+  eventSource.addEventListener("status", ev => { const s = JSON.parse(ev.data);
+    const rs = document.getElementById("runState");
+    if (rs) { rs.textContent = s.running ? "● running" : "idle"; rs.className = s.running ? "ok" : "dim"; } });
+}
+function appendTrialRow(t, live) {
+  const table = document.getElementById("trialTable");
+  if (!table) return;
+  const tr = document.createElement("tr");
+  if (live) tr.style.background = "rgba(63,185,80,.08)";
+  const mark = t.state === "complete" ? '<span class="ok">✓</span>' : '<span class="fail">✗</span>';
+  tr.innerHTML = `<td>${t.number}</td><td>${mark}${t.fallback ? ' <span class="dim">rnd</span>' : ""}</td>
+    <td class="ok">${t.value !== undefined ? esc(t.value) : "—"}</td>
+    <td class="dim">${esc(JSON.stringify(t.params))}</td>
+    <td>${t.reasoning ? `<div class="reasoning">↳ ${esc(t.reasoning)}</div>` : ""}${t.note ? `<div class="reasoning">✎ ${esc(t.note)}</div>` : ""}${t.error ? `<div class="fail reasoning">${esc(t.error.split("\n")[0])}</div>` : ""}</td>`;
+  table.appendChild(tr);
+}
+async function startRun() {
+  const n = Number(document.getElementById("nTrials").value) || 10;
+  const mock = document.getElementById("mockChk").checked;
+  try {
+    await api("/api/optim/studies/" + encodeURIComponent(currentStudy) + "/run", { method: "POST", body: JSON.stringify({ trials: n, mock }) });
+  } catch (e) { alert(e.message); }
+}
+function drawChart(trials, direction) {
+  const cv = document.getElementById("chart"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const pts = [];
+  let best = null;
+  for (const t of trials) {
+    if (t.state !== "complete" || t.value === undefined) continue;
+    if (best === null || (direction === "maximize" ? t.value > best : t.value < best)) best = t.value;
+    pts.push(best);
+  }
+  if (pts.length < 2) { ctx.fillStyle = "#8b949e"; ctx.fillText("not enough data", 10, 20); return; }
+  const min = Math.min(...pts), max = Math.max(...pts), span = max - min || 1;
+  ctx.strokeStyle = "#c678dd"; ctx.lineWidth = 2; ctx.beginPath();
+  pts.forEach((v, i) => {
+    const x = 10 + (i / (pts.length - 1)) * (cv.width - 20);
+    const y = cv.height - 15 - ((v - min) / span) * (cv.height - 30);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.fillStyle = "#8b949e"; ctx.fillText("best: " + best, 10, 14);
+}
+
+// ---- sim ------------------------------------------------------------------
+async function renderSim() {
+  const el = document.getElementById("tab-sim");
+  el.innerHTML = `<div class="card row"><button class="danger" onclick="simCmd('estop')">■ ESTOP</button>
+    <button class="act" onclick="simCmd('resume')">▶ Resume</button>
+    <button class="ghost" onclick="renderSim()">↻ refresh</button>
+    <span id="simState" class="dim">loading…</span></div><div id="simObs"></div>`;
+  try {
+    const data = await api("/api/sim/observe");
+    document.getElementById("simState").innerHTML = data.estop ? '<span class="estop-on">ESTOP ACTIVE</span>' : '<span class="estop-off">running</span>';
+    document.getElementById("simObs").innerHTML = `<pre>${esc(JSON.stringify(data.observation, null, 2))}</pre>`;
+  } catch (e) {
+    document.getElementById("simState").innerHTML = `<span class="fail">${esc(e.message)}</span>`;
+  }
+}
+async function simCmd(cmd) {
+  try { await api("/api/sim/" + cmd, { method: "POST", body: "{}" }); } catch (e) { alert(e.message); }
+  renderSim();
+}
+
+// ---- schedule & goals -------------------------------------------------------
+async function renderSched() {
+  const el = document.getElementById("tab-sched");
+  const [goals, sched] = await Promise.all([api("/api/goals"), api("/api/schedule")]);
+  el.innerHTML = `<h3>Goals</h3>` + (goals.goals.length === 0 ? `<p class="dim">none</p>` :
+      goals.goals.map(g => `<div class="card"><b>${esc(g.title || g.id)}</b> <span class="dim">${esc(g.status)} · ${esc(g.createdAt)}</span><div class="dim">${esc(g.description || "")}</div></div>`).join("")) +
+    `<h3>Schedule</h3>` + (sched.entries.length === 0 ? `<p class="dim">none</p>` :
+      sched.entries.map(e => `<div class="card"><span class="${e.enabled ? "ok" : "dim"}">${e.enabled ? "●" : "○"}</span>
+        <b>${esc(e.prompt.slice(0, 100))}</b><div class="dim">${e.intervalMin ? "every " + e.intervalMin + "min" : "daily " + (e.dailyAt || "")} · last: ${esc(e.lastRunAt || "never")}</div></div>`).join(""));
+}
+
+// ---- chat -----------------------------------------------------------------
+function renderChat() {
+  const el = document.getElementById("tab-chat");
+  el.innerHTML = `<div id="chatLog"></div>
+    <div class="card"><textarea id="chatInput" placeholder="Ask momo…"></textarea>
+    <div class="row" style="margin-top:8px"><button class="act" onclick="sendChat()">send</button><span class="dim" id="chatStatus"></span></div></div>`;
+  document.getElementById("chatInput").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) sendChat(); });
+}
+async function sendChat() {
+  const input = document.getElementById("chatInput");
+  const log = document.getElementById("chatLog");
+  const status = document.getElementById("chatStatus");
+  const prompt = input.value.trim(); if (!prompt) return;
+  log.insertAdjacentHTML("beforeend", `<div class="bubble user">${esc(prompt)}</div>`);
+  input.value = ""; status.textContent = "thinking…";
+  try {
+    const data = await api("/api/chat", { method: "POST", body: JSON.stringify({ prompt }) });
+    log.insertAdjacentHTML("beforeend", `<div class="bubble">${esc(data.reply)}</div>`);
+    status.textContent = data.provider + " | " + data.model;
+  } catch (e) {
+    log.insertAdjacentHTML("beforeend", `<div class="bubble fail">${esc(e.message)}</div>`);
+    status.textContent = "";
+  }
+}
+
+// ---- boot -----------------------------------------------------------------
+(async () => {
+  if (token) document.getElementById("tokenInput").value = token;
+  try {
+    const h = await api("/api/health");
+    document.getElementById("meta").textContent = "v" + h.version + " · " + h.momoHome;
+    document.getElementById("conn").textContent = "● connected";
+    document.getElementById("conn").className = "ok";
+    showTab("overview");
+  } catch (e) {
+    document.getElementById("conn").textContent = "✗ " + e.message;
+    document.getElementById("conn").className = "bad";
+  }
+})();
+</script>
+</body>
+</html>

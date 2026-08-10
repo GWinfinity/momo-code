@@ -31,6 +31,7 @@ import io
 import json
 import os
 import sys
+import threading
 import traceback
 
 # Make the bundled genesis_world runtime package importable from agent code:
@@ -39,6 +40,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 MAX_OUTPUT_CHARS = 16384
 PROTO_PREFIX = "@@RPC@@"
+
+# Serializes every scene mutation/read against the workbench step worker.
+WORLD_LOCK = threading.RLock()
 
 # ---------------------------------------------------------------------------
 # Protocol plumbing
@@ -71,12 +75,22 @@ _INITIALIZED = {"ok": False, "backend": None, "viewer": False}
 
 
 def _step(n=1):
-    """Advance the physics scene by n steps."""
+    """Advance the physics scene by n steps (advances the workbench clock)."""
     scene = WORLD.get("scene")
     if scene is None:
         raise RuntimeError("scene not initialized — call init first")
-    for _ in range(int(n)):
-        scene.step()
+    wb = None
+    try:
+        wb = _wb()
+        wb._sync_dt()
+    except Exception:
+        pass
+    with WORLD_LOCK:
+        for _ in range(int(n)):
+            scene.step()
+            if wb is not None:
+                wb.SIM_CLOCK["steps"] += 1
+                wb.SIM_CLOCK["t"] += wb.SIM_CLOCK["dt"]
 
 
 def _skills_dir():
@@ -121,15 +135,24 @@ def _pristine_namespace():
 
 
 def _inject_world_into_runtime():
-    """Bind runtime modules (sensors/safety/perception) to this WORLD."""
-    for mod_name in ("sensors", "safety", "perception"):
+    """Bind runtime modules (sensors/safety/perception/workbench) to this WORLD."""
+    for mod_name in ("sensors", "safety", "perception", "workbench"):
         try:
             mod = __import__(f"genesis_world.{mod_name}", fromlist=[mod_name])
             mod.WORLD = WORLD
+            if hasattr(mod, "WORLD_LOCK"):
+                mod.WORLD_LOCK = WORLD_LOCK
         except ImportError:
             continue  # module not shipped in this installation
         except Exception:
             log(f"warning: failed to inject WORLD into genesis_world.{mod_name}")
+
+
+def _wb():
+    """Lazily import the workbench runtime (bound to WORLD at init)."""
+    from genesis_world import workbench
+
+    return workbench
 
 
 WORLD.update(_pristine_namespace())
@@ -185,7 +208,8 @@ def m_exec(params):
     error = None
     with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
         try:
-            exec(compile(code, "<agent>", "exec"), WORLD)
+            with WORLD_LOCK:
+                exec(compile(code, "<agent>", "exec"), WORLD)
         except SystemExit:
             error = "SystemExit caught — the server process must not exit"
         except BaseException:
@@ -201,7 +225,8 @@ def m_eval(params):
     if not expr.strip():
         return {"repr": "None"}
     try:
-        value = eval(expr, WORLD)  # noqa: S307 — the world IS a REPL by design
+        with WORLD_LOCK:
+            value = eval(expr, WORLD)  # noqa: S307 — the world IS a REPL by design
         return {"repr": truncate(repr(value))}
     except BaseException:
         return {"error": truncate(traceback.format_exc())}
@@ -253,6 +278,79 @@ def m_shutdown(_params):
     sys.exit(0)
 
 
+# ---------------------------------------------------------------------------
+# Workbench methods (time / scene / camera) — delegate to genesis_world.workbench
+# ---------------------------------------------------------------------------
+
+
+def m_time_play(_params):
+    return _wb().clock_play()
+
+
+def m_time_pause(_params):
+    return _wb().clock_pause()
+
+
+def m_time_step(params):
+    return _wb().clock_tick(params.get("n", 1))
+
+
+def m_time_speed(params):
+    return _wb().clock_set_speed(params.get("speed", 1.0))
+
+
+def m_time_status(_params):
+    return _wb().clock_status()
+
+
+def m_scene_info(_params):
+    return _wb().scene_info()
+
+
+def m_scene_poses(_params):
+    with WORLD_LOCK:
+        return _wb().scene_poses()
+
+
+def m_scene_export(_params):
+    with WORLD_LOCK:
+        return _wb().export_glb()
+
+
+def m_scene_preview(params):
+    return _wb().preview(params.get("code", ""))
+
+
+def m_scene_rebuild(params):
+    """reset + init in one call — enables iterative preview cycles."""
+    try:
+        _wb().clock_reset()
+    except Exception:
+        pass
+    m_reset(params)
+    return m_init(params)
+
+
+def m_camera_list(_params):
+    return _wb().camera_list()
+
+
+def m_camera_add(params):
+    return _wb().camera_add(params)
+
+
+def m_camera_remove(params):
+    return _wb().camera_remove(params.get("name", ""))
+
+
+def m_camera_move(params):
+    return _wb().camera_move(params.get("name", ""), pos=params.get("pos"), lookat=params.get("lookat"))
+
+
+def m_camera_snapshot(params):
+    return _wb().camera_snapshot(params.get("name", ""))
+
+
 METHODS = {
     "ping": m_ping,
     "init": m_init,
@@ -263,6 +361,21 @@ METHODS = {
     "estop": m_estop,
     "resume": m_resume,
     "shutdown": m_shutdown,
+    "time/play": m_time_play,
+    "time/pause": m_time_pause,
+    "time/step": m_time_step,
+    "time/speed": m_time_speed,
+    "time/status": m_time_status,
+    "scene/info": m_scene_info,
+    "scene/poses": m_scene_poses,
+    "scene/export": m_scene_export,
+    "scene/preview": m_scene_preview,
+    "scene/rebuild": m_scene_rebuild,
+    "camera/list": m_camera_list,
+    "camera/add": m_camera_add,
+    "camera/remove": m_camera_remove,
+    "camera/move": m_camera_move,
+    "camera/snapshot": m_camera_snapshot,
 }
 
 # ---------------------------------------------------------------------------

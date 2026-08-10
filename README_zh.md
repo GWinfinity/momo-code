@@ -22,20 +22,20 @@
 <br/>
 
 <!-- 导航图标，URL占位和英文文档统一 -->
-<a href="##WEBSITE_URL##" target="_blank">
-  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/web.svg" width="24" alt="官方网站"/>
+<a href="https://momozi.cc" target="_blank">
+  <img src="https://img.shields.io/badge/website-momozi.cc-blue" alt="官方网站"/>
 </a>
 &nbsp;&nbsp;
-<a href="##HF_URL##" target="_blank">
-  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/huggingface.svg" width="24" alt="Hugging Face"/>
+<a href="https://huggingface.co/momozi" target="_blank">
+  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v12/icons/huggingface.svg" width="24" alt="Hugging Face"/>
 </a>
 &nbsp;&nbsp;
 <a href="./README.md" target="_self">
-  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v10/icons/translate.svg" width="24" alt="切换英文"/>
+  <img src="https://img.shields.io/badge/docs-EN-orange" alt="English"/>
 </a>
 <p>
-  <a href="##WEBSITE_URL##">官方网站</a> · 
-  <a href="##HF_URL##">Hugging Face</a> · 
+  <a href="https://momozi.cc">官方网站</a> · 
+  <a href="https://huggingface.co/momozi">Hugging Face</a> · 
   <a href="./README.md">English Docs</a>
 </p>
 </div>
@@ -88,7 +88,7 @@ npm run build
 
 ### macOS / Linux 一键快速安装
 ```bash
-curl -fsSL https://momocode.cc/install | bash
+curl -fsSL https://momozi.cc/install | bash
 ```
 
 ## 快速上手
@@ -186,7 +186,7 @@ momo models providers    # 查看全部可用服务商
 ### 主配置文件 `~/.momo/momo.jsonc`
 ```json
 {
-  "$schema": "https://momocode.cc/config.json",
+  "$schema": "https://momozi.cc/config.json",
   "model": "standard",
   "provider": "anthropic",
   "inheritClaudeCode": true,

@@ -98,4 +98,43 @@ describe("sim/bridge", () => {
     assert.ok(p.endsWith(path.join("genesis_world", "server.py")))
     assert.ok(fs.existsSync(p), `bundled server should exist at ${p}`)
   })
+
+  it(
+    "workbench wrappers send the expected method/params",
+    withFakeServer(async (bridge) => {
+      // fake server echoes {method, echo: params} for every request
+      const play = await bridge.timeControl("play")
+      assert.strictEqual((play as any).method, "time/play")
+
+      const step = await bridge.timeControl("step", { n: 5 })
+      assert.strictEqual((step as any).method, "time/step")
+      assert.strictEqual((step as any).echo.n, 5)
+
+      const speed = await bridge.timeControl("speed", { speed: 2 })
+      assert.strictEqual((speed as any).echo.speed, 2)
+
+      assert.strictEqual((await bridge.timeStatus() as any).method, "time/status")
+      assert.strictEqual((await bridge.sceneInfo() as any).method, "scene/info")
+      assert.strictEqual((await bridge.scenePoses() as any).method, "scene/poses")
+      assert.strictEqual((await bridge.sceneExport() as any).method, "scene/export")
+
+      const preview = await bridge.scenePreview("scene.add_entity(gs.morphs.Plane())")
+      assert.strictEqual((preview as any).method, "scene/preview")
+      assert.ok((preview as any).echo.code.includes("Plane"))
+
+      assert.strictEqual((await bridge.sceneRebuild() as any).method, "scene/rebuild")
+
+      const add = await bridge.cameraAdd({ name: "front", pos: [1, 0, 1], lookat: [0, 0, 0.3] })
+      assert.strictEqual((add as any).method, "camera/add")
+      assert.deepStrictEqual((add as any).echo.pos, [1, 0, 1])
+
+      assert.strictEqual((await bridge.cameraList() as any).method, "camera/list")
+      assert.strictEqual((await bridge.cameraRemove("front") as any).method, "camera/remove")
+      assert.strictEqual(
+        ((await bridge.cameraMove("front", { pos: [2, 0, 1] })) as any).method,
+        "camera/move",
+      )
+      assert.strictEqual((await bridge.cameraSnapshot("front") as any).method, "camera/snapshot")
+    }),
+  )
 })
