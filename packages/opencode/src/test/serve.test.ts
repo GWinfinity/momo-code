@@ -79,7 +79,7 @@ describe("serve GET endpoints", () => {
     const r = await fetch(`${app.url}/`)
     const html = await r.text()
     assert.strictEqual(r.status, 200)
-    assert.match(html, /<title>momo dashboard<\/title>/)
+    assert.match(html, /<title>momo workspace<\/title>/)
   })
 
   it("GET /api/health", async () => {

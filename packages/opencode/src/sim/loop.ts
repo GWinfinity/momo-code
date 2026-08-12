@@ -46,6 +46,8 @@ export interface SimLoopOpts {
   readonly backend?: string
   /** Extra context appended to the system prompt (e.g. active goals) */
   readonly extraContext?: string
+  /** Called after every executed action so UIs can stream live progress */
+  readonly onTurn?: (turn: SimTurn) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +78,16 @@ Genesis quick reference:
   - Robot control: robot.get_dofs_position(), robot.control_dofs_position(target, dofs_idx),
     robot.inverse_kinematics(link, pos=..., quat=...), entity.get_pos()/get_quat()
   - Genesis torch tensors: call .cpu() / float() before printing numbers
+
+Cameras (pure rendering objects - they never affect physics):
+  - camera_add(name, pos=[x,y,z], lookat=[x,y,z], fov=60) - attach a camera
+  - camera_list() / camera_remove(name) / camera_move(name, pos=..., lookat=...)
+  - camera_snapshot(name) - render an RGB frame from that camera
+  - camera_path_set(name, keyframes=[{t, pos, lookat}, ...]) - a keyframe trajectory;
+    the camera follows it automatically as the clock advances
+  - camera_path_clear(name) / camera_path_apply()
+  Deploying one or several cameras around the robot is a normal task - call
+  camera_add(...) for each one you want.
 
 Loaded skills (functions already in the namespace from ~/.momo/sim/skills/):
 ${skillList}
@@ -242,6 +254,7 @@ export async function runSimLoop(
       stderr: result.stderr,
       ...(result.error ? { error: result.error } : {}),
     })
+    opts.onTurn?.(turns[turns.length - 1])
   }
 
   return {

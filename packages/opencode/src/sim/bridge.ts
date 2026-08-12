@@ -10,6 +10,7 @@
  */
 
 import { spawn, type ChildProcess } from "child_process"
+import * as fs from "fs"
 import * as path from "path"
 import { fileURLToPath } from "url"
 
@@ -88,6 +89,12 @@ export interface CameraSpec {
   readonly external?: boolean
 }
 
+export interface CameraKeyframe {
+  readonly t: number
+  readonly pos: number[]
+  readonly lookat: number[]
+}
+
 export interface CameraAddSpec {
   readonly name: string
   readonly pos?: number[]
@@ -122,16 +129,42 @@ export class SimBridge {
     return path.resolve(here, "..", "..", "python", "genesis_world", "server.py")
   }
 
+  /**
+   * Resolve the interpreter command for the world server.
+   *
+   * Order: explicit MOMO_SIM_PYTHON / opts.python → `uv run --project <python/>`
+   * when the world directory is a uv project (MOMO_SIM_UV=0 disables) →
+   * plain `python`.
+   */
+  resolvePythonCommand(serverPath: string): { cmd: string; args: string[] } {
+    const explicit = this.opts.python || process.env.MOMO_SIM_PYTHON
+    if (explicit) return { cmd: explicit, args: ["-u", serverPath] }
+    if (process.env.MOMO_SIM_UV !== "0") {
+      const pythonDir = path.resolve(path.dirname(serverPath), "..")
+      try {
+        if (fs.existsSync(path.join(pythonDir, "pyproject.toml"))) {
+          return {
+            cmd: "uv",
+            args: ["run", "--project", pythonDir, "python", "-u", serverPath],
+          }
+        }
+      } catch {
+        // fall through to plain python
+      }
+    }
+    return { cmd: "python", args: ["-u", serverPath] }
+  }
+
   /** Spawn the world server process. Idempotent. */
   start(): void {
     if (this.child) return
-    const python = this.opts.python || process.env.MOMO_SIM_PYTHON || "python"
     const serverPath =
       this.opts.serverPath ||
       process.env.MOMO_SIM_SERVER ||
       SimBridge.defaultServerPath()
+    const { cmd, args } = this.resolvePythonCommand(serverPath)
 
-    this.child = spawn(python, ["-u", serverPath], {
+    this.child = spawn(cmd, args, {
       env: { ...process.env, ...this.opts.env },
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
@@ -275,6 +308,22 @@ export class SimBridge {
       { name },
       { timeoutMs: 120_000 },
     )
+  }
+
+  /** Register a {t, pos, lookat} keyframe trajectory for a camera. */
+  cameraPathSet(name: string, keyframes: CameraKeyframe[]) {
+    return this.request<{ path: string; keyframes: number }>("camera/path/set", {
+      name,
+      keyframes,
+    })
+  }
+
+  cameraPathClear(name: string) {
+    return this.request<{ cleared: string }>("camera/path/clear", { name })
+  }
+
+  cameraPathList() {
+    return this.request<{ paths: Record<string, CameraKeyframe[]> }>("camera/path/list")
   }
 
   /** Shut down the server and release resources. */

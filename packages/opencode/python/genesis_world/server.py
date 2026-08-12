@@ -188,6 +188,16 @@ def m_init(params):
 
     _inject_world_into_runtime()
 
+    # Camera helpers callable from agent code (chat → sim camera deployment).
+    # Cameras are pure rendering objects — attaching/moving never affects physics.
+    wb = _wb()
+    for _fn in (
+        "camera_add", "camera_remove", "camera_move", "camera_snapshot",
+        "camera_list", "camera_path_set", "camera_path_clear",
+        "camera_path_apply", "camera_path_list",
+    ):
+        WORLD[_fn] = getattr(wb, _fn)
+
     skills = _load_skills(WORLD)
 
     _INITIALIZED.update({"ok": True, "backend": backend_name, "viewer": viewer})
@@ -351,6 +361,19 @@ def m_camera_snapshot(params):
     return _wb().camera_snapshot(params.get("name", ""))
 
 
+def m_camera_path_set(params):
+    return _wb().camera_path_set(params.get("name", ""), params.get("keyframes") or [])
+
+
+def m_camera_path_clear(params):
+    return _wb().camera_path_clear(params.get("name", ""))
+
+
+def m_camera_path_list(_params):
+    return _wb().camera_path_list()
+    return _wb().camera_snapshot(params.get("name", ""))
+
+
 METHODS = {
     "ping": m_ping,
     "init": m_init,
@@ -376,6 +399,9 @@ METHODS = {
     "camera/remove": m_camera_remove,
     "camera/move": m_camera_move,
     "camera/snapshot": m_camera_snapshot,
+    "camera/path/set": m_camera_path_set,
+    "camera/path/clear": m_camera_path_clear,
+    "camera/path/list": m_camera_path_list,
 }
 
 # ---------------------------------------------------------------------------

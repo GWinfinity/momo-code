@@ -51,6 +51,8 @@ interface ChatOptions {
   headers?: Record<string, string>
   /** Request timeout in ms */
   timeout?: number
+  /** Optional per-token callback when streaming (serve SSE, UI progress). */
+  onToken?: (chunk: string) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +132,7 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
     temperature = 0.7,
     headers: extraHeaders = {},
     timeout = 120_000,
+    onToken,
   } = opts
 
   // Build messages array
@@ -187,6 +190,7 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
     for await (const chunk of parseSSEStream(reader)) {
       process.stdout.write(chunk)
       fullText += chunk
+      onToken?.(chunk)
     }
 
     return fullText

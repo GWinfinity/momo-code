@@ -63,6 +63,7 @@ def _step_worker():
                 _scene().step()
             SIM_CLOCK["steps"] += 1
             SIM_CLOCK["t"] += SIM_CLOCK["dt"]
+            camera_path_apply()
         except Exception:
             SIM_CLOCK["playing"] = False
             continue
@@ -99,6 +100,7 @@ def clock_tick(n=1):
             _scene().step()
             SIM_CLOCK["steps"] += 1
             SIM_CLOCK["t"] += SIM_CLOCK["dt"]
+    camera_path_apply()
     return clock_status()
 
 
@@ -266,6 +268,8 @@ def export_glb():
 
 # Spec registry: attach params kept here (Genesis sensors don't retain them)
 CAMERAS = {}
+CAMERA_PATHS = {}
+
 
 
 def _sensors():
@@ -277,7 +281,7 @@ def _sensors():
 def camera_list():
     out = []
     for name, spec in CAMERAS.items():
-        out.append({"name": name, **spec})
+        out.append({"name": name, "path": CAMERA_PATHS.get(name) or [], **spec})
     # cameras attached by agent code directly (not via workbench) still show up
     try:
         for name in _sensors()._SENSORS["camera"]:
@@ -351,6 +355,81 @@ def camera_move(name, pos=None, lookat=None):
 def camera_snapshot(name):
     with WORLD_LOCK:
         return _sensors().snapshot(name)
+
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Camera keyframe paths (cameras are pure rendering objects — no physics)
+# ---------------------------------------------------------------------------
+
+
+def _interp_pose(keyframes, t):
+    """Linear interpolation between keyframes at sim time t (clamped)."""
+    if not keyframes:
+        return None
+    if len(keyframes) == 1:
+        return keyframes[0]["pos"], keyframes[0]["lookat"]
+    kf = sorted(keyframes, key=lambda k: float(k["t"]))
+    first, last = kf[0], kf[-1]
+    if t <= first["t"]:
+        return first["pos"], first["lookat"]
+    if t >= last["t"]:
+        return last["pos"], last["lookat"]
+    for a, b in zip(kf, kf[1:]):
+        if float(a["t"]) <= t <= float(b["t"]):
+            span = max(float(b["t"]) - float(a["t"]), 1e-9)
+            k = (float(t) - float(a["t"])) / span
+            pos = [a["pos"][i] + (b["pos"][i] - a["pos"][i]) * k for i in range(3)]
+            look = [a["lookat"][i] + (b["lookat"][i] - a["lookat"][i]) * k for i in range(3)]
+            return pos, look
+    return last["pos"], last["lookat"]
+
+
+def camera_path_set(name, keyframes):
+    """Register a {t, pos, lookat} keyframe trajectory for a camera."""
+    if not name:
+        raise ValueError("camera path needs a 'name'")
+    cleaned = []
+    for k in keyframes or []:
+        if not isinstance(k, dict) or "t" not in k or "pos" not in k:
+            continue
+        cleaned.append({
+            "t": float(k["t"]),
+            "pos": [float(v) for v in k["pos"]][:3],
+            "lookat": [float(v) for v in (k.get("lookat") or [0, 0, 0.3])][:3],
+        })
+    cleaned.sort(key=lambda k: k["t"])
+    if not cleaned:
+        raise ValueError("camera path needs at least one keyframe {t, pos}")
+    CAMERA_PATHS[name] = cleaned
+    return {"path": name, "keyframes": len(cleaned)}
+
+
+def camera_path_clear(name):
+    CAMERA_PATHS.pop(name, None)
+    return {"cleared": name}
+
+
+def camera_path_apply():
+    """Drive every registered camera to its interpolated pose at SIM_CLOCK t.
+
+    Cameras are pure rendering objects, so moving them never affects physics.
+    Best-effort: a stale/missing camera is silently skipped.
+    """
+    t = SIM_CLOCK["t"]
+    for name, kfs in list(CAMERA_PATHS.items()):
+        pose = _interp_pose(kfs, t)
+        if not pose:
+            continue
+        try:
+            camera_move(name, pos=pose[0], lookat=pose[1])
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------------
+def camera_path_list():
+    return {"paths": {name: kfs for name, kfs in CAMERA_PATHS.items()}}
 
 
 # ---------------------------------------------------------------------------

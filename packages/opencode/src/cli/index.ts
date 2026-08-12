@@ -10,6 +10,7 @@ import { runFinetuneCommand } from "./cmd/finetune.js"
 import { runModelsCommand } from "./cmd/models.js"
 import { runRefineCommand } from "./cmd/refine.js"
 import { runAgentCommand } from "./cmd/agent.js"
+import { runGraphCommand } from "./cmd/graph.js"
 import { runGoalCommand } from "./cmd/goal.js"
 import { runScheduleCommand } from "./cmd/schedule.js"
 import { runHeartbeatCommand } from "./cmd/heartbeat.js"
@@ -77,6 +78,10 @@ export async function runCli(argv: string[]): Promise<void> {
     case "/agent":
     case "agent":
       await runAgentCommand(args)
+      break
+    case "/graph":
+    case "graph":
+      await runGraphCommand(args)
       break
     case "/goal":
     case "goal":

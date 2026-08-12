@@ -24,8 +24,8 @@ for line in sys.stdin:
     if req.get("method") == "shutdown":
         print("@@RPC@@" + json.dumps({"id": None, "ok": True, "result": {"bye": True}}), flush=True)
         sys.exit(0)
-    print("@@RPC@@" + json.dumps({"id": req.get("id"), "ok": True, "result": {"echo": req.get("params", {}), "method": req.get("method")}}), flush=True)
     print("@@LOG@@some engine noise", flush=True)
+    print("@@RPC@@" + json.dumps({"id": req.get("id"), "ok": True, "result": {"echo": req.get("params", {}), "method": req.get("method")}}), flush=True)
 `
 
 function withFakeServer(fn: (bridge: SimBridge) => Promise<void>): () => Promise<void> {

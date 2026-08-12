@@ -21,6 +21,7 @@ import * as path from "path"
 import { createRequire } from "module"
 import { fileURLToPath } from "url"
 import { getMomoHome } from "../session/recorder.js"
+import { resolveProviderConfig } from "../cli/chat.js"
 import { getRoutes } from "./routes.js"
 import { getActions } from "./actions.js"
 
@@ -234,7 +235,13 @@ export async function createServeApp(opts: ServeOptions = {}): Promise<ServeApp>
 
       // Health
       if (req.method === "GET" && url.pathname === "/api/health") {
-        sendJson(res, 200, { ok: true, version: getVersion(), momoHome: getMomoHome() })
+        const provider = await resolveProviderConfig()
+        sendJson(res, 200, {
+          ok: true,
+          version: getVersion(),
+          momoHome: getMomoHome(),
+          providerConfigured: !!provider,
+        })
         return
       }
 

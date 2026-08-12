@@ -70,6 +70,7 @@
 - **Self-Evolution Training (`/fine-tune`)** — Hour-level weight improvement via Monte Carlo Graph Search (MCGS) + LoRA
 - **Self-Refinement (`/refine`)** — Reviews session trajectories and proposes small, evidence-based improvements (tactics/prompt patches) that only take effect after human approval
 - **Recursive Subagents (`/agent`)** — RLM-style task decomposition: plan → parallel child processes → synthesis, with depth/budget rails
+- **Graph Engine (`/graph`)** — Long-horizon tasks as a resumable DAG of subagents: LLM-planned dependency graph, parallel execution, retries, and `/sim` world-agent nodes
 - **Long-Running Work (`/goal` + `/heartbeat` + `/daemon`)** — Persistent goals injected into every session, timed tasks, and a daemon loop for multi-hour autonomy
 - **Simulation Agent (`/sim`)** — LLM-driven control of a persistent Genesis physics world: the agent writes Python into a long-lived namespace (RLM-style), with skills-as-code loaded from `~/.momo/sim/skills/`
 - **Voice Input (`/voice`)** — Speak your prompt: mic recording (sounddevice) → OpenAI-compatible STT (Whisper/Groq) → coding session
@@ -262,6 +263,29 @@ momo /agent "Refactor the provider layer and update all callers and tests"
 ```
 
 Rails: `MOMO_RLM_MAX_DEPTH` (3), `MOMO_RLM_BUDGET` (8), `MOMO_RLM_TIMEOUT_MS` (300000).
+
+### Graph Engine (`/graph`)
+
+Turns a long-horizon task into a **directed acyclic graph** of self-contained
+subagent tasks. The model plans the DAG (with real dependencies), nodes run as
+child `momo` processes — in parallel per topological level, with dependency
+outputs passed downstream — failed nodes retry, and a final LLM pass
+synthesizes the report. State persists to `~/.momo/graphs/<id>.json` after
+every batch, so runs survive restarts.
+
+```bash
+momo /graph run "Design + implement + test a persistence layer"   # plan → execute → synthesize
+momo /graph resume <id>        # Continue a long-horizon run where it stopped
+momo /graph status <id>        # Node states + outputs
+momo /graph list               # Recent runs
+```
+
+Nodes can be marked `"kind": "sim"` by the planner — those become simulation
+agents driving the Genesis world via `/sim run`, so a graph can mix coding
+subagents with physics experiments.
+
+Rails: `MOMO_GRAPH_MAX_NODES` (12), `MOMO_GRAPH_MAX_RETRIES` (2),
+`MOMO_GRAPH_CONCURRENCY` (defaults to `MOMO_RLM_BUDGET`).
 
 ### Long-Running Work (`/goal`, `/schedule`, `/heartbeat`, `/daemon`)
 

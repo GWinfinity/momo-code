@@ -35,6 +35,11 @@ export interface SpawnOpts {
   readonly env?: Record<string, string>
   /** Timeout in ms (default: MOMO_RLM_TIMEOUT_MS or 300_000) */
   readonly timeoutMs?: number
+  /**
+   * Explicit argv to append after the base args (instead of `[task]`).
+   * Lets a subagent dispatch to CLI commands, e.g. ["/sim", "run", task].
+   */
+  readonly args?: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -134,7 +139,7 @@ export function spawnSubagent(
         )
         return
       }
-      child = spawn(cmd, [...baseArgs, task], {
+      child = spawn(cmd, [...baseArgs, ...(opts.args ?? [task])], {
         env: {
           ...process.env,
           MOMO_RLM_DEPTH: String(depth),

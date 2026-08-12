@@ -11,17 +11,25 @@ import { MockSampler } from "../optim/sampler.js"
 import { runStudy } from "../optim/runner.js"
 import { loadSemantics } from "../optim/semantics.js"
 import { loadStudy } from "../optim/study.js"
+import { resumeGraph, runGraph } from "../graph/engine.js"
+import { runSimLoop } from "../sim/loop.js"
+import { appendSimTurn, createSimRun, finishSimRun, loadSimRun } from "../sim/runs.js"
 import { recordSession } from "../session/recorder.js"
-import { sendError, sendJson, type RouteHandler } from "./server.js"
+import { openSse, sendError, sendJson, type RouteHandler } from "./server.js"
 
 // ---------------------------------------------------------------------------
 // Run locking (one concurrent run per study)
 // ---------------------------------------------------------------------------
 
 const running = new Set<string>()
+const graphRunning = new Set<string>()
 
 export function isStudyRunning(name: string): boolean {
   return running.has(name)
+}
+
+export function isGraphRunning(id: string): boolean {
+  return graphRunning.has(id)
 }
 
 // ---------------------------------------------------------------------------
@@ -31,12 +39,30 @@ export function isStudyRunning(name: string): boolean {
 let bridge: SimBridge | undefined
 let bridgeInit: Promise<SimBridge> | undefined
 
+function simSpawnHint(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err)
+  const low = msg.toLowerCase()
+  if (low.includes("eacces") || low.includes("enoent") || low.includes("spawn")) {
+    const py = process.env.MOMO_SIM_PYTHON || "python"
+    return (
+      `${msg} — python interpreter not launchable (currently "${py}"). ` +
+      `Install Python 3.10+ with genesis, or set MOMO_SIM_PYTHON to a working ` +
+      `python.exe (e.g. a conda env). Run "momo /sim doctor" for a full check.`
+    )
+  }
+  return msg
+}
+
 export async function getSimBridge(): Promise<SimBridge> {
   if (bridge) return bridge
   if (!bridgeInit) {
     bridgeInit = (async () => {
       const b = new SimBridge()
-      await b.initWorld({})
+      try {
+        await b.initWorld({})
+      } catch (err) {
+        throw new Error(simSpawnHint(err))
+      }
       bridge = b
       return b
     })()
@@ -47,6 +73,24 @@ export async function getSimBridge(): Promise<SimBridge> {
   return bridgeInit
 }
 
+
+// ---------------------------------------------------------------------------
+// Chat helpers
+// ---------------------------------------------------------------------------
+
+/** Deterministic offline reply used when no LLM provider is configured. */
+function mockChatReply(prompt: string): string {
+  const p = prompt.length > 160 ? prompt.slice(0, 160) + "…" : prompt
+  return [
+    `[mock] 未检测到 LLM provider（未配置 MOMO_API_KEY / MOMO_<PROVIDER>_API_KEY）。`,
+    `这是本地模拟回复，用于预览界面。你刚才说：「${p}」`,
+    ``,
+    `下一步可以：`,
+    `1. 配置 provider：export MOMO_API_KEY=… 或通过 cc-switch 激活`,
+    `2. 在 Graph 页发起一个长程任务（会自动分解为多个子 agent）`,
+    `3. 在 Optim 页跑参数搜索，或在 Sim 页连接 Genesis 仿真`,
+  ].join("\n")
+}
 process.once("exit", () => {
   try {
     if (bridge) void bridge.close()
@@ -71,6 +115,73 @@ export async function closeSimBridge(): Promise<void> {
 
 export function getActions(): Record<string, RouteHandler> {
   return {
+    "/api/graph/runs": async ({ res, body }) => {
+      const payload = (typeof body === "object" && body !== null ? body : {}) as {
+        task?: unknown
+        maxNodes?: unknown
+        maxRetries?: unknown
+      }
+      const task = typeof payload.task === "string" ? payload.task.trim() : ""
+      if (!task) {
+        sendError(res, 400, `body must be {"task": "..."}`)
+        return
+      }
+      const maxNodes = Math.min(Math.max(Number(payload.maxNodes) || 12, 1), 50)
+      const maxRetries = Math.min(Math.max(Number(payload.maxRetries) || 2, 0), 5)
+
+      const startMs = Date.now()
+      // Async: the response returns immediately; progress is visible via /api/graph/runs
+      void (async () => {
+        try {
+          const run = await runGraph(task, { maxNodes, maxRetries })
+          await recordSession({
+            provider: "graph",
+            model: "graph-engine",
+            prompt: `[graph] ${task} (via /serve)`,
+            response: `${run.nodes.length} nodes · status=${run.status}\n${run.output ?? ""}`.slice(0, 4000),
+            exitCode: run.status === "failed" ? 1 : 0,
+            durationMs: Date.now() - startMs,
+            rlmDepth: 0,
+          })
+        } catch {
+          // failures surface as the run state in the store
+        }
+      })()
+
+      sendJson(res, 202, { started: true, task, maxNodes, maxRetries })
+    },
+
+    "/api/graph/runs/:id/resume": async ({ res, params }) => {
+      if (graphRunning.has(params.id)) {
+        sendError(res, 409, `graph run "${params.id}" is already resuming`)
+        return
+      }
+      graphRunning.add(params.id)
+      const startMs = Date.now()
+      void (async () => {
+        try {
+          const run = await resumeGraph(params.id)
+          if (run) {
+            await recordSession({
+              provider: "graph",
+              model: "graph-engine",
+              prompt: `[graph resume] ${params.id} (via /serve)`,
+              response: `status=${run.status}\n${run.output ?? ""}`.slice(0, 4000),
+              exitCode: run.status === "failed" ? 1 : 0,
+              durationMs: Date.now() - startMs,
+              rlmDepth: 0,
+            })
+          }
+        } catch {
+          // failures surface as the run state in the store
+        } finally {
+          graphRunning.delete(params.id)
+        }
+      })()
+
+      sendJson(res, 202, { started: true, id: params.id })
+    },
+
     "/api/optim/studies/:name/run": async ({ res, params, body }) => {
       const config = loadStudy(params.name)
       if (!config) {
@@ -120,6 +231,76 @@ export function getActions(): Record<string, RouteHandler> {
       })()
 
       sendJson(res, 202, { started: true, trials, mock: useMock, semantics: approved ? "approved" : "blind" })
+    },
+
+    "/api/sim/run": async ({ res, body }) => {
+      const payload = (typeof body === "object" && body !== null ? body : {}) as {
+        task?: unknown
+      }
+      const task = typeof payload.task === "string" ? payload.task.trim() : ""
+      if (!task) {
+        sendError(res, 400, `body must be {"task": "..."}`)
+        return
+      }
+      const run = createSimRun(task)
+      const startMs = Date.now()
+      // Async: the response returns immediately; turns stream to /api/sim/runs/:id
+      void (async () => {
+        try {
+          const bridge = await getSimBridge()
+          const result = await runSimLoop(task, bridge, {
+            onTurn: (turn) => {
+              const live = loadSimRun(run.id)
+              if (live) appendSimTurn(live, turn)
+            },
+          })
+          const live = loadSimRun(run.id)
+          if (live) finishSimRun(live, { done: result.done, summary: result.summary, error: result.error })
+          await recordSession({
+            provider: "sim",
+            model: "sim-agent",
+            prompt: `[sim run] ${task} (via /serve)`,
+            response: `${result.done ? "done" : "failed"}: ${result.summary || result.error || ""}`.slice(0, 4000),
+            exitCode: result.done ? 0 : 1,
+            durationMs: Date.now() - startMs,
+            rlmDepth: 0,
+          })
+        } catch (err) {
+          const live = loadSimRun(run.id)
+          if (live) finishSimRun(live, {
+            done: false,
+            summary: "",
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      })()
+      sendJson(res, 202, { started: true, id: run.id, task })
+    },
+
+    "/api/sim/cameras/:name/path": async ({ res, params, body }) => {
+      try {
+        const payload = (typeof body === "object" && body !== null ? body : {}) as {
+          keyframes?: unknown
+        }
+        const keyframes = Array.isArray(payload.keyframes) ? payload.keyframes : []
+        if (keyframes.length === 0) {
+          sendError(res, 400, `body must be {"keyframes": [{"t","pos","lookat"}, ...]}`)
+          return
+        }
+        const b = await getSimBridge()
+        sendJson(res, 200, await b.cameraPathSet(params.name, keyframes as never))
+      } catch (err) {
+        sendError(res, 503, `sim world unavailable: ${err instanceof Error ? err.message : err}`)
+      }
+    },
+
+    "/api/sim/cameras/:name/path/clear": async ({ res, params }) => {
+      try {
+        const b = await getSimBridge()
+        sendJson(res, 200, await b.cameraPathClear(params.name))
+      } catch (err) {
+        sendError(res, 503, `sim world unavailable: ${err instanceof Error ? err.message : err}`)
+      }
     },
 
     "/api/sim/estop": async ({ res }) => {
@@ -230,34 +411,73 @@ export function getActions(): Record<string, RouteHandler> {
       }
     },
 
-    "/api/chat": async ({ res, body }) => {
+    "/api/chat": async ({ req, res, body }) => {
       const payload = (typeof body === "object" && body !== null ? body : {}) as {
         prompt?: unknown
+        stream?: unknown
       }
       const prompt = typeof payload.prompt === "string" ? payload.prompt.trim() : ""
       if (!prompt) {
         sendError(res, 400, `body must be {"prompt": "..."}`)
         return
       }
+      const wantStream = payload.stream === true
       const provider = await resolveProviderConfig()
       if (!provider) {
-        sendError(
-          res,
-          503,
-          "no provider configured — set MOMO_API_KEY (or MOMO_<PROVIDER>_API_KEY)",
-        )
+        const mock = mockChatReply(prompt)
+        if (!wantStream) {
+          sendJson(res, 200, { reply: mock, mock: true, model: "mock", provider: "mock" })
+          return
+        }
+        const push = openSse(res)
+        push("meta", { mock: true, provider: "mock", model: "mock" })
+        // Emit the mock reply in small chunks so the UI streams like a real model.
+        let emitted = 0
+        const timer = setInterval(() => {
+          const next = mock.slice(emitted, emitted + 24)
+          if (!next) {
+            clearInterval(timer)
+            push("done", { reply: mock })
+            return
+          }
+          emitted += next.length
+          push("delta", { text: next })
+        }, 18)
+        req.on("close", () => clearInterval(timer))
         return
       }
-      const reply = await chatComplete({
-        baseUrl: provider.baseUrl,
-        apiKey: provider.apiKey,
-        model: provider.model,
-        messages: [{ role: "user", content: prompt }],
-        stream: false,
-        temperature: 0.7,
-        timeout: 180_000,
-      })
-      sendJson(res, 200, { reply, model: provider.model, provider: provider.providerName })
+
+      if (!wantStream) {
+        const reply = await chatComplete({
+          baseUrl: provider.baseUrl,
+          apiKey: provider.apiKey,
+          model: provider.model,
+          messages: [{ role: "user", content: prompt }],
+          stream: false,
+          temperature: 0.7,
+          timeout: 180_000,
+        })
+        sendJson(res, 200, { reply, model: provider.model, provider: provider.providerName })
+        return
+      }
+
+      const push = openSse(res)
+      push("meta", { mock: false, provider: provider.providerName, model: provider.model })
+      try {
+        const reply = await chatComplete({
+          baseUrl: provider.baseUrl,
+          apiKey: provider.apiKey,
+          model: provider.model,
+          messages: [{ role: "user", content: prompt }],
+          stream: true,
+          temperature: 0.7,
+          timeout: 180_000,
+          onToken: (text) => push("delta", { text }),
+        })
+        push("done", { reply })
+      } catch (err) {
+        push("error", { message: err instanceof Error ? err.message : String(err) })
+      }
     },
   }
 }
