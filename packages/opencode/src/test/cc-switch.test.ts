@@ -326,6 +326,59 @@ describe("cc-switch integration", () => {
     assert.strictEqual(loadActiveCcSwitchProviderSync("opencode"), null)
   })
 
+  it("loadActiveCcSwitchProvider reads the sole opencode row from the SQLite DB", async (t) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let DatabaseSync: any
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      DatabaseSync = (await import("node:sqlite"))?.DatabaseSync
+    } catch {
+      t.skip("node:sqlite not available")
+      return
+    }
+
+    // No live config and no currentProviderOpencode: the DB row is the source.
+    fs.writeFileSync(
+      path.join(tmpDir, ".cc-switch", "settings.json"),
+      JSON.stringify({}),
+    )
+    const livePath = path.join(tmpDir, ".config", "opencode", "opencode.json")
+    if (fs.existsSync(livePath)) fs.rmSync(livePath)
+
+    const db = new DatabaseSync(path.join(tmpDir, ".cc-switch", "cc-switch.db"))
+    db.exec(`
+      CREATE TABLE providers (
+        id TEXT NOT NULL,
+        app_type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        settings_config TEXT NOT NULL,
+        is_current BOOLEAN NOT NULL DEFAULT 0,
+        PRIMARY KEY (id, app_type)
+      )
+    `)
+    db.prepare(
+      "INSERT INTO providers (id, app_type, name, settings_config, is_current) VALUES (?, ?, ?, ?, ?)",
+    ).run(
+      "deepseek",
+      "opencode",
+      "DeepSeek",
+      JSON.stringify({
+        npm: "@ai-sdk/openai-compatible",
+        options: { baseURL: "https://api.deepseek.com/v1", apiKey: "sk-db" },
+        models: { "deepseek-v4-flash": { name: "DeepSeek Flash" } },
+      }),
+      0,
+    )
+    db.close()
+
+    const provider = await loadActiveCcSwitchProvider("opencode")
+    assert.ok(provider)
+    assert.strictEqual(provider!.id, "deepseek")
+    assert.strictEqual(provider!.providerName, "openai")
+    assert.strictEqual(provider!.apiKey, "sk-db")
+    assert.strictEqual(provider!.model, "deepseek-v4-flash")
+  })
+
   it("loadActiveCcSwitchProviderSync returns null for opencode when disabled", () => {
     process.env.MOMO_NO_CC_SWITCH = "true"
     const provider = loadActiveCcSwitchProviderSync("opencode")

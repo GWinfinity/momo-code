@@ -18,9 +18,10 @@
  *   (~/.config/opencode/opencode.json) is the primary source — CC Switch
  *   merges every opencode provider into its additive "provider" map. The
  *   current provider ID comes from CC Switch settings.json
- *   (currentProviderOpencode); if that is missing we fall back to the SQLite
- *   is_current flag, then to the live file when it contains exactly one
- *   usable provider.
+ *   (currentProviderOpencode); when that is missing we fall back to the
+ *   SQLite is_current flag, then to the sole opencode row (CC Switch does
+ *   not maintain is_current for the additive opencode mode), then to the
+ *   live file when it contains exactly one usable provider.
  */
 
 import fs from "fs"
@@ -297,13 +298,14 @@ function mapOpencodeNpmToProvider(npm?: string): string {
   return "openai"
 }
 
-/** Internal: try to read the active provider from the SQLite DB. */
-async function loadProviderFromDb(
+/** Internal: read provider rows from the SQLite DB. */
+async function loadProviderRowsFromDb(
   appType: string,
   providerId?: string,
-): Promise<CcSwitchProviderRow | null> {
+  includeAll = false,
+): Promise<CcSwitchProviderRow[]> {
   const dbPath = path.join(getCcSwitchDir(), "cc-switch.db")
-  if (!fs.existsSync(dbPath)) return null
+  if (!fs.existsSync(dbPath)) return []
 
   // Try Bun's built-in SQLite first (compiled binary / Bun runtime).
   try {
@@ -318,12 +320,36 @@ async function loadProviderFromDb(
       if (providerId) {
         sql += " AND id = ?"
         params.push(providerId)
-      } else {
+      } else if (!includeAll) {
         sql += " AND is_current = 1"
       }
       const stmt = db.query(sql)
-      const row = stmt.get(...params) as CcSwitchProviderRow | undefined
-      return row || null
+      return (stmt.all(...params) as CcSwitchProviderRow[]) || []
+    } finally {
+      db.close()
+    }
+  } catch {
+    // fallthrough
+  }
+
+  // Try Node's built-in SQLite (Node 22.5+; no native dependency needed).
+  try {
+    const nodeSqlite = "node:sqlite"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { DatabaseSync }: any = await import(nodeSqlite)
+    const db = new DatabaseSync(dbPath, { readOnly: true })
+    try {
+      let sql =
+        "SELECT id, app_type, name, settings_config, is_current FROM providers WHERE app_type = ?"
+      const params: (string | number)[] = [appType]
+      if (providerId) {
+        sql += " AND id = ?"
+        params.push(providerId)
+      } else if (!includeAll) {
+        sql += " AND is_current = 1"
+      }
+      const stmt = db.prepare(sql)
+      return (stmt.all(...params) as CcSwitchProviderRow[]) || []
     } finally {
       db.close()
     }
@@ -338,16 +364,17 @@ async function loadProviderFromDb(
     const { default: Database }: any = await import(betterSqlite)
     const db = new Database(dbPath, { readonly: true })
     try {
+      let sql =
+        "SELECT id, app_type, name, settings_config, is_current FROM providers WHERE app_type = ?"
+      const params: string[] = [appType]
       if (providerId) {
-        const stmt = db.prepare(
-          "SELECT id, app_type, name, settings_config, is_current FROM providers WHERE app_type = ? AND id = ?",
-        )
-        return (stmt.get(appType, providerId) as CcSwitchProviderRow) || null
+        sql += " AND id = ?"
+        params.push(providerId)
+      } else if (!includeAll) {
+        sql += " AND is_current = 1"
       }
-      const stmt = db.prepare(
-        "SELECT id, app_type, name, settings_config, is_current FROM providers WHERE app_type = ? AND is_current = 1",
-      )
-      return (stmt.get(appType) as CcSwitchProviderRow) || null
+      const stmt = db.prepare(sql)
+      return (stmt.all(...params) as CcSwitchProviderRow[]) || []
     } finally {
       db.close()
     }
@@ -355,7 +382,16 @@ async function loadProviderFromDb(
     // fallthrough
   }
 
-  return null
+  return []
+}
+
+/** Internal: try to read the active provider from the SQLite DB. */
+async function loadProviderFromDb(
+  appType: string,
+  providerId?: string,
+): Promise<CcSwitchProviderRow | null> {
+  const rows = await loadProviderRowsFromDb(appType, providerId)
+  return rows[0] || null
 }
 
 /** Internal: fall back to ~/.claude/settings.json (rewritten by CC Switch). */
@@ -406,9 +442,17 @@ async function loadActiveOpencodeProvider(
     return null
   }
 
-  // No explicit current provider: prefer the DB is_current flag.
+  // No explicit current provider: prefer the DB is_current flag, then the
+  // sole opencode row (CC Switch does not maintain is_current for the
+  // additive opencode mode), then a single usable live provider.
   const fromDb = await loadProviderFromDb("opencode")
   if (fromDb) return normalizeOpencodeProvider(fromDb)
+
+  const rows = await loadProviderRowsFromDb("opencode", undefined, true)
+  if (rows.length === 1) {
+    const normalized = normalizeOpencodeProvider(rows[0])
+    if (normalized) return normalized
+  }
 
   return resolveOpencodeFromLive()
 }
