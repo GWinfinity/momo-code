@@ -149,6 +149,9 @@
   pre.diff .ctx { color:var(--dim); display:block; }
 
   pre { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; overflow:auto; font-size:12px; white-space:pre-wrap; }
+  details.node-detail { border:1px solid var(--border); border-radius:8px; padding:8px 12px; margin-bottom:8px; background:var(--bg); }
+  details.node-detail summary { cursor:pointer; font-size:12.5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  details.node-detail pre { margin:8px 0 0; }
   .empty { color:var(--dim); font-size:12.5px; padding:22px; text-align:center; border:1px dashed var(--border2); border-radius:var(--radius); }
 
   .frames { display:flex; gap:8px; overflow-x:auto; margin-top:8px; }
@@ -166,7 +169,7 @@
   <span class="logo">◉ momo workspace</span>
   <span class="crumb" id="crumb"></span>
   <div class="hmeta">
-    <span id="mockBadge" class="badge warn hidden">no provider · mock</span>
+    <span id="mockBadge" class="badge warn hidden">no provider</span>
     <a class="hlink" href="/workbench" target="_blank">Open sim workbench ↗</a>
     <span id="tokenBox"><input id="tokenInput" placeholder="token" size="12"><button class="ghost" onclick="saveToken()">set</button></span>
     <span id="conn"><span class="dot"></span><span id="connTxt">connecting…</span></span>
@@ -234,6 +237,10 @@ async function api(path, opts) {
 function saveToken() { state.token = document.getElementById("tokenInput").value.trim(); localStorage.setItem("momo_token", state.token); location.reload(); }
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function clip(s, n) { s = String(s ?? "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n) + "…" : s; }
+function cleanNodeText(s) {
+  s = String(s || "").replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "");
+  return s.split(/\r?\n/).map(l => l.trimEnd()).filter(l => !/^(timestamp=\S+\s+level=\w+|\(node:\d+\)|\(Use `node --trace-warnings|\[subagent timed out\]|\[spawn error:|→\s+\S+\s+\|\s+\S+)/.test(l.trim())).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
 function short(id) { return String(id ?? "").slice(0, 8); }
 function timeAgo(iso) {
   if (!iso) return "—";
@@ -258,7 +265,7 @@ function setConn(ok) {
   document.getElementById("connTxt").textContent = ok ? "connected" : "offline";
 }
 function statusChip(st) {
-  const map = { done: "ok", failed: "err", partial: "warn", planned: "cyan", running: "cyan", pending: "dim", skipped: "warn" };
+  const map = { done: "ok", failed: "err", partial: "warn", planned: "cyan", running: "cyan", pending: "dim", skipped: "warn", waiting: "warn" };
   const cls = map[st] || "dim";
   return `<span class="chip ${cls}${st === "running" ? " running" : ""}"><span class="dot"></span>${esc(st)}</span>`;
 }
@@ -382,15 +389,11 @@ function sideOverview(el) {
     <div class="side-body">${(state.snapshot?.sessions?.items || []).slice(0, 6).map(s => `<div class="side-item" onclick="showView('sessions')"><span class="t">${esc(clip(s.prompt, 24))}<br><span class="sub">${esc(s.provider)} · ${s.exitCode === 0 ? "✓" : "✗"}</span></span></div>`).join("") || `<div class="side-empty">no sessions</div>`}</div>`;
 }
 function sideChat(el) {
-  const last = state.chat[state.chat.length - 1];
   el.innerHTML = `
-    <div class="side-head">Thread</div>
+    <div class="side-head">Chat</div>
     <div class="side-body">
       <button class="ghost" style="width:100%" onclick="newChat()">＋ new chat</button>
-      ${state.chat.length ? `<div class="side-item" style="cursor:default;margin-top:6px"><span class="t">${state.chat.length} messages<br><span class="sub">${esc(clip(last?.text || "", 40))}</span></span></div>` : `<div class="side-empty">empty thread</div>`}
-    </div>
-    <div class="side-head">Tips</div>
-    <div class="side-body"><div class="side-item" style="cursor:default"><span class="t"><span class="sub">Ctrl+Enter to send · /graph for multi-agent runs · /optim for parameter search</span></span></div></div>`;
+    </div>`;
 }
 function sideSessions(el) {
   const items = state.sessionsFull || state.snapshot?.sessions?.items || [];
@@ -506,12 +509,13 @@ function renderChat() {
     </div>
     <div id="chatLog"></div>
     <div class="composer">
-      <textarea id="chatInput" placeholder="Ask momo — Ctrl+Enter to send…"></textarea>
+      <textarea id="chatInput" placeholder="Ask momo — Enter to send, Shift+Enter for newline"></textarea>
       <div class="row" style="justify-content:space-between;margin-top:6px">
         <span class="dim" id="chatStatus"></span>
         <div class="row">
-          <select id="chatTarget" title="chat = LLM 对话；→ sim = 交给仿真 agent 在世界里执行">
+          <select id="chatTarget" title="chat = LLM 对话；graph = 多 agent 图执行；→ sim = 交给仿真 agent 在世界里执行">
             <option value="chat">chat</option>
+            <option value="graph">graph</option>
             <option value="sim">→ sim</option>
           </select>
           <button class="act" id="chatSend" onclick="sendChat()">send</button>
@@ -521,9 +525,9 @@ function renderChat() {
   </div>`;
   const log = document.getElementById("chatLog");
   for (const m of state.chat) appendBubble(m.role, m.text);
-  if (!state.chat.length) log.innerHTML = `<div class="empty">Start a conversation. Without a configured provider (MOMO_API_KEY), you get a local mock reply.</div>`;
+  if (!state.chat.length) log.innerHTML = `<div class="empty">Start a conversation — send your first message below.</div>`;
   const inp = document.getElementById("chatInput");
-  inp.addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) sendChat(); });
+  inp.addEventListener("keydown", e => { if (e.key !== "Enter" || e.shiftKey || e.isComposing) return; e.preventDefault(); sendChat(); });
   inp.focus();
 }
 function newChat() { state.chat = []; localStorage.removeItem("momo_chat_thread"); if (state.view === "chat") renderChat(); }
@@ -552,6 +556,7 @@ async function sendChat() {
   document.getElementById("chatSend").disabled = true;
   status.textContent = "thinking…";
   const target = document.getElementById("chatTarget")?.value || "chat";
+  if (target === "graph") { sendGraphTask(prompt, bubble, status); return; }
   if (target === "sim") { sendToSim(prompt, bubble, status); return; }
   let full = "";
   try {
@@ -579,18 +584,17 @@ async function sendChat() {
         if (!line.startsWith("data: ")) continue;
         let data;
         try { data = JSON.parse(line.slice(6)); } catch { continue; }
-        if (data.meta) {
-          if (data.meta.mock) document.getElementById("mockBadge").classList.remove("hidden");
-          status.textContent = (data.meta.mock ? "mock · " : "") + (data.meta.provider || "") + " " + (data.meta.model || "");
-        } else if (data.delta) {
-          full += data.delta.text;
+        if (data.provider !== undefined || data.mock !== undefined) {
+          status.textContent = (data.provider || "") + " " + (data.model || "");
+        } else if (typeof data.text === "string") {
+          full += data.text;
           bubble.classList.remove("streaming");
           bubble.textContent = full;
           bubble.scrollIntoView({ block: "end" });
-        } else if (data.done) {
-          full = data.done.reply || full;
-        } else if (data.error) {
-          throw new Error(data.error.message);
+        } else if (typeof data.reply === "string") {
+          full = data.reply || full;
+        } else if (data.message) {
+          throw new Error(data.message);
         }
       }
     }
@@ -599,6 +603,29 @@ async function sendChat() {
     state.chat.push({ role: "assistant", text: full, ts: new Date().toISOString() });
     localStorage.setItem("momo_chat_thread", JSON.stringify(state.chat.slice(-40)));
     status.textContent = state.chat.length + " messages";
+  } catch (e) {
+    bubble.classList.remove("streaming");
+    bubble.textContent = "✗ " + e.message;
+    status.textContent = "";
+  } finally {
+    state.chatBusy = false;
+    document.getElementById("chatSend").disabled = false;
+  }
+}
+// ---- graph as a chat mode (Claude Code style /graph) ----------------------
+async function sendGraphTask(prompt, bubble, status) {
+  try {
+    const res = await api("/api/graph/runs", {
+      method: "POST",
+      body: JSON.stringify({ task: prompt, maxNodes: 12 }),
+    });
+    bubble.classList.remove("streaming");
+    bubble.textContent = "graph run started — planning…";
+    status.textContent = "graph · up to " + (res.maxNodes || 12) + " sub-agents";
+    // Jump to the graph view to watch the DAG progress.
+    state.graphRunId = res.id || null;
+    renderSidebar();
+    setTimeout(() => showView("graph"), 500);
   } catch (e) {
     bubble.classList.remove("streaming");
     bubble.textContent = "✗ " + e.message;
@@ -634,11 +661,12 @@ async function startGraph() {
   if (!task) { toast("task required", true); return; }
   const maxNodes = Math.min(Math.max(Number(document.getElementById("graphMaxNodes")?.value) || 12, 1), 50);
   try {
-    await api("/api/graph/runs", { method: "POST", body: JSON.stringify({ task, maxNodes }) });
+    const res = await api("/api/graph/runs", { method: "POST", body: JSON.stringify({ task, maxNodes }) });
     toast("graph run started — planning…");
     if (input) input.value = "";
-    state.graphRunId = null;
+    state.graphRunId = res.id || null;
     renderSidebar();
+    renderGraph();
   } catch (e) { toast(e.message, true); }
 }
 function selectGraphRun(id) {
@@ -667,21 +695,37 @@ async function loadGraphDetail() {
     const run = await api("/api/graph/runs/" + encodeURIComponent(state.graphRunId));
     state.graphRunUpdatedAt = run.updatedAt;
     const meta = document.getElementById("graphRunMeta");
-    if (meta) meta.innerHTML = statusChip(run.status) + ` · ${run.nodes.length} nodes · updated ${timeAgo(run.updatedAt)}`;
+    if (meta) meta.innerHTML = statusChip(run.status) + ` · ${run.nodes.length} nodes · ${run.tokens && run.tokens.total ? run.tokens.total + " tokens · " : ""}updated ${timeAgo(run.updatedAt)}`;
     holder.innerHTML = `
       <div class="row" style="margin-bottom:10px">
         <button class="ghost" onclick="state.graphRunId=null;renderGraph()">← back to list</button>
         ${(run.status === "failed" || run.status === "partial" || run.status === "planned") ? `<button class="act" onclick="resumeGraphRun('${esc(run.id)}')">resume</button>` : ""}
+        ${run.status === "waiting" ? `<button class="act" onclick="decideGraphRun('${esc(run.id)}','approve')">approve</button>
+        <button class="ghost" onclick="decideGraphRun('${esc(run.id)}','reject')">reject</button>` : ""}
       </div>
       <div class="card"><div class="dim" style="margin-bottom:10px">${esc(run.task)}</div>
         <div class="dag-wrap">${dagSvg(run)}</div></div>
-      <div class="card"><h3>Nodes</h3><table class="tbl"><tr><th>id</th><th>kind</th><th>state</th><th>after</th><th>task</th><th>output / error</th></tr>` +
-      run.nodes.map(n => `<tr><td><b>${esc(n.id)}</b></td><td>${esc(n.kind || "agent")}</td>
+      <div class="card"><h3>Nodes</h3><table class="tbl"><tr><th>id</th><th>kind</th><th>state</th><th>after</th><th>task</th><th>result</th></tr>` +
+      run.nodes.map(n => { const res = n.error ? `<span class="err">✗ ${esc(clip(cleanNodeText(n.error), 140))}</span>` : (n.output ? `<span class="dim">${esc(clip(cleanNodeText(n.output), 140))}</span>` : `<span class="dim">—</span>`); const tok = n.tokens && n.tokens.total ? ` · <span class="dim">${n.tokens.total} tok</span>` : ""; return `<tr><td><b>${esc(n.id)}</b></td><td>${esc(n.kind || "agent")}</td>
         <td>${statusChip(n.state)}</td><td class="dim">${esc((n.dependsOn || []).join(", ") || "—")}</td>
-        <td>${esc(clip(n.task, 90))}</td>
-        <td class="dim">${esc(clip(n.output || n.error || "", 90))}</td></tr>`).join("") + `</table></div>
+        <td>${esc(clip(n.task, 90))}</td><td>${res}${tok}</td></tr>`; }).join("") + `</table>
+      ${run.nodes.map(n => {
+        const body = n.output ? `<pre>${esc(cleanNodeText(n.output))}</pre>` : "";
+        const err = n.error ? `<pre class="err">✗ ${esc(cleanNodeText(n.error))}</pre>` : "";
+        const fields = n.fields ? `<pre class="dim">fields: ${esc(JSON.stringify(n.fields))}</pre>` : "";
+        const tok = n.tokens && n.tokens.total ? ` <span class="dim">${n.tokens.total} tok</span>` : "";
+        if (!body && !err && !fields) return "";
+        return `<details class="node-detail"><summary><b>${esc(n.id)}</b> ${statusChip(n.state)}${tok} <span class="dim">${esc(clip(n.task, 60))}</span></summary>${fields}${body}${err}</details>`;
+      }).join("")}
+      </div>
       ${run.output ? `<div class="card"><h3>Synthesis</h3><pre>${esc(run.output.slice(0, 4000))}</pre></div>` : ""}`;
   } catch (e) {
+    // The run id is returned before the planner has saved the run file.
+    if (String(e.message).includes("404")) {
+      if (holder) holder.innerHTML = `<div class="empty">planning… (run appears when the DAG is ready)</div>`;
+      setTimeout(loadGraphDetail, 1500);
+      return;
+    }
     if (holder) holder.innerHTML = `<div class="empty err">${esc(e.message)}</div>`;
   }
 }
@@ -689,6 +733,12 @@ async function resumeGraphRun(id) {
   try {
     await api("/api/graph/runs/" + encodeURIComponent(id) + "/resume", { method: "POST", body: "{}" });
     toast("resuming " + short(id));
+  } catch (e) { toast(e.message, true); }
+}
+async function decideGraphRun(id, action) {
+  try {
+    await api("/api/graph/runs/" + encodeURIComponent(id) + "/" + action, { method: "POST", body: "{}" });
+    toast(action + "ing " + short(id));
   } catch (e) { toast(e.message, true); }
 }
 function dagSvg(run) {
@@ -709,8 +759,8 @@ function dagSvg(run) {
   const h = Math.max(...layers.map(l => l.length), 1) * H + PAD * 2;
   const pos = {};
   layers.forEach((ids, li) => ids.forEach((id, ri) => { pos[id] = { x: PAD + li * W, y: PAD + ri * H }; }));
-  const fill = { pending: "#161d2e", running: "#123047", done: "#0f2b1c", failed: "#301818", skipped: "#2e2412" };
-  const stroke = { pending: "#2a3850", running: "#22d3ee", done: "#2e8b57", failed: "#c1443f", skipped: "#a8842c" };
+  const fill = { pending: "#161d2e", running: "#123047", done: "#0f2b1c", failed: "#301818", skipped: "#2e2412", waiting: "#332a10" };
+  const stroke = { pending: "#2a3850", running: "#22d3ee", done: "#2e8b57", failed: "#c1443f", skipped: "#a8842c", waiting: "#eab308" };
   let edges = "";
   for (const n of run.nodes) for (const d of (n.dependsOn || [])) {
     const p = pos[d], q = pos[n.id];
@@ -724,7 +774,7 @@ function dagSvg(run) {
     return `<g><rect x="${p.x}" y="${p.y}" width="176" height="40" rx="9" stroke-width="1.4"
       fill="${fill[n.state] || "#161d2e"}" stroke="${stroke[n.state] || "#2a3850"}"
       ${n.state === "running" ? 'style="stroke-dasharray:5 3;animation:pulse 1.2s infinite"' : ""}/>
-      <text class="dag-label" x="${p.x + 10}" y="${p.y + 17}">${esc(n.id)}</text>
+      <text class="dag-label" x="${p.x + 10}" y="${p.y + 17}">${n.kind === "approval" ? "⏸ " : ""}${esc(n.id)}</text>
       <text class="dag-label" x="${p.x + 10}" y="${p.y + 31}" style="fill:var(--dim);font-weight:400;font-size:9.5px">${esc(clip(n.task, 24))}</text></g>`;
   }).join("");
   return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:${w}px">${edges}${nodes}</svg>`;

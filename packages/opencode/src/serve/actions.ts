@@ -11,7 +11,8 @@ import { MockSampler } from "../optim/sampler.js"
 import { runStudy } from "../optim/runner.js"
 import { loadSemantics } from "../optim/semantics.js"
 import { loadStudy } from "../optim/study.js"
-import { resumeGraph, runGraph } from "../graph/engine.js"
+import { approveRun, rejectRun, resumeGraph, runGraph } from "../graph/engine.js"
+import { newRunId } from "../graph/store.js"
 import { runSimLoop } from "../sim/loop.js"
 import { appendSimTurn, createSimRun, finishSimRun, loadSimRun } from "../sim/runs.js"
 import { recordSession } from "../session/recorder.js"
@@ -82,13 +83,9 @@ export async function getSimBridge(): Promise<SimBridge> {
 function mockChatReply(prompt: string): string {
   const p = prompt.length > 160 ? prompt.slice(0, 160) + "…" : prompt
   return [
-    `[mock] 未检测到 LLM provider（未配置 MOMO_API_KEY / MOMO_<PROVIDER>_API_KEY）。`,
-    `这是本地模拟回复，用于预览界面。你刚才说：「${p}」`,
+    `模型服务暂不可用，请稍后重试。`,
     ``,
-    `下一步可以：`,
-    `1. 配置 provider：export MOMO_API_KEY=… 或通过 cc-switch 激活`,
-    `2. 在 Graph 页发起一个长程任务（会自动分解为多个子 agent）`,
-    `3. 在 Optim 页跑参数搜索，或在 Sim 页连接 Genesis 仿真`,
+    `你刚才说：「${p}」`,
   ].join("\n")
 }
 process.once("exit", () => {
@@ -128,12 +125,13 @@ export function getActions(): Record<string, RouteHandler> {
       }
       const maxNodes = Math.min(Math.max(Number(payload.maxNodes) || 12, 1), 50)
       const maxRetries = Math.min(Math.max(Number(payload.maxRetries) || 2, 0), 5)
+      const runId = newRunId()
 
       const startMs = Date.now()
       // Async: the response returns immediately; progress is visible via /api/graph/runs
       void (async () => {
         try {
-          const run = await runGraph(task, { maxNodes, maxRetries })
+          const run = await runGraph(task, { id: runId, maxNodes, maxRetries })
           await recordSession({
             provider: "graph",
             model: "graph-engine",
@@ -148,7 +146,7 @@ export function getActions(): Record<string, RouteHandler> {
         }
       })()
 
-      sendJson(res, 202, { started: true, task, maxNodes, maxRetries })
+      sendJson(res, 202, { started: true, id: runId, task, maxNodes, maxRetries })
     },
 
     "/api/graph/runs/:id/resume": async ({ res, params }) => {
@@ -166,6 +164,68 @@ export function getActions(): Record<string, RouteHandler> {
               provider: "graph",
               model: "graph-engine",
               prompt: `[graph resume] ${params.id} (via /serve)`,
+              response: `status=${run.status}\n${run.output ?? ""}`.slice(0, 4000),
+              exitCode: run.status === "failed" ? 1 : 0,
+              durationMs: Date.now() - startMs,
+              rlmDepth: 0,
+            })
+          }
+        } catch {
+          // failures surface as the run state in the store
+        } finally {
+          graphRunning.delete(params.id)
+        }
+      })()
+
+      sendJson(res, 202, { started: true, id: params.id })
+    },
+
+    "/api/graph/runs/:id/approve": async ({ res, params }) => {
+      if (graphRunning.has(params.id)) {
+        sendError(res, 409, `graph run "${params.id}" is already resuming`)
+        return
+      }
+      graphRunning.add(params.id)
+      const startMs = Date.now()
+      void (async () => {
+        try {
+          const run = await approveRun(params.id)
+          if (run) {
+            await recordSession({
+              provider: "graph",
+              model: "graph-engine",
+              prompt: `[graph approve] ${params.id} (via /serve)`,
+              response: `status=${run.status}\n${run.output ?? ""}`.slice(0, 4000),
+              exitCode: run.status === "failed" ? 1 : 0,
+              durationMs: Date.now() - startMs,
+              rlmDepth: 0,
+            })
+          }
+        } catch {
+          // failures surface as the run state in the store
+        } finally {
+          graphRunning.delete(params.id)
+        }
+      })()
+
+      sendJson(res, 202, { started: true, id: params.id })
+    },
+
+    "/api/graph/runs/:id/reject": async ({ res, params }) => {
+      if (graphRunning.has(params.id)) {
+        sendError(res, 409, `graph run "${params.id}" is already resuming`)
+        return
+      }
+      graphRunning.add(params.id)
+      const startMs = Date.now()
+      void (async () => {
+        try {
+          const run = await rejectRun(params.id)
+          if (run) {
+            await recordSession({
+              provider: "graph",
+              model: "graph-engine",
+              prompt: `[graph reject] ${params.id} (via /serve)`,
               response: `status=${run.status}\n${run.output ?? ""}`.slice(0, 4000),
               exitCode: run.status === "failed" ? 1 : 0,
               durationMs: Date.now() - startMs,
@@ -438,6 +498,7 @@ export function getActions(): Record<string, RouteHandler> {
           if (!next) {
             clearInterval(timer)
             push("done", { reply: mock })
+            res.end()
             return
           }
           emitted += next.length
@@ -475,8 +536,10 @@ export function getActions(): Record<string, RouteHandler> {
           onToken: (text) => push("delta", { text }),
         })
         push("done", { reply })
+        res.end()
       } catch (err) {
         push("error", { message: err instanceof Error ? err.message : String(err) })
+        res.end()
       }
     },
   }

@@ -62,7 +62,7 @@ export function renderHelp(): string {
   lines.push(`  ${C.c}/refine [--last=N]${C.B}            Review recent sessions → propose improvements`)
   lines.push(`  ${C.c}/refine approve|apply <id>${C.B}  Human-review gate (nothing auto-applies)`)
   lines.push(`  ${C.c}/agent \"<task>\"${C.B}             Decompose → parallel subagents → synthesize`)
-  lines.push(`  ${C.c}/graph run|resume|status|list${C.B} DAG of subagents, resumable long-horizon runs`)
+  lines.push(`  ${C.c}/graph run|resume|approve|reject|status|list${C.B} DAG of subagents, resumable long-horizon runs`)
   lines.push(`  ${C.c}/goal add|list|log|done${C.B}     Track goals injected into every session`)
   lines.push(`  ${C.c}/schedule add --every=60m${C.B}   Timed subagent tasks`)
   lines.push(`  ${C.c}/heartbeat${C.B}                  Run due tasks + goal check-in`)

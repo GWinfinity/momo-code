@@ -81,7 +81,12 @@ export function sendError(res: http.ServerResponse, status: number, message: str
 }
 
 function sendHtml(res: http.ServerResponse, html: string): void {
-  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" })
+  // No caching: dashboard HTML is a single file read from src/serve on every
+  // request, so browser refreshes always pick up the latest version.
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+  })
   res.end(html)
 }
 

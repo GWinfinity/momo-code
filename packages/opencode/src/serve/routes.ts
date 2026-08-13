@@ -54,6 +54,8 @@ function graphRunSummary(run: GraphRun) {
     nodeCount: run.nodes.length,
     done: run.nodes.filter((n) => n.state === "done").length,
     failed: run.nodes.filter((n) => n.state === "failed" || n.state === "skipped").length,
+    waiting: run.nodes.filter((n) => n.state === "waiting").length,
+    tokens: run.tokens?.total ?? 0,
     hasOutput: !!run.output,
   }
 }
@@ -91,7 +93,9 @@ function streamSnapshot() {
   const studies = listStudies().map(studySummary).filter((x): x is NonNullable<typeof x> => x !== null)
   const goals = loadGoals()
   const sched = loadSchedule()
-  const running = runs.filter((r) => r.status === "planned" || r.status === "running")
+  const running = runs.filter(
+    (r) => r.status === "planned" || r.status === "running" || r.status === "waiting",
+  )
   return {
     t: new Date().toISOString(),
     graph: {

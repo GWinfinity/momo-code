@@ -16,6 +16,8 @@
 
 import { spawn } from "child_process"
 import * as fs from "fs"
+import * as os from "os"
+import * as path from "path"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,10 +26,14 @@ import * as fs from "fs"
 export interface SubagentResult {
   readonly task: string
   readonly output: string
+  /** Diagnostics captured on stderr (logs, reasoning, warnings). */
+  readonly stderrOutput: string
   readonly exitCode: number
   readonly durationMs: number
   readonly timedOut: boolean
   readonly depth: number
+  /** Token usage reported by the child (via MOMO_USAGE_FILE), if any. */
+  readonly tokens?: { prompt?: number; completion?: number; total?: number }
 }
 
 export interface SpawnOpts {
@@ -40,6 +46,27 @@ export interface SpawnOpts {
    * Lets a subagent dispatch to CLI commands, e.g. ["/sim", "run", task].
    */
   readonly args?: string[]
+}
+
+/** Read + delete the child's usage report written to `file`. */
+function readUsageFile(
+  file: string,
+): { prompt?: number; completion?: number; total?: number } | undefined {
+  try {
+    if (!fs.existsSync(file)) return undefined
+    const raw = JSON.parse(fs.readFileSync(file, "utf-8")) as Record<string, unknown>
+    fs.unlinkSync(file)
+    const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined)
+    // The child writes camelCase (promptTokens…); older writers may use prompt/…
+    const prompt = num(raw.promptTokens ?? raw.prompt)
+    const completion = num(raw.completionTokens ?? raw.completion)
+    const total = num(raw.totalTokens ?? raw.total)
+    return prompt !== undefined || completion !== undefined || total !== undefined
+      ? { prompt, completion, total }
+      : undefined
+  } catch {
+    return undefined
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -107,21 +134,28 @@ export function spawnSubagent(
   const timeoutMs =
     opts.timeoutMs ?? (Number(process.env.MOMO_RLM_TIMEOUT_MS || 300_000) || 300_000)
   const started = Date.now()
+  const usageFile = path.join(
+    os.tmpdir(),
+    `momo-usage-${process.pid}-${started}-${Math.random().toString(36).slice(2, 8)}.json`,
+  )
 
   return new Promise((resolve) => {
-    const done = (output: string, exitCode: number, timedOut: boolean) =>
+    const done = (output: string, stderrOutput: string, exitCode: number, timedOut: boolean) =>
       resolve({
         task,
         output,
+        stderrOutput,
         exitCode,
         durationMs: Date.now() - started,
         timedOut,
         depth,
+        tokens: readUsageFile(usageFile),
       })
 
     if (depth > maxDepth()) {
       done(
         `RLM depth limit reached (max ${maxDepth()}) — refusing to spawn deeper subagent`,
+        "",
         1,
         false,
       )
@@ -134,6 +168,7 @@ export function spawnSubagent(
       if (!cmd) {
         done(
           "cannot re-invoke momo: running from TypeScript source outside an npm/tsx context — run via `npx tsx` or build first (npm run build)",
+          "",
           1,
           false,
         )
@@ -143,6 +178,7 @@ export function spawnSubagent(
         env: {
           ...process.env,
           MOMO_RLM_DEPTH: String(depth),
+          MOMO_USAGE_FILE: usageFile,
           ...opts.env,
         },
         stdio: ["ignore", "pipe", "pipe"],
@@ -151,19 +187,21 @@ export function spawnSubagent(
     } catch (err) {
       done(
         `failed to spawn subagent: ${err instanceof Error ? err.message : String(err)}`,
+        "",
         1,
         false,
       )
       return
     }
 
-    let output = ""
+    let stdoutBuf = ""
+    let stderrBuf = ""
     let finished = false
     const finish = (exitCode: number, timedOut: boolean) => {
       if (finished) return
       finished = true
       clearTimeout(timer)
-      done(output.trim(), exitCode, timedOut)
+      done(stdoutBuf.trim(), stderrBuf.trim(), exitCode, timedOut)
     }
 
     const timer = setTimeout(() => {
@@ -172,18 +210,18 @@ export function spawnSubagent(
       } catch {
         /* ignore */
       }
-      output += "\n[subagent timed out]"
+      stderrBuf += "\n[subagent timed out]"
       finish(124, true)
     }, timeoutMs)
 
     child.stdout?.on("data", (d: Buffer) => {
-      output += d.toString()
+      stdoutBuf += d.toString()
     })
     child.stderr?.on("data", (d: Buffer) => {
-      output += d.toString()
+      stderrBuf += d.toString()
     })
     child.on("error", (err) => {
-      output += `\n[spawn error: ${err.message}]`
+      stderrBuf += `\n[spawn error: ${err.message}]`
       finish(1, false)
     })
     child.on("close", (code) => finish(code ?? 1, false))

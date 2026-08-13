@@ -4,12 +4,16 @@ import * as fs from "fs"
 import * as os from "os"
 import * as path from "path"
 import {
+  approvalNodes,
   blockedNodes,
   computeStatus,
+  evaluateCondition,
   parseGraphPlan,
+  pickDeterministicRoute,
   planToNodes,
   readyNodes,
   singleNodePlan,
+  stuckDormantNodes,
   topologicalLevels,
   validatePlan,
 } from "../graph/parse.js"
@@ -53,6 +57,7 @@ function makeRun(overrides: Partial<GraphRun> = {}): GraphRun {
       },
       1,
     ),
+    executions: 0,
     ...overrides,
   }
 }
@@ -294,6 +299,173 @@ describe("planToNodes", () => {
     assert.strictEqual(ns[0].state, "pending")
     assert.strictEqual(ns[0].retries, 0)
     assert.strictEqual(ns[0].maxRetries, 3)
+  })
+})
+
+describe("conditional routes & rework", () => {
+  it("parses routes, rework and approval kinds", () => {
+    const plan = parseGraphPlan({
+      nodes: [
+        {
+          id: "verify",
+          task: "Run tests",
+          routes: [
+            { to: "approve", when: "pass", if: { outputContains: "ALL TESTS PASSED" } },
+            { to: "fixer", when: "fail", if: { field: "tests.status", eq: ["fail"] } },
+          ],
+          rework: "fixer",
+        },
+        { id: "approve", task: "Review", kind: "approval" },
+        { id: "fixer", task: "Fix", routes: [{ to: "verify", when: "done" }] },
+      ],
+    })
+    assert.ok(plan)
+    const verify = plan.nodes[0]
+    assert.strictEqual(verify.routes?.length, 2)
+    assert.strictEqual(verify.routes?.[0].to, "approve")
+    assert.deepStrictEqual(verify.routes?.[0].if, { outputContains: "ALL TESTS PASSED" })
+    assert.strictEqual(verify.routes?.[1].if?.field, "tests.status")
+    assert.strictEqual(verify.rework, "fixer")
+    assert.strictEqual(plan.nodes[1].kind, "approval")
+  })
+
+  it("drops malformed routes but keeps model-decided ones", () => {
+    const plan = parseGraphPlan({
+      nodes: [
+        {
+          id: "a",
+          task: "A",
+          routes: [
+            { to: "", when: "pass" },
+            { to: "b", when: "fail", if: { eq: [] } },
+            "bogus",
+          ],
+        },
+        { id: "b", task: "B" },
+      ],
+    })
+    assert.ok(plan)
+    // to="" dropped, "bogus" dropped, empty condition → model-decided route kept
+    assert.strictEqual(plan.nodes[0].routes?.length, 1)
+    assert.strictEqual(plan.nodes[0].routes?.[0].to, "b")
+  })
+
+  it("validates route and rework targets", () => {
+    const plan: GraphPlan = {
+      nodes: [
+        { id: "a", task: "A", routes: [{ to: "ghost", when: "pass" }] },
+        { id: "b", task: "B", rework: "a" },
+        { id: "c", task: "C", routes: [{ to: "c", when: "x" }] },
+        { id: "d", task: "D", rework: "d" },
+      ],
+    }
+    const errors = validatePlan(plan)
+    assert.ok(errors.some((e) => e.includes("unknown node")))
+    assert.ok(errors.some((e) => e.includes("route to itself")))
+    assert.ok(errors.some((e) => e.includes("rework to itself")))
+  })
+
+  it("evaluates deterministic conditions", () => {
+    const node: GraphNode = {
+      id: "verify",
+      task: "T",
+      kind: "agent",
+      dependsOn: [],
+      state: "done",
+      retries: 0,
+      maxRetries: 1,
+      attempts: 1,
+      activated: true,
+      output: "ALL TESTS PASSED (42)",
+      fields: { tests: { status: "pass" }, backend: { status: "done" } },
+    }
+    assert.ok(evaluateCondition({ outputContains: "ALL TESTS PASSED" }, node))
+    assert.ok(!evaluateCondition({ outputContains: "TESTS FAILED" }, node))
+    assert.ok(evaluateCondition({ field: "tests.status", eq: ["pass"] }, node))
+    assert.ok(!evaluateCondition({ field: "tests.status", eq: ["fail"] }, node))
+    const routes = [
+      { to: "fixer", when: "fail", if: { outputContains: "TESTS FAILED" } },
+      { to: "approve", when: "pass", if: { outputContains: "ALL TESTS PASSED" } },
+    ]
+    assert.strictEqual(pickDeterministicRoute(routes, node)?.to, "approve")
+  })
+
+  it("seeds activated=false only for route targets", () => {
+    const ns = planToNodes(
+      {
+        nodes: [
+          { id: "a", task: "A", routes: [{ to: "b", when: "ok" }] },
+          { id: "b", task: "B" },
+          { id: "c", task: "C", dependsOn: ["a"] },
+        ],
+      },
+      1,
+    )
+    assert.strictEqual(ns.find((n) => n.id === "a")!.activated, true)
+    assert.strictEqual(ns.find((n) => n.id === "b")!.activated, false)
+    assert.strictEqual(ns.find((n) => n.id === "c")!.activated, true)
+  })
+
+  it("flags dormant targets whose sources are terminal as stuck", () => {
+    const ns = planToNodes(
+      {
+        nodes: [
+          {
+            id: "verify",
+            task: "Verify",
+            routes: [{ to: "approve", when: "pass", if: { outputContains: "PASSED" } }],
+          },
+          { id: "approve", task: "Approve", kind: "approval" },
+        ],
+      },
+      1,
+    )
+    const verify = ns.find((n) => n.id === "verify")!
+    verify.state = "done"
+    verify.output = "TESTS FAILED" // the pass route never fires
+    assert.deepStrictEqual(stuckDormantNodes(ns).map((n) => n.id), ["approve"])
+    verify.state = "running"
+    assert.deepStrictEqual(stuckDormantNodes(ns).map((n) => n.id), [])
+  })
+})
+
+describe("approval checkpoints", () => {
+  it("exposes satisfied approval nodes and reports waiting status", () => {
+    const ns = planToNodes(
+      {
+        nodes: [
+          { id: "dev", task: "Dev" },
+          { id: "review", task: "Review", kind: "approval", dependsOn: ["dev"] },
+        ],
+      },
+      1,
+    )
+    ns[0].state = "done"
+    ns[0].output = "done"
+    assert.deepStrictEqual(approvalNodes(ns).map((n) => n.id), ["review"])
+    ns[1].state = "waiting"
+    assert.strictEqual(computeStatus(ns), "waiting")
+  })
+
+  it("keeps dormant approval targets out until a route fires", () => {
+    const ns = planToNodes(
+      {
+        nodes: [
+          {
+            id: "verify",
+            task: "Verify",
+            routes: [{ to: "approve", when: "pass", if: { outputContains: "PASSED" } }],
+          },
+          { id: "approve", task: "Approve", kind: "approval" },
+        ],
+      },
+      1,
+    )
+    const approve = ns.find((n) => n.id === "approve")!
+    assert.strictEqual(approve.activated, false)
+    assert.deepStrictEqual(approvalNodes(ns).map((n) => n.id), [])
+    approve.activated = true
+    assert.deepStrictEqual(approvalNodes(ns).map((n) => n.id), ["approve"])
   })
 })
 
