@@ -2,16 +2,25 @@
  * CC Switch integration for momo Code.
  *
  * CC Switch (github.com/farion1231/cc-switch) is a desktop GUI for managing
- * provider configurations for Claude Code, Codex, Gemini CLI, etc. This module
- * reads its active provider for the "claude" app type and exposes it as a
- * normal momo provider config so users can switch providers in CC Switch and
- * have momo follow automatically.
+ * provider configurations for Claude Code, Codex, Gemini CLI, opencode, etc.
+ * This module reads the active provider for the "claude" and "opencode" app
+ * types and exposes it as a normal momo provider config so users can switch
+ * providers in CC Switch and have momo follow automatically.
  *
- * Resolution strategy:
+ * Resolution strategy (claude):
  *   1. Read ~/.cc-switch/settings.json to find the current provider ID.
  *   2. Query ~/.cc-switch/cc-switch.db (SQLite) for that provider.
  *   3. If SQLite is unavailable, fall back to ~/.claude/settings.json, which
  *      CC Switch rewrites with the active provider's ANTHROPIC_* env vars.
+ *
+ * Resolution strategy (opencode):
+ *   momo is opencode-based, so the live opencode config
+ *   (~/.config/opencode/opencode.json) is the primary source — CC Switch
+ *   merges every opencode provider into its additive "provider" map. The
+ *   current provider ID comes from CC Switch settings.json
+ *   (currentProviderOpencode); if that is missing we fall back to the SQLite
+ *   is_current flag, then to the live file when it contains exactly one
+ *   usable provider.
  */
 
 import fs from "fs"
@@ -26,7 +35,7 @@ export interface CcSwitchProvider {
   readonly id: string
   /** Display name from CC Switch. */
   readonly name: string
-  /** App type, e.g. "claude". */
+  /** App type, e.g. "claude" or "opencode". */
   readonly appType: string
   /** momo provider name to use (CC Switch/Claude Code is Anthropic protocol). */
   readonly providerName: string
@@ -43,6 +52,7 @@ export interface CcSwitchSettings {
   readonly currentProviderClaude?: string
   readonly currentProviderCodex?: string
   readonly currentProviderGemini?: string
+  readonly currentProviderOpencode?: string
 }
 
 /** Raw row from the CC Switch providers table. */
@@ -54,9 +64,49 @@ interface CcSwitchProviderRow {
   readonly is_current: number | boolean
 }
 
+/**
+ * A provider entry from opencode's live config file
+ * (~/.config/opencode/opencode.json → "provider" map).
+ */
+export interface OpencodeProviderEntry {
+  /** AI SDK provider package, e.g. @ai-sdk/openai-compatible. */
+  readonly npm?: string
+  /** Display name of the provider. */
+  readonly name?: string
+  readonly options?: {
+    readonly baseURL?: string
+    readonly baseUrl?: string
+    readonly apiKey?: string
+    [key: string]: unknown
+  }
+  /** Model ID → model metadata map. */
+  readonly models?: Record<
+    string,
+    { readonly name?: string; [key: string]: unknown }
+  >
+  [key: string]: unknown
+}
+
+/** Provider fields extracted from an opencode provider entry. */
+type OpencodeExtracted = Pick<
+  CcSwitchProvider,
+  "providerName" | "apiKey" | "baseUrl" | "model"
+>
+
 /** Returns the CC Switch config directory (usually ~/.cc-switch). */
 export function getCcSwitchDir(): string {
   return path.join(os.homedir(), ".cc-switch")
+}
+
+/**
+ * Path to the live opencode config that CC Switch manages.
+ * Honors the OPENCODE_CONFIG_DIR env var used by opencode itself.
+ */
+export function getOpencodeConfigPath(): string {
+  const dir = process.env.OPENCODE_CONFIG_DIR
+    ? process.env.OPENCODE_CONFIG_DIR
+    : path.join(os.homedir(), ".config", "opencode")
+  return path.join(dir, "opencode.json")
 }
 
 /** Check whether CC Switch inheritance is enabled via env/config. */
@@ -80,8 +130,8 @@ export function loadCcSwitchSettings(): CcSwitchSettings | null {
 
 /**
  * Resolve the active CC Switch provider for the given app type.
- * Defaults to "claude" because that is the Anthropic-compatible protocol
- * that momo can consume directly.
+ * Supports "claude" (Anthropic-compatible) and "opencode" (momo's native
+ * config). Defaults to "claude".
  */
 export async function loadActiveCcSwitchProvider(
   appType = "claude",
@@ -92,6 +142,11 @@ export async function loadActiveCcSwitchProvider(
   const currentId = settings
     ? settings[`currentProvider${capitalize(appType)}` as keyof CcSwitchSettings]
     : undefined
+
+  // opencode uses the live config file as its source of truth.
+  if (appType === "opencode") {
+    return loadActiveOpencodeProvider(currentId)
+  }
 
   if (typeof currentId !== "string") {
     // No explicit current provider in settings; try the is_current flag in DB.
@@ -109,13 +164,18 @@ export async function loadActiveCcSwitchProvider(
 }
 
 /**
- * Synchronous version that does not touch SQLite; it only reads
- * ~/.claude/settings.json. Useful for contexts where async is not available.
+ * Synchronous version that does not touch SQLite. For "claude" it reads
+ * ~/.claude/settings.json; for "opencode" it reads the live opencode.json
+ * (SQLite fallback is skipped). Useful where async is not available.
  */
 export function loadActiveCcSwitchProviderSync(
   appType = "claude",
 ): CcSwitchProvider | null {
   if (!isCcSwitchInheritanceEnabled()) return null
+  if (appType === "opencode") {
+    const settings = loadCcSwitchSettings()
+    return resolveOpencodeFromLive(settings?.currentProviderOpencode)
+  }
   return loadActiveProviderFromClaudeSettings(appType)
 }
 
@@ -153,6 +213,88 @@ export function normalizeCcSwitchProvider(
     baseUrl,
     model,
   }
+}
+
+/**
+ * Normalize a raw CC Switch opencode provider row into momo provider config.
+ * Returns null if the row does not contain a usable API key.
+ */
+export function normalizeOpencodeProvider(
+  row: CcSwitchProviderRow,
+): CcSwitchProvider | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(row.settings_config)
+  } catch {
+    return null
+  }
+
+  // settings_config may store the provider entry directly or wrapped under a
+  // "provider" key (mirroring opencode.json's top-level shape).
+  let entry: OpencodeProviderEntry | undefined
+  if (isOpencodeProviderEntry(parsed)) {
+    entry = parsed
+  } else if (
+    parsed !== null &&
+    typeof parsed === "object" &&
+    isOpencodeProviderEntry((parsed as { provider?: unknown }).provider)
+  ) {
+    entry = (parsed as { provider?: OpencodeProviderEntry }).provider
+  }
+  if (!entry) return null
+
+  const extracted = extractOpencodeEntry(entry)
+  if (!extracted) return null
+
+  return {
+    id: row.id,
+    name: row.name || entry.name || row.id,
+    appType: row.app_type,
+    ...extracted,
+  }
+}
+
+/** True when the value looks like an opencode provider entry. */
+function isOpencodeProviderEntry(
+  value: unknown,
+): value is OpencodeProviderEntry {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    ("npm" in value || "options" in value || "models" in value)
+  )
+}
+
+/** Extract momo provider fields from an opencode provider entry. */
+function extractOpencodeEntry(
+  entry: OpencodeProviderEntry,
+): OpencodeExtracted | null {
+  const options = entry.options || {}
+  const apiKey = options.apiKey
+  if (!apiKey) return null
+
+  const models = entry.models
+  const model = models ? Object.keys(models)[0] : undefined
+
+  return {
+    providerName: mapOpencodeNpmToProvider(entry.npm),
+    apiKey,
+    baseUrl: options.baseURL || options.baseUrl,
+    model,
+  }
+}
+
+/**
+ * Map an opencode AI SDK npm package to the closest momo provider.
+ * momo talks to OpenAI-compatible /chat/completions endpoints, so most
+ * openai-compatible SDK packages resolve to the "openai" provider slot.
+ */
+function mapOpencodeNpmToProvider(npm?: string): string {
+  if (!npm) return "openai"
+  const pkg = npm.toLowerCase()
+  if (pkg.includes("anthropic")) return "anthropic"
+  if (pkg.includes("google")) return "google"
+  return "openai"
 }
 
 /** Internal: try to read the active provider from the SQLite DB. */
@@ -245,6 +387,110 @@ function loadActiveProviderFromClaudeSettings(
     }
   } catch {
     return null
+  }
+}
+
+/**
+ * Resolve the active opencode provider: explicit current ID from settings
+ * (live file, then SQLite), else the SQLite is_current flag, else a single
+ * unambiguous provider from the live file.
+ */
+async function loadActiveOpencodeProvider(
+  currentId: string | undefined,
+): Promise<CcSwitchProvider | null> {
+  if (typeof currentId === "string") {
+    const fromLive = resolveOpencodeFromLive(currentId)
+    if (fromLive) return fromLive
+    const fromDb = await loadProviderFromDb("opencode", currentId)
+    if (fromDb) return normalizeOpencodeProvider(fromDb)
+    return null
+  }
+
+  // No explicit current provider: prefer the DB is_current flag.
+  const fromDb = await loadProviderFromDb("opencode")
+  if (fromDb) return normalizeOpencodeProvider(fromDb)
+
+  return resolveOpencodeFromLive()
+}
+
+/**
+ * Resolve a provider from the live opencode.json. With an explicit provider
+ * ID the matching entry is used; otherwise only a single usable provider is
+ * unambiguous enough to auto-select.
+ */
+function resolveOpencodeFromLive(
+  currentId?: string,
+): CcSwitchProvider | null {
+  const liveProviders = loadOpencodeProvidersFromLiveFile()
+  if (!liveProviders) return null
+
+  if (typeof currentId === "string") {
+    const entry = liveProviders[currentId]
+    if (!entry) return null
+    const extracted = extractOpencodeEntry(entry)
+    if (!extracted) return null
+    return {
+      id: currentId,
+      name: entry.name || currentId,
+      appType: "opencode",
+      ...extracted,
+    }
+  }
+
+  const candidates: Array<{
+    id: string
+    entry: OpencodeProviderEntry
+    extracted: OpencodeExtracted
+  }> = []
+  for (const [id, entry] of Object.entries(liveProviders)) {
+    const extracted = extractOpencodeEntry(entry)
+    if (extracted) candidates.push({ id, entry, extracted })
+  }
+  if (candidates.length !== 1) return null
+
+  const { id, entry, extracted } = candidates[0]
+  return {
+    id,
+    name: entry.name || id,
+    appType: "opencode",
+    ...extracted,
+  }
+}
+
+/** Read the "provider" map from the live opencode.json (JSON5 tolerant). */
+function loadOpencodeProvidersFromLiveFile(): Record<
+  string,
+  OpencodeProviderEntry
+> | null {
+  const configPath = getOpencodeConfigPath()
+  if (!fs.existsSync(configPath)) return null
+  try {
+    const content = fs.readFileSync(configPath, "utf-8")
+    const parsed = parseJson5Loose(content) as {
+      provider?: Record<string, OpencodeProviderEntry>
+    }
+    if (!parsed || typeof parsed !== "object" || !parsed.provider) return null
+    return parsed.provider
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Parse opencode.json, which allows JSON5 syntax (comments and trailing
+ * commas). Tries strict JSON first, then strips comments and trailing commas.
+ */
+function parseJson5Loose(content: string): unknown {
+  try {
+    return JSON.parse(content)
+  } catch {
+    // Best-effort JSON5: strip line comments (but not "://" in URLs), block
+    // comments, and trailing commas before a closing bracket.
+    const stripped = content
+      .replace(/(^|[^:])\/\/.*$/gm, "$1")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/,(\s*[}\]])/g, "$1")
+    return JSON.parse(stripped)
   }
 }
 

@@ -181,11 +181,14 @@ export class Config extends Effect.Service<Config>()("Config", {
     let userConfig = yield* loadUserConfig()
 
     // Merge CC Switch active provider into config (momo.jsonc still wins).
+    // momo is opencode-based, so the opencode provider takes precedence over
+    // the claude provider when both are configured in CC Switch.
     if (isCcSwitchEnabled(userConfig)) {
-      const ccProvider = yield* Effect.promise(() =>
-        loadActiveCcSwitchProvider("claude"),
-      )
-      if (ccProvider) {
+      for (const appType of ["opencode", "claude"] as const) {
+        const ccProvider = yield* Effect.promise(() =>
+          loadActiveCcSwitchProvider(appType),
+        )
+        if (!ccProvider) continue
         const existing = userConfig.providers?.[ccProvider.providerName] || {}
         userConfig = {
           ...userConfig,
@@ -201,6 +204,7 @@ export class Config extends Effect.Service<Config>()("Config", {
             },
           },
         }
+        break
       }
     }
 

@@ -218,7 +218,10 @@ export async function resolveProviderConfig(): Promise<{
   providerName: string
 } | null> {
   // 1. Try CC Switch active provider first (white-collar zero-config path).
-  const ccProvider = await loadActiveCcSwitchProvider("claude")
+  //    momo is opencode-based: prefer opencode, fall back to claude.
+  const ccProvider =
+    (await loadActiveCcSwitchProvider("opencode")) ||
+    (await loadActiveCcSwitchProvider("claude"))
   if (ccProvider) {
     const factory = getFactoryConfig(ccProvider.providerName)
     return {

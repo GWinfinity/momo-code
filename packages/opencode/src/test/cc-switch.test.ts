@@ -5,10 +5,13 @@ import os from "os"
 import path from "path"
 import {
   getCcSwitchDir,
+  getOpencodeConfigPath,
   isCcSwitchInheritanceEnabled,
+  loadActiveCcSwitchProvider,
   loadActiveCcSwitchProviderSync,
   loadCcSwitchSettings,
   normalizeCcSwitchProvider,
+  normalizeOpencodeProvider,
 } from "../provider/cc-switch.js"
 
 describe("cc-switch integration", () => {
@@ -16,6 +19,7 @@ describe("cc-switch integration", () => {
   let originalHomedir: typeof os.homedir
   let originalNoCcSwitch: string | undefined
   let originalCcSwitchInherit: string | undefined
+  let originalOpencodeConfigDir: string | undefined
 
   before(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "momo-cc-switch-"))
@@ -23,8 +27,10 @@ describe("cc-switch integration", () => {
     os.homedir = () => tmpDir
     originalNoCcSwitch = process.env.MOMO_NO_CC_SWITCH
     originalCcSwitchInherit = process.env.MOMO_CC_SWITCH_INHERIT
+    originalOpencodeConfigDir = process.env.OPENCODE_CONFIG_DIR
     delete process.env.MOMO_NO_CC_SWITCH
     delete process.env.MOMO_CC_SWITCH_INHERIT
+    delete process.env.OPENCODE_CONFIG_DIR
   })
 
   after(() => {
@@ -38,6 +44,11 @@ describe("cc-switch integration", () => {
       process.env.MOMO_CC_SWITCH_INHERIT = originalCcSwitchInherit
     } else {
       delete process.env.MOMO_CC_SWITCH_INHERIT
+    }
+    if (originalOpencodeConfigDir !== undefined) {
+      process.env.OPENCODE_CONFIG_DIR = originalOpencodeConfigDir
+    } else {
+      delete process.env.OPENCODE_CONFIG_DIR
     }
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
@@ -125,6 +136,199 @@ describe("cc-switch integration", () => {
   it("loadActiveCcSwitchProviderSync returns null when disabled", () => {
     process.env.MOMO_NO_CC_SWITCH = "true"
     const provider = loadActiveCcSwitchProviderSync("claude")
+    assert.strictEqual(provider, null)
+    delete process.env.MOMO_NO_CC_SWITCH
+  })
+
+  it("getOpencodeConfigPath points to ~/.config/opencode/opencode.json", () => {
+    assert.strictEqual(
+      getOpencodeConfigPath(),
+      path.join(tmpDir, ".config", "opencode", "opencode.json"),
+    )
+  })
+
+  it("normalizeOpencodeProvider extracts opencode provider fields", () => {
+    const provider = normalizeOpencodeProvider({
+      id: "op-id",
+      app_type: "opencode",
+      name: "Kimi",
+      settings_config: JSON.stringify({
+        npm: "@ai-sdk/openai-compatible",
+        name: "Kimi For Coding",
+        options: {
+          baseURL: "https://api.kimi.com/coding/v1",
+          apiKey: "sk-kimi-opencode",
+        },
+        models: {
+          "kimi-k2": { name: "Kimi K2" },
+        },
+      }),
+      is_current: 1,
+    })
+    assert.ok(provider)
+    assert.strictEqual(provider!.providerName, "openai")
+    assert.strictEqual(provider!.apiKey, "sk-kimi-opencode")
+    assert.strictEqual(provider!.baseUrl, "https://api.kimi.com/coding/v1")
+    assert.strictEqual(provider!.model, "kimi-k2")
+  })
+
+  it("normalizeOpencodeProvider maps @ai-sdk/anthropic to anthropic", () => {
+    const provider = normalizeOpencodeProvider({
+      id: "op-ant",
+      app_type: "opencode",
+      name: "Claude",
+      settings_config: JSON.stringify({
+        npm: "@ai-sdk/anthropic",
+        options: {
+          baseURL: "https://api.anthropic.com",
+          apiKey: "sk-ant-opencode",
+        },
+        models: { "claude-sonnet-4": { name: "Claude Sonnet 4" } },
+      }),
+      is_current: 1,
+    })
+    assert.ok(provider)
+    assert.strictEqual(provider!.providerName, "anthropic")
+    assert.strictEqual(provider!.apiKey, "sk-ant-opencode")
+    assert.strictEqual(provider!.model, "claude-sonnet-4")
+  })
+
+  it("normalizeOpencodeProvider unwraps a top-level provider key", () => {
+    const provider = normalizeOpencodeProvider({
+      id: "op-wrapped",
+      app_type: "opencode",
+      name: "DeepSeek",
+      settings_config: JSON.stringify({
+        provider: {
+          npm: "@ai-sdk/openai-compatible",
+          options: { baseURL: "https://api.deepseek.com/v1", apiKey: "sk-ds" },
+          models: { "deepseek-v4": { name: "DeepSeek V4" } },
+        },
+      }),
+      is_current: 1,
+    })
+    assert.ok(provider)
+    assert.strictEqual(provider!.providerName, "openai")
+    assert.strictEqual(provider!.apiKey, "sk-ds")
+    assert.strictEqual(provider!.model, "deepseek-v4")
+  })
+
+  it("normalizeOpencodeProvider returns null when API key is missing", () => {
+    const provider = normalizeOpencodeProvider({
+      id: "op-broken",
+      app_type: "opencode",
+      name: "Broken",
+      settings_config: JSON.stringify({
+        npm: "@ai-sdk/openai-compatible",
+        options: { baseURL: "https://x" },
+      }),
+      is_current: 1,
+    })
+    assert.strictEqual(provider, null)
+  })
+
+  it("loadActiveCcSwitchProviderSync reads the current opencode provider from the live config", () => {
+    const ccDir = path.join(tmpDir, ".cc-switch")
+    fs.mkdirSync(ccDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(ccDir, "settings.json"),
+      JSON.stringify({ currentProviderOpencode: "kimi" }),
+    )
+    const opencodeDir = path.join(tmpDir, ".config", "opencode")
+    fs.mkdirSync(opencodeDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(opencodeDir, "opencode.json"),
+      JSON.stringify({
+        provider: {
+          kimi: {
+            npm: "@ai-sdk/openai-compatible",
+            name: "Kimi",
+            options: {
+              baseURL: "https://api.kimi.com/coding/v1",
+              apiKey: "sk-live",
+            },
+            models: { "kimi-k2": { name: "Kimi K2" } },
+          },
+          other: {
+            npm: "@ai-sdk/openai-compatible",
+            options: {
+              baseURL: "https://other.example.com/v1",
+              apiKey: "sk-other",
+            },
+          },
+        },
+      }),
+    )
+    const provider = loadActiveCcSwitchProviderSync("opencode")
+    assert.ok(provider)
+    assert.strictEqual(provider!.id, "kimi")
+    assert.strictEqual(provider!.name, "Kimi")
+    assert.strictEqual(provider!.apiKey, "sk-live")
+    assert.strictEqual(provider!.model, "kimi-k2")
+  })
+
+  it("loadActiveCcSwitchProvider resolves opencode from the live config (async)", async () => {
+    const provider = await loadActiveCcSwitchProvider("opencode")
+    assert.ok(provider)
+    assert.strictEqual(provider!.id, "kimi")
+    assert.strictEqual(provider!.apiKey, "sk-live")
+  })
+
+  it("loadActiveCcSwitchProviderSync parses JSON5 opencode.json and auto-picks a single provider", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, ".cc-switch", "settings.json"),
+      JSON.stringify({}),
+    )
+    const opencodeDir = path.join(tmpDir, ".config", "opencode")
+    fs.mkdirSync(opencodeDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(opencodeDir, "opencode.json"),
+      [
+        "{",
+        "  // opencode JSON5 config",
+        '  "provider": {',
+        '    "deepseek": {',
+        '      "npm": "@ai-sdk/openai-compatible",',
+        '      "options": { "baseURL": "https://api.deepseek.com/v1", "apiKey": "sk-ds" },',
+        '      "models": { "deepseek-v4": { "name": "DeepSeek V4" } },',
+        "    },",
+        "  },",
+        "}",
+      ].join("\n"),
+    )
+    const provider = loadActiveCcSwitchProviderSync("opencode")
+    assert.ok(provider)
+    assert.strictEqual(provider!.id, "deepseek")
+    assert.strictEqual(provider!.apiKey, "sk-ds")
+    assert.strictEqual(provider!.model, "deepseek-v4")
+  })
+
+  it("loadActiveCcSwitchProviderSync returns null when multiple opencode providers exist without a current id", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, ".cc-switch", "settings.json"),
+      JSON.stringify({}),
+    )
+    fs.writeFileSync(
+      path.join(tmpDir, ".config", "opencode", "opencode.json"),
+      JSON.stringify({
+        provider: {
+          a: {
+            npm: "@ai-sdk/openai-compatible",
+            options: { baseURL: "https://a/v1", apiKey: "sk-a" },
+          },
+          b: {
+            npm: "@ai-sdk/openai-compatible",
+            options: { baseURL: "https://b/v1", apiKey: "sk-b" },
+          },
+        },
+      }),
+    )
+    assert.strictEqual(loadActiveCcSwitchProviderSync("opencode"), null)
+  })
+
+  it("loadActiveCcSwitchProviderSync returns null for opencode when disabled", () => {
+    process.env.MOMO_NO_CC_SWITCH = "true"
+    const provider = loadActiveCcSwitchProviderSync("opencode")
     assert.strictEqual(provider, null)
     delete process.env.MOMO_NO_CC_SWITCH
   })
