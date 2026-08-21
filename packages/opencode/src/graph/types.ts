@@ -116,6 +116,11 @@ export interface GraphNode {
   approved?: boolean
   /** How many times this node has been sent to its rework agent. */
   reworkCount?: number
+  /** Code artifacts extracted from the node's output and written to disk. */
+  artifacts?: ReadonlyArray<{
+    readonly path: string
+    readonly size: number
+  }>
 }
 
 /** A full persisted graph run. */

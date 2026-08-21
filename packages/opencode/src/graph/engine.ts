@@ -24,6 +24,7 @@
 
 import { spawnSubagent } from "../subagent/spawn.js"
 import { chatComplete, resolveProviderConfig, type Usage } from "../cli/chat.js"
+import { extractArtifacts } from "./extract.js"
 import {
   approvalNodes,
   blockedNodes,
@@ -375,6 +376,17 @@ export async function executeGraph(
     saveRun(run)
 
     await Promise.all(batch.map((n) => runNode(n, run, timeoutMs)))
+
+    // Extract code artifacts from completed nodes to disk
+    for (const n of batch) {
+      if (n.state === "done" && n.output) {
+        const arts = extractArtifacts(run.id, n.id, n.output)
+        if (arts.length > 0) {
+          n.artifacts = arts.map((a) => ({ path: a.path, size: a.size }))
+        }
+      }
+    }
+
     run.executions = (run.executions ?? 0) + batch.length
     run.updatedAt = new Date().toISOString()
     saveRun(run)
