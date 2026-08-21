@@ -26,6 +26,10 @@ const NODE_COMMANDS = new Set([
   "evolve",
   "fine-tune",
   "finetune",
+  "/setup",
+  "setup",
+  "web",
+  "repl",
   "help",
   "--help",
   "-h",
@@ -102,8 +106,8 @@ const BANNER = [
   "\x1b[95m╚═╝     ╚═╝ ╚═════╝ ╚═╝     ╚═╝ ╚═════╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝\x1b[0m",
 ].join("\n")
 
-// Quick help / version
-if (argv.length === 0 || ["help", "--help", "-h"].includes(argv[0])) {
+// Quick help / version (but not for empty args — that starts REPL)
+if (["help", "--help", "-h"].includes(argv[0])) {
   console.log(BANNER)
   console.log()
   console.log("\x1b[36m\x1b[1m  The coding agent that evolves\x1b[0m")
@@ -113,7 +117,10 @@ if (argv.length === 0 || ["help", "--help", "-h"].includes(argv[0])) {
   console.log(`  Start a chat, run the experience fast loop, or trigger self-evolution.`)
   console.log(``)
   console.log(`\x1b[1mUSAGE:\x1b[0m`)
-  console.log(`  momo <prompt>                Start a coding session`)
+  console.log(`  momo                         Start interactive chat (REPL)`)
+  console.log(`  momo <prompt>                Single-turn coding session`)
+  console.log(`  momo web                     Open web dashboard in browser`)
+  console.log(`  momo /setup                  Interactive setup wizard (first-time config)`)
   console.log(`  momo /evolve                 Run experience fast loop (KEP)`)
   console.log(`  momo /fine-tune <subcommand> Run self-evolution training (MCGS)`)
   console.log(`  momo models                  List available models & providers`)
@@ -144,8 +151,9 @@ if (argv.length === 0 || ["help", "--help", "-h"].includes(argv[0])) {
   console.log(`  MOMO_XP_MODE                 Evolution mode: balanced|explore|harden|convention-only`)
   console.log(``)
   console.log(`\x1b[1mQUICK START:\x1b[0m`)
-  console.log(`  1. Set your API key: \x1b[32mexport MOMO_API_KEY=sk-...\x1b[0m`)
-  console.log(`  2. Run:               \x1b[32mmomo "your coding task"\x1b[0m`)
+  console.log(`  1. Run setup wizard:  \x1b[32mmomo /setup\x1b[0m`)
+  console.log(`  2. Start chatting:    \x1b[32mmomo\x1b[0m`)
+  console.log(`  Or web dashboard:     \x1b[32mmomo web\x1b[0m`)
   console.log(``)
   console.log(`\x1b[37mDocs: https://momozi.cc\x1b[0m`)
   console.log(``)
@@ -162,8 +170,8 @@ if (["version", "--version", "-v"].includes(argv[0])) {
   process.exit(0)
 }
 
-// Route to Node.js CLI for built-in commands
-if (isNodeCommand(argv)) {
+// Route to Node.js CLI for built-in commands (or no args → REPL)
+if (argv.length === 0 || isNodeCommand(argv)) {
   import("../dist/cli/index.js")
     .then(({ runCli }) => runCli(argv))
     .catch((err) => {

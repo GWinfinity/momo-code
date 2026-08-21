@@ -15,6 +15,7 @@ import { Effect } from "effect"
 import { spawnSubagent } from "../subagent/spawn.js"
 import { dueEntries, markRan, type ScheduleEntry } from "./store.js"
 import { loadGoals } from "../goal/store.js"
+import { notify } from "../notify/index.js"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,6 +55,11 @@ export async function runHeartbeat(): Promise<HeartbeatResult> {
       timedOut: result.timedOut,
       output: result.output,
     })
+    if (result.exitCode === 0) {
+      notify("complete", "scheduled task", entry.prompt.slice(0, 80))
+    } else {
+      notify("error", "scheduled task", entry.prompt.slice(0, 80))
+    }
     markRan(entry.id)
   }
 

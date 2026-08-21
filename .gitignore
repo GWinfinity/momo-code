@@ -9,3 +9,7 @@ packages/opencode/.test-momo/
 packages/opencode/coverage/
 *.exe
 __pycache__/
+
+# Runtime artifacts
+serve.pid
+.edge-prof/

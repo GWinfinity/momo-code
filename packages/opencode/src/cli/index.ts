@@ -19,6 +19,9 @@ import { runSimCommand } from "./cmd/sim.js"
 import { runVoiceCommand } from "./cmd/voice.js"
 import { runOptimCommand } from "./cmd/optim.js"
 import { runServeCommand } from "./cmd/serve.js"
+import { runSetupCommand } from "./cmd/setup.js"
+import { runRepl } from "./cmd/repl.js"
+import { runWebCommand } from "./cmd/web.js"
 import { runChat } from "./chat.js"
 
 const require = createRequire(import.meta.url)
@@ -27,7 +30,13 @@ const HELP_FLAGS = new Set(["help", "--help", "-h"])
 const VERSION_FLAGS = new Set(["version", "--version", "-v"])
 
 export async function runCli(argv: string[]): Promise<void> {
-  if (argv.length === 0 || HELP_FLAGS.has(argv[0])) {
+  if (argv.length === 0) {
+    const code = await runRepl()
+    process.exit(code)
+    return
+  }
+
+  if (HELP_FLAGS.has(argv[0])) {
     printHelp()
     return
   }
@@ -114,6 +123,16 @@ export async function runCli(argv: string[]): Promise<void> {
     case "/serve":
     case "serve":
       await runServeCommand(args)
+      break
+    case "/setup":
+    case "setup":
+      process.exit(await runSetupCommand(args))
+      break
+    case "web":
+      await runWebCommand(args)
+      break
+    case "repl":
+      process.exit(await runRepl())
       break
     case "models":
       await Effect.runPromise(

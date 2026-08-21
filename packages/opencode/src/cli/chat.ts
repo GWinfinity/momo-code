@@ -4,6 +4,8 @@ import { SignalScorer } from "../evolve/signals.js"
 import { getPromptPatchPath } from "../refine/apply.js"
 import { activeGoalsBlock } from "../goal/store.js"
 import * as fs from "fs"
+import * as path from "path"
+import * as os from "os"
 
 /**
  * MOMO CODE — Core agent chat loop.
@@ -277,7 +279,7 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve provider config from environment variables.
+ * Resolve provider config from CC Switch, config file, then environment variables.
  * Returns null if no credentials found.
  */
 export async function resolveProviderConfig(): Promise<{
@@ -301,28 +303,36 @@ export async function resolveProviderConfig(): Promise<{
     }
   }
 
-  // 2. Fall back to environment variables.
-  const genericKey = process.env.MOMO_API_KEY
-  const provider = process.env.MOMO_PROVIDER || "openai"
+  // 2. Try config file (~/.momo/momo.jsonc)
+  const fileConfig = loadMomoConfigFile()
 
-  // Check provider-specific key
+  // 3. Fall back to environment variables.
+  const genericKey = process.env.MOMO_API_KEY
+  const provider = process.env.MOMO_PROVIDER || fileConfig?.provider || "openai"
+
+  // Check provider-specific key (env > config file > generic env)
   const providerUpper = provider.toUpperCase().replace(/-/g, "_")
-  const specificKey =
+  const envSpecificKey =
     process.env[`MOMO_${providerUpper}_API_KEY`] ||
     process.env[`MOMO_${provider.replace(/-/g, "_").toUpperCase()}_API_KEY`]
 
-  const apiKey = specificKey || genericKey
+  const fileProviderCfg = fileConfig?.providers?.[provider]
+  const fileApiKey = fileProviderCfg?.apiKey
+  const fileBaseUrl = fileProviderCfg?.baseUrl
+  const fileModel = fileProviderCfg?.defaultModel || fileConfig?.model
+
+  const apiKey = envSpecificKey || genericKey || fileApiKey
   if (!apiKey) return null
 
-  // Get base URL from factory or env
+  // Get base URL from factory or env or config file
   const baseUrlFromEnv = process.env.MOMO_BASE_URL
   const modelFromEnv = process.env.MOMO_MODEL
 
   // Use factory to get defaults
   const factory = getFactoryConfig(provider)
 
-// Resolve model, handling tier names (ultra/standard/lite)
-  let resolvedModel = modelFromEnv || factory.defaultModel || "gpt-4"
+  // Resolve model, handling tier names (ultra/standard/lite)
+  let resolvedModel = modelFromEnv || fileModel || factory.defaultModel || "gpt-4"
   const tierModels: Record<string, string> = {
     ultra: "claude-sonnet-4-20250514",
     standard: "gpt-4.1",
@@ -333,10 +343,32 @@ export async function resolveProviderConfig(): Promise<{
   }
 
   return {
-    baseUrl: baseUrlFromEnv || factory.baseUrl || "",
+    baseUrl: baseUrlFromEnv || fileBaseUrl || factory.baseUrl || "",
     apiKey,
     model: resolvedModel,
     providerName: provider,
+  }
+}
+
+/**
+ * Load ~/.momo/momo.jsonc config file.
+ * Returns parsed config or null if not found/invalid.
+ */
+function loadMomoConfigFile(): {
+  provider?: string
+  model?: string
+  providers?: Record<string, { apiKey?: string; baseUrl?: string; defaultModel?: string }>
+} | null {
+  try {
+    const configPath = path.join(os.homedir(), ".momo", "momo.jsonc")
+    if (!fs.existsSync(configPath)) return null
+    const content = fs.readFileSync(configPath, "utf-8")
+    const stripped = content
+      .replace(/\/\/.*$/gm, "")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+    return JSON.parse(stripped)
+  } catch {
+    return null
   }
 }
 
@@ -356,6 +388,10 @@ function getFactoryConfig(name: string): {
     anthropic: {
       baseUrl: "https://api.anthropic.com/v1",
       defaultModel: "claude-sonnet-4-20250514",
+    },
+    deepseek: {
+      baseUrl: "https://api.deepseek.com/v1",
+      defaultModel: "deepseek-chat",
     },
     google: {
       baseUrl: "https://generativelanguage.googleapis.com/v1beta",
@@ -439,15 +475,18 @@ export async function runChat(prompt: string): Promise<number> {
     console.error(
       `${MAGENTA}MOMO CODE${RESET}: No API key configured.\n`,
     )
-    console.error(`Set one of the following environment variables:`)
-    console.error(`  ${CYAN}MOMO_API_KEY${RESET}          Generic key (works with any provider)`)
-    console.error(`  ${CYAN}MOMO_<PROVIDER>_API_KEY${RESET}  Provider-specific key`)
+    console.error(`${GREEN}Quick fix — run the setup wizard:${RESET}`)
+    console.error(`  ${CYAN}momo /setup${RESET}\n`)
+    console.error(`Or configure manually:`)
+    console.error(`  ${CYAN}MOMO_API_KEY${RESET}              Generic key (works with any provider)`)
+    console.error(`  ${CYAN}MOMO_<PROVIDER>_API_KEY${RESET}      Provider-specific key`)
+    console.error(`  ${CYAN}~/.momo/momo.jsonc${RESET}           Config file (persistent)`)
     console.error(`\nExamples:`)
     console.error(`  export MOMO_API_KEY=sk-...`)
-    console.error(`  export MOMO_MINIMAX_API_KEY=sk-...`)
-    console.error(`  export MOMO_PROVIDER=minimax`)
+    console.error(`  export MOMO_DEEPSEEK_API_KEY=sk-...`)
+    console.error(`  export MOMO_PROVIDER=deepseek`)
     console.error(`\nSupported providers: openai, anthropic, google, openrouter,`)
-    console.error(`  minimax, zhipu, moonshot, doubao, stepfun, alibaba, ...`)
+    console.error(`  deepseek, minimax, zhipu, moonshot, doubao, stepfun, alibaba, ...`)
     console.error(`\nDocs: https://momozi.cc`)
     return 1
   }

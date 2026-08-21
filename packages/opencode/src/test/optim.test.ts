@@ -21,7 +21,10 @@ import {
 import {
   MockSampler,
   RandomSampler,
+  analyzeProgress,
   extractProposal,
+  isRepetitive,
+  buildHarnessPrompt,
   mulberry32,
   sampleRandomPoint,
   validateParams,
@@ -220,6 +223,48 @@ describe("optim/evaluate helpers", () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// sampler: non-convergence intervention (plateau detection)
+// ---------------------------------------------------------------------------
+
+describe("optim/sampler plateau intervention", () => {
+  it("analyzeProgress reports stalled after N non-improving trials", () => {
+    const seq = [trial(0, 10), trial(1, 8), trial(2, 7), trial(3, 7.5), trial(4, 7.2), trial(5, 7.1)]
+    // best = 7 (trial #2); last 3 trials (7.5, 7.2, 7.1) all worse → stalled
+    const p = analyzeProgress(seq, "minimize", 3)
+    assert.strictEqual(p.stalled, true)
+    assert.strictEqual(p.stallCount, 3)
+    assert.strictEqual(p.best?.value, 7)
+  })
+
+  it("analyzeProgress resets the counter when a new best lands", () => {
+    const seq = [trial(0, 10), trial(1, 8), trial(2, 7), trial(3, 6.5)]
+    const p = analyzeProgress(seq, "minimize", 3)
+    assert.strictEqual(p.stalled, false)
+    assert.strictEqual(p.stallCount, 0)
+  })
+
+  it("analyzeProgress respects maximize direction", () => {
+    const seq = [trial(0, 1), trial(1, 3), trial(2, 2), trial(3, 2.5)]
+    const p = analyzeProgress(seq, "maximize", 2)
+    assert.strictEqual(p.stalled, true)
+    assert.strictEqual(p.stallCount, 2)
+  })
+
+  it("isRepetitive detects same-direction retries within tolerance", () => {
+    const recent: TrialRecord[] = [{ number: 1, params: { x: 1.0, model: "a" }, state: "complete", ts: new Date().toISOString(), value: 5 }]
+    assert.strictEqual(isRepetitive({ x: 1.005, model: "a" }, recent), true)
+    assert.strictEqual(isRepetitive({ x: 1.3, model: "a" }, recent), false)
+    assert.strictEqual(isRepetitive({ x: 1.0, model: "b" }, recent), false)
+  })
+
+  it("plateau warning is injected into the harness prompt when stalled", async () => {
+    const config = makeConfig("stall-probe")
+    const trials = [trial(0, 10), trial(1, 9), trial(2, 9.5), trial(3, 9.2), trial(4, 9.1), trial(5, 9.15)]
+    const prompt = buildHarnessPrompt({ config, trials }, 5)
+    assert.match(prompt, /PLATEAU WARNING/)
+  })
+})
 // ---------------------------------------------------------------------------
 // semantics: normalize & render
 // ---------------------------------------------------------------------------

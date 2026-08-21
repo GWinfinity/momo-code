@@ -144,4 +144,6 @@ export interface GraphRunOpts {
   readonly timeoutMs?: number
   /** Progress callback after each node finishes. */
   readonly onNode?: (node: GraphNode, index: number, total: number) => void
+  /** Status-change callback (e.g. waiting for approval / failed) — used by the notifier. */
+  readonly onStatusChange?: (run: GraphRun, prev: GraphStatus) => void
 }

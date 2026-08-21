@@ -43,6 +43,7 @@ import type {
   GraphRoute,
   GraphRun,
   GraphRunOpts,
+  GraphStatus,
   GraphTokens,
 } from "./types.js"
 
@@ -70,6 +71,11 @@ function defaultConcurrency(): number {
 
 function defaultTimeoutMs(): number {
   return Number(process.env.MOMO_RLM_TIMEOUT_MS || 300_000) || 300_000
+}
+
+/** Fire the onStatusChange callback when the run's status moved. */
+function emitStatus(run: GraphRun, prev: GraphStatus, opts: GraphRunOpts): void {
+  if (prev !== run.status) opts.onStatusChange?.(run, prev)
 }
 
 // ---------------------------------------------------------------------------
@@ -274,16 +280,25 @@ export async function executeGraph(
 
   // A resumed run may have crashed mid-batch: reset interrupted nodes
   // so they can be re-executed (they never produced a result).
+  // Also reset failed and skipped nodes so resume can retry them — the user
+  // is explicitly choosing to continue, so give every non-done node another
+  // shot (the in-node retry loop still enforces maxRetries per attempt).
   for (const n of run.nodes) {
     if (n.state === "running") {
       n.state = "pending"
       n.startedAt = undefined
+    } else if (n.state === "failed" || n.state === "skipped") {
+      n.state = "pending"
+      n.error = undefined
+      n.finishedAt = undefined
     }
   }
 
+  const prevStatus: GraphStatus = run.status
   if (run.status !== "waiting") run.status = "running"
   run.updatedAt = new Date().toISOString()
   saveRun(run)
+  emitStatus(run, prevStatus, opts)
 
   while (!isTerminal(run.nodes)) {
     // 1. Evaluate conditional edges for finished nodes, and route failures
@@ -310,6 +325,7 @@ export async function executeGraph(
       run.status = "waiting"
       run.updatedAt = now
       saveRun(run)
+      emitStatus(run, prevStatus, opts)
       break
     }
 
@@ -373,6 +389,7 @@ export async function executeGraph(
     run.status = computeStatus(run.nodes)
     run.updatedAt = new Date().toISOString()
     saveRun(run)
+    emitStatus(run, prevStatus, opts)
   }
 }
 

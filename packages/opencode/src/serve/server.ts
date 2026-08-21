@@ -24,6 +24,7 @@ import { getMomoHome } from "../session/recorder.js"
 import { resolveProviderConfig } from "../cli/chat.js"
 import { getRoutes } from "./routes.js"
 import { getActions } from "./actions.js"
+import { DASHBOARD_HTML, WORKBENCH_HTML } from "./assets.generated.js"
 
 const require = createRequire(import.meta.url)
 
@@ -166,8 +167,12 @@ function getVersion(): string {
 // ---------------------------------------------------------------------------
 
 function serveHtmlFile(filename: string): string {
+  // Embedded assets (works in both compiled binaries and Node.js)
+  if (filename === "dashboard.html" && DASHBOARD_HTML) return DASHBOARD_HTML
+  if (filename === "workbench.html" && WORKBENCH_HTML) return WORKBENCH_HTML
+
+  // Fallback: filesystem (dev mode before assets.generated.ts exists)
   const here = path.dirname(fileURLToPath(import.meta.url))
-  // tsc does not copy assets: from dist/serve/ fall back to src/serve/
   for (const candidate of [
     path.join(here, filename),
     path.resolve(here, "..", "..", "src", "serve", filename),

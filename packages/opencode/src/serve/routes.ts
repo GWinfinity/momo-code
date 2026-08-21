@@ -9,6 +9,7 @@ import { loadSchedule } from "../schedule/store.js"
 import { readRecentSessions, getMomoHome } from "../session/recorder.js"
 import { execFile } from "child_process"
 import * as fs from "fs"
+import * as os from "os"
 import * as path from "path"
 import type { SimBridge } from "../sim/bridge.js"
 import {
@@ -87,6 +88,88 @@ function studySummary(name: string) {
 // Live stream snapshot (global SSE feed for the dashboard)
 // ---------------------------------------------------------------------------
 
+/** Blended USD-per-1M-token estimate (input+output averaged). */
+const BLENDED_COST_PER_MT = 0.5
+
+function estimateCost(tokens: number): number {
+  return (tokens / 1_000_000) * BLENDED_COST_PER_MT
+}
+
+function monitorSnapshot(runs: ReturnType<typeof graphRunSummary>[], sessions: ReturnType<typeof readRecentSessions>) {
+  const graphTokens = runs.reduce((a, r) => a + (r.tokens ?? 0), 0)
+  const done = runs.reduce((a, r) => a + r.done, 0)
+  const total = runs.reduce((a, r) => a + r.nodeCount, 0)
+  const failed = runs.reduce((a, r) => a + r.failed, 0)
+  const active = runs.filter(
+    (r) => r.status === "planned" || r.status === "running" || r.status === "waiting",
+  ).length
+  const avgSessionMs = sessions.length
+    ? Math.round(sessions.reduce((a, s) => a + s.durationMs, 0) / sessions.length)
+    : 0
+  return {
+    tokens: { graph: graphTokens, total: graphTokens },
+    runs: { active, nodes: total, done, failed },
+    sessions: { recent: sessions.length, avgMs: avgSessionMs },
+    estCost: estimateCost(graphTokens),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// System resource monitor (borrowed from dsh-sysmon)
+// ---------------------------------------------------------------------------
+
+interface CpuSample {
+  readonly idle: number
+  readonly total: number
+}
+
+let cpuLast: CpuSample | null = null
+
+function cpuDelta(sample: CpuSample): number {
+  if (!cpuLast) return 0
+  const dIdle = Math.max(sample.idle - cpuLast.idle, 0)
+  const dTotal = Math.max(sample.total - cpuLast.total, 0)
+  if (dTotal <= 0) return 0
+  return Math.min(99, Math.round(((dTotal - dIdle) / dTotal) * 100))
+}
+
+function sysmonSnapshot(): {
+  cpu: number
+  mem: number
+  disk: number
+  diskTotalGb: number
+  diskFreeGb: number
+  uptimeSec: number
+} {
+  // CPU% between consecutive samples (the /api/stream tick is the caller)
+  const cpus = os.cpus()
+  const sample: CpuSample = cpus.reduce(
+    (acc, c) => ({
+      idle: acc.idle + c.times.idle,
+      total: acc.total + (c.times.user + c.times.nice + c.times.sys + c.times.idle + c.times.irq),
+    }),
+    { idle: 0, total: 0 },
+  )
+  const cpu = cpuDelta(sample)
+  cpuLast = sample
+
+  const mem = os.totalmem() > 0 ? Math.round((1 - os.freemem() / os.totalmem()) * 100) : 0
+
+  let disk = 0
+  let diskTotalGb = 0
+  let diskFreeGb = 0
+  try {
+    const st = fs.statfsSync(getMomoHome())
+    diskTotalGb = (st.blocks * st.bsize) / 1e9
+    diskFreeGb = (st.bfree * st.bsize) / 1e9
+    disk = st.blocks > 0 ? Math.round(((st.blocks - st.bfree) / st.blocks) * 100) : 0
+  } catch {
+    // statfs unavailable on this platform — disk stays unknown
+  }
+
+  return { cpu, mem, disk, diskTotalGb, diskFreeGb, uptimeSec: os.uptime() }
+}
+
 function streamSnapshot() {
   const runs = listRuns().map(graphRunSummary)
   const sessions = readRecentSessions(10)
@@ -98,6 +181,7 @@ function streamSnapshot() {
   )
   return {
     t: new Date().toISOString(),
+    monitor: monitorSnapshot(runs, sessions),
     graph: {
       runs,
       active: running.length,
@@ -253,6 +337,10 @@ export function getRoutes(): Record<string, RouteHandler> {
     "/api/sessions": ({ res, query }) => {
       const limit = Math.min(Number(query.get("limit")) || 50, 500)
       sendJson(res, 200, { sessions: readRecentSessions(limit) })
+    },
+
+    "/api/sysmon": ({ res }) => {
+      sendJson(res, 200, sysmonSnapshot())
     },
 
     "/api/stream": ({ req, res }) => {

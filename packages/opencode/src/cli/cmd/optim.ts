@@ -20,7 +20,7 @@
  */
 import { recordSession } from "../../session/recorder.js"
 import { runStudy } from "../../optim/runner.js"
-import { MockSampler } from "../../optim/sampler.js"
+import { MockSampler, analyzeProgress } from "../../optim/sampler.js"
 import {
   approveSemantics,
   generateSemantics,
@@ -75,7 +75,7 @@ function printUsage(): void {
   console.log(`  --sim --task="<python>"  Physics evaluator in the Genesis world`)
   console.log(`  --context="<text>"       What is being tuned (highest-leverage knob)`)
   console.log(``)
-  console.log(`Env: MOMO_OPTIM_HISTORY (5)  MOMO_OPTIM_N_INIT (2)  MOMO_OPTIM_TIMEOUT (300s)`)
+  console.log(`Env: MOMO_OPTIM_HISTORY (5)  MOMO_OPTIM_N_INIT (2)  MOMO_OPTIM_TIMEOUT (300s)  MOMO_OPTIM_STALL_N (4)`)
 }
 
 // ---------------------------------------------------------------------------
@@ -305,6 +305,16 @@ async function optimRun(args: ParsedArgs): Promise<void> {
     console.log(`${RED}No completed trial.${RESET}`)
   }
   if (!best) process.exit(1)
+
+  // Non-convergence intervention report
+  const progress = analyzeProgress(result.trials, config.direction)
+  if (progress.stalled) {
+    console.warn(
+      `${YELLOW}plateau${RESET}: no improvement in the last ${progress.stallCount} trials ` +
+        `(best=${progress.best?.value}) — the agent was forced to change strategy. ` +
+        `Consider narrowing the search space or reviewing the evaluator.`,
+    )
+  }
 }
 
 // ---------------------------------------------------------------------------

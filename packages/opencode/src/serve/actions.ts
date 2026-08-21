@@ -13,6 +13,8 @@ import { loadSemantics } from "../optim/semantics.js"
 import { loadStudy } from "../optim/study.js"
 import { approveRun, rejectRun, resumeGraph, runGraph } from "../graph/engine.js"
 import { newRunId } from "../graph/store.js"
+import type { GraphRun, GraphStatus } from "../graph/types.js"
+import { notify } from "../notify/index.js"
 import { runSimLoop } from "../sim/loop.js"
 import { appendSimTurn, createSimRun, finishSimRun, loadSimRun } from "../sim/runs.js"
 import { recordSession } from "../session/recorder.js"
@@ -31,6 +33,21 @@ export function isStudyRunning(name: string): boolean {
 
 export function isGraphRunning(id: string): boolean {
   return graphRunning.has(id)
+}
+
+/** Desktop notification for a graph status transition (fire-and-forget). */
+function graphNotify(run: GraphRun, prev: GraphStatus): void {
+  try {
+    if (run.status === "waiting") {
+      notify("approval", `graph run ${run.id}`, `等待人工审批 · ${run.task}`)
+    } else if (run.status === "failed") {
+      notify("error", `graph run ${run.id}`, `执行失败 · ${run.task}`)
+    } else if (run.status === "done" || run.status === "partial") {
+      notify("complete", `graph run ${run.id}`, `已完成 · ${run.task}`)
+    }
+  } catch {
+    // notifier never throws
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +95,20 @@ export async function getSimBridge(): Promise<SimBridge> {
 // ---------------------------------------------------------------------------
 // Chat helpers
 // ---------------------------------------------------------------------------
+
+/** System prompt for dashboard chat: concise, efficient, minimal fluff. */
+const CHAT_SYSTEM = `你是 momo 工程师助手，帮工程师调参提效。交流原则：
+1. 简洁高效，直奔要点，不客套、不复述问题、不写总结性废话
+2. 能一句话说清不用两句；用要点、代码、命令代替长段落
+3. 梳理思路时先给结论，再给依据/步骤
+4. 不确定时直接说明，不编造
+5. 涉及参数/配置给出可直接用的写法`
+
+/** A single chat message in the OpenAI-compatible shape. */
+interface ChatMessage {
+  role: "system" | "user" | "assistant"
+  content: string
+}
 
 /** Deterministic offline reply used when no LLM provider is configured. */
 function mockChatReply(prompt: string): string {
@@ -131,7 +162,7 @@ export function getActions(): Record<string, RouteHandler> {
       // Async: the response returns immediately; progress is visible via /api/graph/runs
       void (async () => {
         try {
-          const run = await runGraph(task, { id: runId, maxNodes, maxRetries })
+          const run = await runGraph(task, { id: runId, maxNodes, maxRetries, onStatusChange: graphNotify })
           await recordSession({
             provider: "graph",
             model: "graph-engine",
@@ -158,7 +189,7 @@ export function getActions(): Record<string, RouteHandler> {
       const startMs = Date.now()
       void (async () => {
         try {
-          const run = await resumeGraph(params.id)
+          const run = await resumeGraph(params.id, { onStatusChange: graphNotify })
           if (run) {
             await recordSession({
               provider: "graph",
@@ -189,7 +220,7 @@ export function getActions(): Record<string, RouteHandler> {
       const startMs = Date.now()
       void (async () => {
         try {
-          const run = await approveRun(params.id)
+          const run = await approveRun(params.id, { onStatusChange: graphNotify })
           if (run) {
             await recordSession({
               provider: "graph",
@@ -220,7 +251,7 @@ export function getActions(): Record<string, RouteHandler> {
       const startMs = Date.now()
       void (async () => {
         try {
-          const run = await rejectRun(params.id)
+          const run = await rejectRun(params.id, { onStatusChange: graphNotify })
           if (run) {
             await recordSession({
               provider: "graph",
@@ -283,7 +314,13 @@ export function getActions(): Record<string, RouteHandler> {
             durationMs: Date.now() - startMs,
             rlmDepth: 0,
           })
-        } catch {
+          if (result.best) {
+            notify("complete", `optim ${params.name}`, `最优 ${result.best.value} · ${trials} trials`)
+          } else {
+            notify("error", `optim ${params.name}`, `无有效 trial · ${trials} trials`)
+          }
+        } catch (err) {
+          notify("error", `optim ${params.name}`, `执行异常 · ${err instanceof Error ? err.message : String(err)}`)
           // run failures surface via the trials/status SSE feed
         } finally {
           running.delete(params.name)
@@ -474,17 +511,30 @@ export function getActions(): Record<string, RouteHandler> {
     "/api/chat": async ({ req, res, body }) => {
       const payload = (typeof body === "object" && body !== null ? body : {}) as {
         prompt?: unknown
+        messages?: unknown
         stream?: unknown
       }
+      const wantStream = payload.stream === true
+      // Accept a single prompt or a full message history (dashboard chat).
+      const rawMessages = Array.isArray(payload.messages) ? (payload.messages as unknown[]) : []
+      const history: ChatMessage[] = rawMessages
+        .map((m): ChatMessage => {
+          const o = (typeof m === "object" && m !== null ? m : {}) as { role?: unknown; content?: unknown }
+          const role: ChatMessage["role"] = o.role === "assistant" ? "assistant" : o.role === "system" ? "system" : "user"
+          return { role, content: String(o.content ?? "") }
+        })
+        .filter((m) => m.content.trim().length > 0)
+        .slice(-30)
       const prompt = typeof payload.prompt === "string" ? payload.prompt.trim() : ""
-      if (!prompt) {
-        sendError(res, 400, `body must be {"prompt": "..."}`)
+      if (!history.length && !prompt) {
+        sendError(res, 400, `body must be {"prompt": "..."} or {"messages": [...]}`)
         return
       }
-      const wantStream = payload.stream === true
+      const messages: ChatMessage[] = history.length ? history : [{ role: "user", content: prompt }]
       const provider = await resolveProviderConfig()
       if (!provider) {
-        const mock = mockChatReply(prompt)
+        const lastUser = [...messages].reverse().find((m) => m.role === "user")
+        const mock = mockChatReply(lastUser ? lastUser.content : prompt)
         if (!wantStream) {
           sendJson(res, 200, { reply: mock, mock: true, model: "mock", provider: "mock" })
           return
@@ -513,7 +563,8 @@ export function getActions(): Record<string, RouteHandler> {
           baseUrl: provider.baseUrl,
           apiKey: provider.apiKey,
           model: provider.model,
-          messages: [{ role: "user", content: prompt }],
+          system: CHAT_SYSTEM,
+          messages,
           stream: false,
           temperature: 0.7,
           timeout: 180_000,
@@ -529,7 +580,8 @@ export function getActions(): Record<string, RouteHandler> {
           baseUrl: provider.baseUrl,
           apiKey: provider.apiKey,
           model: provider.model,
-          messages: [{ role: "user", content: prompt }],
+          system: CHAT_SYSTEM,
+          messages,
           stream: true,
           temperature: 0.7,
           timeout: 180_000,

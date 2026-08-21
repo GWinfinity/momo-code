@@ -74,6 +74,18 @@ AI 驱动的智能编程代理，随你的开发持续进化。
 Node.js >= 20.0.0
 npm >= 10.0
 
+### Windows 一键安装（推荐）
+```powershell
+# PowerShell 中运行
+irm https://momozi.cc/install.ps1 | iex
+```
+安装完成后自动进入配置向导，按提示选择服务商、输入 API Key 即可。
+
+### macOS / Linux 一键快速安装
+```bash
+curl -fsSL https://momozi.cc/install | bash
+```
+
 ### NPM 全局安装
 ```bash
 npm install -g @momo/cli
@@ -87,28 +99,33 @@ npm install
 npm run build
 ```
 
-### macOS / Linux 一键快速安装
-```bash
-curl -fsSL https://momozi.cc/install | bash
-```
-
 ## 快速上手
-### 1. 配置 API 密钥
+### 1. 配置 API 密钥（推荐方式：交互式向导）
+```bash
+momo /setup
+```
+按提示选择服务商（DeepSeek / OpenAI / Anthropic 等），输入 API Key，配置自动保存到 `~/.momo/momo.jsonc`。
+
+也可手动配置环境变量：
 ```bash
 # 通用密钥（适配所有服务商）
 export MOMO_API_KEY=你的API密钥
 
 # 服务商专属密钥（优先级更高）
+export MOMO_DEEPSEEK_API_KEY=sk-...
 export MOMO_ANTHROPIC_API_KEY=sk-ant-...
 export MOMO_OPENAI_API_KEY=sk-...
 ```
 
 ### 2. 启动编程助手
 ```bash
-# 交互式对话模式
+# 直接输入 momo 进入交互式对话（多轮上下文，Ctrl+C 退出）
 momo
 
-# 单次执行任务
+# 打开 Web 工作台（浏览器可视化界面，含 Chat/Graph/Sim/Optim 等面板）
+momo web
+
+# 单次执行任务（无需进入交互模式）
 momo "使用Effect重构鉴权模块"
 
 # 指定模型分级执行任务

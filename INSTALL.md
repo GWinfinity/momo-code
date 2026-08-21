@@ -8,15 +8,35 @@
 
 | Requirement | Why | Check |
 |-------------|-----|-------|
-| **macOS or Linux** | the installer is bash + git + npm | `uname -s` |
 | **Node.js ≥ 20** | runtime | `node -v` |
 | **npm ≥ 9** | comes with Node | `npm -v` |
 | **git** | clones the repo | `git --version` |
-| **curl** | downloads the installer | `curl --version` |
 
-Windows users: please run via WSL2 (Ubuntu/Debian).
+## Windows — One-liner (recommended)
 
-## Method 1 — One-liner (recommended)
+Open **PowerShell** and run:
+
+```powershell
+irm https://momozi.cc/install.ps1 | iex
+```
+
+What happens:
+1. Checks Node.js ≥ 20
+2. Clones momo-code into `~/.momo/lib/`
+3. Runs `npm install` + `npm run build`
+4. Creates `~/.momo/bin/momo.cmd` wrapper
+5. Adds `~/.momo/bin` to your user PATH
+6. Launches the **setup wizard** to configure your API key
+
+After install, open a new terminal and verify:
+
+```cmd
+momo --version
+momo /setup        # re-run setup wizard anytime
+momo "hello"
+```
+
+## macOS / Linux — One-liner (recommended)
 
 ```bash
 curl -fsSL https://momozi.cc/install | bash

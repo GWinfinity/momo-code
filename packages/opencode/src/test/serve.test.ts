@@ -79,7 +79,7 @@ describe("serve GET endpoints", () => {
     const r = await fetch(`${app.url}/`)
     const html = await r.text()
     assert.strictEqual(r.status, 200)
-    assert.match(html, /<title>momo workspace<\/title>/)
+    assert.match(html, /<title>momo 工作台 · momo workspace<\/title>/)
   })
 
   it("GET /api/health", async () => {
@@ -295,7 +295,7 @@ describe("serve sim workbench endpoints", () => {
     const r = await fetch(`${app.url}/workbench`)
     const html = await r.text()
     assert.strictEqual(r.status, 200)
-    assert.match(html, /<title>momo sim workbench<\/title>/)
+    assert.match(html, /<title>momo 仿真工作台 · sim workbench<\/title>/)
   })
 
   it("GET /api/sim/scene/info and /poses proxy the world", async () => {
