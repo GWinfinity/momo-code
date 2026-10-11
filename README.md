@@ -1,5 +1,4 @@
-
-# MOMO CODE 
+# MOMO CODE
 
 ```txt
 
@@ -10,17 +9,40 @@
 ██║ ╚═╝ ██║╚██████╔╝██║ ╚═╝ ██║╚██████╔╝  ╚██████╗╚██████╔╝██████╔╝███████╗
 ╚═╝     ╚═╝ ╚═════╝ ╚═╝     ╚═╝ ╚═════╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
 ```
+
+<div align="center">
+
+<br>
+
+<p>
+<a href="https://momozi.cc" target="_blank">
+  <img src="https://img.shields.io/badge/website-momozi.cc-blue" alt="Website">
+</a>
+<a href="https://huggingface.co/momozi" target="_blank">
+  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v12/icons/huggingface.svg" width="24" alt="Hugging Face">
+</a>
+<a href="./README_zh.md">
+  <img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-orange" alt="中文文档">
+</a>
+</p>
+</div>
+
+<br>
+<img width="1289" height="663" alt="截屏2026-06-19 16 28 16" src="https://github.com/user-attachments/assets/58441d82-7faf-4fbe-a132-b2fcf02fb7b4" />
+
+> **AI-powered coding agent that evolves with you.**  
+> Built on [opencode](https://github.com/sst/opencode) with a unique dual-speed self-evolution system based on [Pioneer Agent](https://arxiv.org/abs/2604.09791).
+
 ### ⚠️ Experimental / Active Development
 
-**v2.0 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。
-v1.x 的 `/evolve`、`/fine-tune` 等命令继续兼容，但内部实现将逐步迁移到新架构。
+**v2.0 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。v1.x 的 `/evolve`、`/fine-tune` 等命令继续兼容，但内部实现将逐步迁移到新架构。
 
 ---
 
 ## 🚀 v2.0 新特性
 
 ### 1. Pi 框架集成（Extension 模式）
-- 以 npm 依赖形式集成 `@earendil-works/pi-coding-agent@1.1.0`，非 fork
+- 以 npm 依赖形式集成 `@earendil-works/pi-coding-agent@1.1.0`，**非 fork**
 - 6 个 momo 专属 Pi 扩展：
   - `experience` — 自动注入历史验证过的战术
   - `rsi` — 采集工具调用结果与会话指标
@@ -36,38 +58,39 @@ momo "帮我写一个快速排序"          # 单次任务模式
 momo exec "任务描述"               # 显式单次执行
 momo --json "任务描述"             # JSONL 结构化输出
 momo /evolve --demo               # v1.x 遗留命令（兼容）
+```
 
-# MOMO CODE 🔥v1.0.0
+### 3. 交互式 REPL
+- `>` prompt 交互输入
+- `/help` `/exit` `/cot` 内置命令
+- `⌃T` — 展开/折叠思维链
+- `⌃O` — 切换工具详情
+- `⌃C` — 中断退出
 
-<div align="center">
+### 4. JEV 决策层（Judgment-Evaluation-Verification）
+- 5 个决策门：tool / tactic / route / diff / promote
+- 影子模式：并行记录 JEV 决策与 LLM 决策，校准 ECE
+- 支持多后端：TypeSafe（推荐）、Kev、Laya-MLX、规则降级
 
-<br>
+### 5. RSI 自进化循环（3 级）
+| 层级 | 范围 | 自动化程度 |
+|------|------|-----------|
+| R1 Product | 提示词补丁、战术参数 | 全自动 |
+| R2 Strategy | L0 决策模型权重 | 自动 + 校准门 |
+| R3 Mechanism | 评估器本身 | 仅生成提案，需人工 Review |
 
-<p>
-<a href="https://momozi.cc" target="_blank">
-  <img src="https://img.shields.io/badge/website-momozi.cc-blue" alt="Website">
-</a>
- 
-<a href="https://huggingface.co/momozi" target="_blank">
-  <img src="https://cdn.jsdelivr.net/npm/simple-icons@v12/icons/huggingface.svg" width="24" alt="Hugging Face">
-</a>
- 
-<a href="./README_zh.md">
-  <img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-orange" alt="中文文档">
-</a>
-</p>
-</div>
+- 预算控制：日限额、成本上限、并发实验数
+- 安全开关：`touch ~/.momo/STOP` 立即停止
 
-<br>
-<img width="1289" height="663" alt="截屏2026-06-19 16 28 16" src="https://github.com/user-attachments/assets/58441d82-7faf-4fbe-a132-b2fcf02fb7b4" />
+### 6. momo-bench 评估框架
+- 三层切分：selection(60%) / holdout(30%) / canary(10% 冻结)
+- 晋升门：7 个反向测试防止作弊
+- 任务隔离：快照 + 验证器分离 + 预算限制
 
-
-> **AI-powered coding agent that evolves with you.**  
-> Built on [opencode](https://github.com/sst/opencode) with a unique dual-speed self-evolution system based on [Pioneer Agent](https://arxiv.org/abs/2604.09791).
-
+---
 
 ## Architecture
-| Two-Speed Evolution Algorithm |System Technical Architecture |
+| Two-Speed Evolution Algorithm | System Technical Architecture |
 |------|----------|
 |<img width="1672" height="941" alt="AG" src="https://github.com/user-attachments/assets/bb127413-b647-4c7e-bd5d-696f348f8f31" />|<img width="1672" height="941" alt="SS" src="https://github.com/user-attachments/assets/176ccbff-1a24-4a81-9b77-c6e22e757760" />|
 
@@ -81,6 +104,7 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 - [Configuration](#configuration)
 - [Experience Fast Loop (`/evolve`)](#experience-fast-loop-evolve)
 - [Self-Evolution Training (`/fine-tune`)](#self-evolution-training-fine-tune)
+- [v2.0 Architecture](#v20-architecture)
 - [Migrating from Claude Code](#migrating-from-claude-code)
 - [Environment Variables](#environment-variables)
 - [Architecture](#architecture)
@@ -89,9 +113,14 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 
 ## Features
 
-- **25+ LLM Providers** — Deepseek, Zhipu (GLM), Moonshot (Kimi), Claude, GPT-4, Gemini, Doubao, OpenRouter, Groq, Mistral, and more. The \chat` command uses OpenAI-compatible protocol only`
+- **25+ LLM Providers** — Deepseek, Zhipu (GLM), Moonshot (Kimi), Claude, GPT-4, Gemini, Doubao, OpenRouter, Groq, Mistral, and more. The `\chat` command uses OpenAI-compatible protocol only
 - **Custom Provider** — Plug in any OpenAI-compatible API with `MOMO_CUSTOM_*` env vars
 - **Model Tiers** — Zero-config selection: `ultra` / `standard` / `lite`
+- **Interactive REPL** — v2.0 native TTY interface with CoT panel, decision chips, keyboard shortcuts
+- **Pi Framework Integration** — v2.0 extension-mode agent runtime with 6 momo-specific extensions
+- **JEV Decision Layer** — Shadow-mode L0 decision model with ECE calibration
+- **RSI Self-Evolution** — 3-tier recursive improvement (R1/R2/R3) with budget rails and STOP guard
+- **momo-bench** — 3-tier evaluation (selection/holdout/canary) with 7 reverse tests
 - **Experience Fast Loop (`/evolve`)** — Second-level prompt injection via KEP protocol. Tactics distilled from success are auto-selected via Thompson sampling
 - **Self-Evolution Training (`/fine-tune`)** — Hour-level weight improvement via Monte Carlo Graph Search (MCGS) + LoRA
 - **Self-Refinement (`/refine`)** — Reviews session trajectories and proposes small, evidence-based improvements (tactics/prompt patches) that only take effect after human approval
@@ -103,7 +132,6 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 - **Claude Code Interop** — Seamless migration, inherits `.claude/` config, MCP servers, prompts
 - **Local-first** — Your code never leaves your machine. Open source, auditable
 - **Effect-powered** — Built with Effect for composable, type-safe code
-
 
 ## Installation
 
@@ -129,29 +157,32 @@ curl -fsSL https://momozi.cc/install | bash
 ```
 
 The installer:
-1. Clones the repo into \`~/.momo/lib/momo-code\`
-2. Runs \`npm install\` + \`npm run build\` (about 30-60 s)
-3. Drops a wrapper at \`~/.momo/bin/momo\`
-4. Appends \`~/.momo/bin\` to your PATH in \`~/.zshrc\` or \`~/.bashrc\`
+1. Clones the repo into `~/.momo/lib/momo-code`
+2. Runs `npm install` + `npm run build` (about 30-60 s)
+3. Drops a wrapper at `~/.momo/bin/momo`
+4. Appends `~/.momo/bin` to your PATH in `~/.zshrc` or `~/.bashrc`
 
-**Open a new terminal** (or run \`source ~/.zshrc\`) and then:
+**Open a new terminal** (or run `source ~/.zshrc`) and then:
 
 ```bash
 momo --version    # 1.0.0
 momo --help
 ```
 
-If you see \`command not found: momo\`, your PATH didn't pick up the change — see [INSTALL.md](./INSTALL.md#troubleshooting).
+If you see `command not found: momo`, your PATH didn't pick up the change — see [INSTALL.md](./INSTALL.md#troubleshooting).
 
 ### From source (manual)
 
 ```bash
 git clone https://github.com/momozi1996/momo-code.git
 cd momo-code/packages/opencode
-npm install                # installs all deps including TypeScript
+npm install                # installs all deps including TypeScript + Pi framework
 npm run build              # compiles TS + fixes ESM imports
+npm run smoke              # run smoke tests (23 checks)
 node bin/momo --version
 ```
+
+> **Note:** If `npm install` fails to fetch `@earendil-works/pi-coding-agent` (network issues), the CLI automatically falls back to **momo Native REPL** (simulation mode). All other features remain usable.
 
 ### From npm
 
@@ -168,7 +199,7 @@ sed -i.bak '/# momo Code CLI/,+1d' ~/.zshrc    # zsh
 sed -i.bak '/# momo Code CLI/,+1d' ~/.bashrc   # bash
 ```
 
-
+## Quick Start
 
 ### 1. Set up API key
 
@@ -184,7 +215,7 @@ export MOMO_OPENAI_API_KEY=sk-...
 ### 2. Start coding
 
 ```bash
-# Interactive mode
+# Interactive REPL (v2.0 default)
 momo
 
 # One-shot task
@@ -194,6 +225,12 @@ momo "Refactor auth to use Effect"
 momo --model ultra "Complex architecture review"
 momo --model standard "Fix the login bug"
 momo --model lite "Quick code review"
+
+# JSONL structured output (v2.0)
+momo --json "Generate a todo app"
+
+# Legacy one-shot (v1.x compatible)
+momo -p anthropic "task"
 ```
 
 ### 3. First run
@@ -207,7 +244,8 @@ On first run, momo creates `~/.momo/`:
 ├── experience/         # Learned tactics (auto-created)
 │   ├── tactics.json
 │   └── ledger.jsonl
-└── ...
+├── rsi-meta.json       # RSI loop metadata (v2.0)
+└── STOP                # Safety halt file (create to stop RSI)
 ```
 
 ## Usage
@@ -228,13 +266,37 @@ momo [options] [prompt]
 Options:
   --model, -m <id>       Model ID or tier
   --provider, -p <name>  Provider
+  --json                 JSONL structured output (v2.0)
   --help                 Show help
   --version              Show version
 ```
 
 ## CLI Commands
 
-### Coding Session
+### Interactive REPL (v2.0)
+
+```bash
+momo                     # Enter interactive REPL
+momo "prompt"            # One-shot task (auto-detects TTY)
+momo exec "prompt"       # Explicit single-run mode
+momo --json "prompt"     # JSONL event stream output
+```
+
+**REPL built-in commands:**
+| Command | Description |
+|---------|-------------|
+| `/help` | Show help |
+| `/exit` | Exit REPL |
+| `/cot` | Toggle CoT display |
+
+**Keyboard shortcuts:**
+| Shortcut | Action |
+|----------|--------|
+| `⌃T` | Expand/collapse thinking chain |
+| `⌃O` | Toggle tool details |
+| `⌃C` | Interrupt / exit |
+
+### Coding Session (Legacy)
 
 ```bash
 momo                     # Show help and banner
@@ -448,6 +510,21 @@ momo models providers    # Show available providers
 }
 ```
 
+### v2.0 Config Schema (`momo.jsonc` v2)
+
+v2.0 introduces an extended config schema supporting Pi runtime, JEV, RSI, and UI settings:
+
+| Section | Key | Description | Default |
+|---------|-----|-------------|---------|
+| `runtime` | `engine` | Agent engine: `pi` or `legacy` | `pi` |
+| `decision` | `mode` | JEV mode: `shadow`/`enforce`/`off` | `shadow` |
+| `decision` | `points` | Active decision gates | `["tactic-relevance"]` |
+| `experience` | `maxInjectedTactics` | Max tactics per prompt | `3` |
+| `rsi` | `mode` | RSI mode: `observe`/`auto`/`off` | `observe` |
+| `rsi` | `maxCampaignCostUsd` | Max cost per campaign | `5` |
+| `rsi` | `stopFile` | Halt signal file path | `~/.momo/STOP` |
+| `ui` | `thinking` | CoT display: `collapsed`/`expanded`/`off` | `collapsed` |
+
 ## Experience Fast Loop (`/evolve`)
 
 The experience fast loop (KEP — Knowledge Embedding Protocol) is momo's unique **second-level** learning system. Unlike `/fine-tune` which updates model weights over hours, `/evolve` learns and applies knowledge in **seconds** via prompt injection.
@@ -528,6 +605,86 @@ momo /fine-tune promote      # Promote candidate
 | `MOMO_EVOLVE_AUTO` | Auto-trigger training | `false` |
 | `MOMO_EVOLVE_BUDGET_USD` | Max training budget | `50` |
 
+## v2.0 Architecture
+
+### Pi Extension Architecture
+
+momo v2.0 integrates Pi as an **npm dependency** (not a fork), loading 6 custom extensions into Pi's `AgentSessionRuntime`:
+
+```
+Pi AgentSessionRuntime
+├── momo-brand          # Show ASCII banner on start
+├── momo-experience     # Inject tactics into system prompt
+├── momo-permissions    # Y/n gate for write/dangerous ops
+├── momo-decisions      # Show L0 decision capsules
+├── momo-cot            # Thinking chain panel (⌃T toggle)
+└── momo-rsi            # Record tool_result + agent_settled
+```
+
+### JEV Decision Layer
+
+Shadow-mode L0 decision model with 5 gates:
+
+| Gate | Purpose |
+|------|---------|
+| `tool` | Allow / confirm / block tool execution |
+| `tactic` | Inject tactic or not |
+| `route` | Select model tier (ultra/standard/lite) |
+| `diff` | Auto-apply diff or request human review |
+| `promote` | Approve RSI candidate promotion |
+
+**Calibration:** ECE < 0.05 before enforce mode takeover.
+
+### RSI 3-Tier Loop
+
+| Tier | Scope | Frequency | Human Review |
+|------|-------|-----------|--------------|
+| R1 Product | Prompt patches, tactic params | Every session | No |
+| R2 Strategy | L0 decision model weights | Per calibration gate | Gate-triggered |
+| R3 Mechanism | Evaluator itself | Rare | **Required** |
+
+Safety: `touch ~/.momo/STOP` halts all RSI activity immediately.
+
+### momo-bench Evaluation
+
+Three-tier data split preventing overfit:
+
+| Split | Ratio | Purpose |
+|-------|-------|---------|
+| selection | 60% | Tactic optimization |
+| holdout | 30% | Gate validation |
+| canary | 10% | Frozen — never seen by auto-pipeline |
+
+Promotion gate includes **7 reverse tests** (cheating prevention):
+1. Obviously broken tactic → reject
+2. Delete tests to pass → reject
+3. Fake score with exit nonzero → reject
+4. Identical to baseline → inconclusive
+5. Cost down, no regression → accept
+6. Insufficient data → inconclusive
+7. Improve dev, hurt holdout → reject
+
+### Project Structure (v2.0)
+
+```
+packages/opencode/src/
+├── cli/                 # v1.x legacy commands (/evolve /fine-tune)
+├── config/              # momo.jsonc v2 schema + resolver
+├── decision/            # DecisionPort type contract
+├── evolve/              # Evolution + EvolutionCandidate
+├── experience/          # KEP fast loop + closure chain
+├── jev/                 # JEV decision layer
+├── momo-bench/          # 3-tier evaluation + gate
+├── pi-extensions/       # 6 Pi extensions
+├── provider/            # 19 LLM provider integrations
+├── repl/                # Interactive TTY REPL
+├── rsi/                 # 3-tier self-evolution loop
+├── runtime/             # TaskResult + event envelopes
+├── session/             # Prompt routing
+├── test/                # Smoke + integration tests
+└── effect/              # Effect utilities
+```
+
 ## Migrating from Claude Code
 
 Zero-friction migration:
@@ -544,30 +701,35 @@ export MOMO_ONLY=1
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `MOMO_API_KEY` | Generic API key |
-| `MOMO_HOME` | Home directory (default: `~/.momo`) |
-| `MOMO_MODEL` | Default model/tier |
-| `MOMO_PROVIDER` | Default provider |
-| `MOMO_XP_MODE` | Evolution mode (balanced/explore/harden/convention-only) |
-| `MOMO_XP_DIR` | Experience storage dir |
-| `MOMO_SESSION_RECORD` | Set `false` to disable session trajectory recording |
-| `MOMO_RLM_MAX_DEPTH` | Subagent recursion limit (default: 3) |
-| `MOMO_RLM_BUDGET` | Max subagents per orchestration (default: 8) |
-| `MOMO_DAEMON_INTERVAL` | Daemon poll seconds (default: 60) |
-| `MOMO_DAEMON_MAX_RUNS` / `MOMO_DAEMON_MAX_HOURS` | Daemon budget rails |
-| `MOMO_SIM_PYTHON` | Python executable for the sim world server |
-| `MOMO_SIM_BACKEND` | Genesis backend: cpu or gpu (default: cpu) |
-| `MOMO_SIM_MAX_STEPS` | Max LLM control-loop steps (default: 20) |
-| `MOMO_STT_API_KEY` | STT key for /voice (OpenAI-compatible) |
-| `MOMO_STT_BASE_URL` / `MOMO_STT_MODEL` | STT endpoint/model (default: OpenAI whisper-1) |
-| `MOMO_VOICE_SECONDS` | Default voice recording length (default: 5) |
-| `MOMO_EVOLVE_ENABLED` | Enable self-evolution |
-| `MOMO_EVOLVE_BUDGET_USD` | Training budget |
-| `MOMO_ANTHROPIC_API_KEY` | Anthropic key |
-| `MOMO_OPENAI_API_KEY` | OpenAI key |
-| `MOMO_OPENROUTER_API_KEY` | OpenRouter key |
+| Variable | Description | v2.0 |
+|----------|-------------|------|
+| `MOMO_API_KEY` | Generic API key | |
+| `MOMO_HOME` | Home directory (default: `~/.momo`) | |
+| `MOMO_MODEL` | Default model/tier | |
+| `MOMO_PROVIDER` | Default provider | |
+| `MOMO_UI_DECISION_CHIPS` | Show decision capsules | ✅ |
+| `MOMO_UI_EVIDENCE_BAR` | Show evidence bar | ✅ |
+| `MOMO_RSI_ENABLED` | Enable RSI signal recording | ✅ |
+| `MOMO_RSI_MAX_PROMOTIONS_PER_DAY` | Daily promotion limit | ✅ |
+| `MOMO_RSI_MAX_COST` | Max campaign cost (USD) | ✅ |
+| `MOMO_XP_MODE` | Evolution mode (balanced/explore/harden/convention-only) | |
+| `MOMO_XP_DIR` | Experience storage dir | |
+| `MOMO_SESSION_RECORD` | Set `false` to disable session trajectory recording | |
+| `MOMO_RLM_MAX_DEPTH` | Subagent recursion limit (default: 3) | |
+| `MOMO_RLM_BUDGET` | Max subagents per orchestration (default: 8) | |
+| `MOMO_DAEMON_INTERVAL` | Daemon poll seconds (default: 60) | |
+| `MOMO_DAEMON_MAX_RUNS` / `MOMO_DAEMON_MAX_HOURS` | Daemon budget rails | |
+| `MOMO_SIM_PYTHON` | Python executable for the sim world server | |
+| `MOMO_SIM_BACKEND` | Genesis backend: cpu or gpu (default: cpu) | |
+| `MOMO_SIM_MAX_STEPS` | Max LLM control-loop steps (default: 20) | |
+| `MOMO_STT_API_KEY` | STT key for /voice (OpenAI-compatible) | |
+| `MOMO_STT_BASE_URL` / `MOMO_STT_MODEL` | STT endpoint/model (default: OpenAI whisper-1) | |
+| `MOMO_VOICE_SECONDS` | Default voice recording length (default: 5) | |
+| `MOMO_EVOLVE_ENABLED` | Enable self-evolution | |
+| `MOMO_EVOLVE_BUDGET_USD` | Training budget | |
+| `MOMO_ANTHROPIC_API_KEY` | Anthropic key | |
+| `MOMO_OPENAI_API_KEY` | OpenAI key | |
+| `MOMO_OPENROUTER_API_KEY` | OpenRouter key | |
 
 Full list: `src/env.ts`
 
@@ -615,32 +777,35 @@ createModel() → LanguageModel adapter
 wrapSSE() → Streaming with 8min timeout
 ```
 
-### Project Structure
-
-```
-packages/opencode/src/
-├── provider/       # 19 LLM provider integrations
-├── evolve/         # Weight slow loop (/fine-tune) — MCGS
-├── experience/     # Fast loop (/evolve) — KEP protocol
-│   ├── tactic.ts       # Tactic model + Beta stats
-│   ├── selector.ts     # Thompson/UCB selection
-│   ├── injector.ts     # Prompt injection
-│   ├── gate.ts         # Promotion ratchet
-│   ├── bridge.ts       # Two-speed bridge
-│   └── ...
-├── cli/cmd/        # CLI commands
-├── session/        # Prompt routing
-├── config/         # Configuration
-└── effect/         # Effect utilities
-```
-
 ## Test Results
 
 - **TypeScript**: `tsc --noEmit` — **0 errors**
-- **Runtime**: 17/17 tests passed
-- **CLI verified**: `/evolve`, `/fine-tune`, `models`, `help`
+- **Smoke Test**: 23/23 checks passed
+- **CLI verified**: REPL, `/evolve`, `/fine-tune`, `models`, `help`
 
 ## Changelog
+
+### v2.0.0 (2026-10-11)
+
+**Added:**
+- Pi framework integration (`@earendil-works/pi-coding-agent@1.1.0`) as extension dependency
+- Interactive REPL with CoT panel, decision capsules, keyboard shortcuts
+- JEV decision layer — 5 gates with shadow mode and ECE calibration
+- RSI 3-tier self-evolution loop (R1/R2/R3) with budget rails and STOP guard
+- momo-bench — 3-tier evaluation (selection/holdout/canary) + 7 reverse tests
+- 6 Pi extensions: experience, rsi, permissions, decisions, cot, brand
+- DecisionPort type contract with choice/bool/score/abstain kinds
+- TaskResult + EventEnvelope types for structured logging
+- EvolutionCandidate interface with CAS promotion guard
+- Experience closure chain (TaskExposure → TaskOutcome → Solidify)
+- momo.jsonc v2 config schema with priority resolver
+
+**Changed:**
+- Rewrote `bin/momo` as unified entry (REPL / Pi / legacy fallback)
+- Version: 0.1.1 → 1.0.0
+- Added `[SIMULATED]` warnings to all placeholder random data
+- Added `NOTICE` file for independent copyright declaration
+- LICENSE: clarified as THIRD-PARTY DEPENDENCIES (Pi is a dependency, not a fork)
 
 ### v1.0.0 (2026-06-16)
 
@@ -660,5 +825,5 @@ packages/opencode/src/
 
 ## License
 
-[MIT](LICENSE) — see [NOTICE](NOTICE) for third-party attributions.
+[MIT](LICENSE) — see [NOTICE](NOTICE) for third-party attributions.  
 See [USE_RESTRICTIONS.md](USE_RESTRICTIONS.md) and [SECURITY.md](SECURITY.md).
