@@ -10,6 +10,32 @@
 ██║ ╚═╝ ██║╚██████╔╝██║ ╚═╝ ██║╚██████╔╝  ╚██████╗╚██████╔╝██████╔╝███████╗
 ╚═╝     ╚═╝ ╚═════╝ ╚═╝     ╚═╝ ╚═════╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
 ```
+### ⚠️ Experimental / Active Development
+
+**v2.0 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。
+v1.x 的 `/evolve`、`/fine-tune` 等命令继续兼容，但内部实现将逐步迁移到新架构。
+
+---
+
+## 🚀 v2.0 新特性
+
+### 1. Pi 框架集成（Extension 模式）
+- 以 npm 依赖形式集成 `@earendil-works/pi-coding-agent@1.1.0`，非 fork
+- 6 个 momo 专属 Pi 扩展：
+  - `experience` — 自动注入历史验证过的战术
+  - `rsi` — 采集工具调用结果与会话指标
+  - `permissions` — 敏感操作（写入/危险命令）Y/n 确认
+  - `decisions` — L0 决策胶囊实时显示
+  - `cot` — 思维链面板（⌃T 折叠/展开）
+  - `brand` — momo 品牌 Banner
+
+### 2. 统一 CLI 入口
+```bash
+momo                              # 进入交互式 REPL（默认）
+momo "帮我写一个快速排序"          # 单次任务模式
+momo exec "任务描述"               # 显式单次执行
+momo --json "任务描述"             # JSONL 结构化输出
+momo /evolve --demo               # v1.x 遗留命令（兼容）
 
 # MOMO CODE 🔥v1.0.0
 
