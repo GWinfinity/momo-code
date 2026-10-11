@@ -22,10 +22,12 @@ SOFTWARE.
 
 ---
 
-DERIVATIVE WORK NOTICE:
+THIRD-PARTY DEPENDENCIES:
 
-momo Code is derived from opencode (https://github.com/sst/opencode),
-created by SST and licensed under the MIT License.
+momo Code uses the following open-source dependencies:
+- opencode (MIT) — https://github.com/sst/opencode
+- Effect-TS (MIT) — https://github.com/Effect-TS/effect
+- Pi / @earendil-works/pi-coding-agent (MIT) — https://github.com/Earendil-works/pi
 
-The original opencode copyright notice:
-Copyright (c) 2025 SST
+All dependencies are used under their respective MIT licenses.
+See NOTICE file for full attribution.

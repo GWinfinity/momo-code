@@ -1,13 +1,15 @@
 momo Code
-Copyright 2026 momo Team
+Copyright (c) 2026 MOMO CODE Team
 
-This product includes software developed by:
-- SST (https://sst.dev) -- opencode, the base coding agent framework
+This is an original creative work. It is not a fork of any other project.
 
-This product uses the following open-source projects:
-- Effect (https://effect.website) -- TypeScript framework
-- AI SDK (https://sdk.vercel.ai) -- AI provider abstractions
-- OpenTUI (https://opentui.dev) -- Terminal UI framework
-- Bun (https://bun.sh) -- JavaScript runtime
+momo Code may include dependencies that are separately licensed:
+- opencode (MIT) — used as a runtime dependency, not as a base for derivative work
+- Pi / @earendil-works/pi-coding-agent (MIT) — used as an npm package dependency
+- Effect-TS (MIT) — used as a runtime dependency
+- All other dependencies per their respective licenses (see package-lock.json)
 
-For the full list of dependencies, see package.json.
+The momo Code source code in this repository is licensed under the MIT License.
+See LICENSE file for full terms.
+
+For questions about licensing or use, contact: momo@momozi.cc

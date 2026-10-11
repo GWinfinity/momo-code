@@ -83,7 +83,8 @@ export class Evaluator extends Effect.Service<Evaluator>()("evolve/Evaluator", {
         // const passed = results.filter(r => r.passed).length
         // const passAt1 = passed / tasks.length
 
-        // For now, simulate realistic eval scores
+        // [SIMULATED] In production: run actual eval on momo-bench-v1
+        console.warn("[SIMULATED] Evaluator.run using Math.random() — not real bench results")
         const passAt1 = 0.82 + Math.random() * 0.13
         const regressionCount = Math.floor(Math.random() * 3)
 
@@ -122,8 +123,8 @@ export class Evaluator extends Effect.Service<Evaluator>()("evolve/Evaluator", {
           return cached.get(cacheKey)!
         }
 
-        // In production: load eval tasks and run each one
-        // For now, simulate per-task results
+        // [SIMULATED] In production: load eval tasks and run each one
+        console.warn("[SIMULATED] Evaluator.runDetailed using Math.random() — not real task execution")
         const numTasks = 320 // momo-bench-v1 has ~320 tasks
         const taskDetails = new Map<string, { passed: boolean; confidence: number }>()
         const passedTasks: string[] = []

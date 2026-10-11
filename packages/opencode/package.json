@@ -60,18 +60,23 @@
     "dev": "tsc --watch",
     "lint": "echo 'oxlint not installed'",
     "start": "node bin/momo",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "smoke": "npx tsx src/test/e2e-smoke.ts",
+    "loop": "npx tsx src/rsi/index.ts",
+    "bench": "npx tsx src/momo-bench/index.ts"
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.10",
+    "@earendil-works/pi-coding-agent": "1.1.0",
     "ai": "^6.0.205",
     "effect": "^3.14.0",
-    "fuzzysort": "^3.1.0",
+    "fuzzy-sort": "^3.1.0",
     "remeda": "^2.21.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsup": "^8.0.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.8.0"
   },
   "engines": {
