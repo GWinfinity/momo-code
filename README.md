@@ -28,7 +28,7 @@
 </div>
 
 <br>
-<img width="1289" height="663" alt="截屏2026-06-19 16 28 16" src="https://github.com/user-attachments/assets/58441d82-7faf-4fbe-a132-b2fcf02fb7b4" />
+<img width="1289" height="663" alt="V2.0.0 16 28 16" src="https://github.com/momozi1996/momo-code/blob/main/pic/MOMOCODE.png" />
 
 > **AI-powered coding agent that evolves with you.**  
 > Built on [opencode](https://github.com/sst/opencode) with a unique dual-speed self-evolution system based on [Pioneer Agent](https://arxiv.org/abs/2604.09791).
