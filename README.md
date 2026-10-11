@@ -92,6 +92,7 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 ## Architecture
 | Two-Speed Evolution Algorithm | System Technical Architecture |
 |------|----------|
+|<img width="1672" height="941" alt="AG" src="https://github.com/momozi1996/momo-code/blob/main/pic/AG_200.png" />|<img width="1672" height="941" alt="SS" src="https://github.com/momozi1996/momo-code/blob/main/pic/SS_200.png" />|
 |<img width="1672" height="941" alt="AG" src="https://github.com/user-attachments/assets/bb127413-b647-4c7e-bd5d-696f348f8f31" />|<img width="1672" height="941" alt="SS" src="https://github.com/user-attachments/assets/176ccbff-1a24-4a81-9b77-c6e22e757760" />|
 
 ## Table of Contents
