@@ -57,7 +57,7 @@ function parseArgs(argv) {
 
 // ── Run legacy Node.js CLI ────────────────────────────────────────
 function runLegacy(argv) {
-  import("../dist/cli/index.js")
+  return import("../dist/cli/index.js")
     .then(({ runCli }) => runCli(argv))
     .catch((err) => {
       if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
@@ -155,7 +155,7 @@ if (["version", "--version", "-v"].includes(argv[0])) {
 }
 
 if (["help", "--help", "-h"].includes(argv[0])) {
-  runLegacy(argv)
+  await runLegacy(argv)
   process.exit(0)
 }
 
