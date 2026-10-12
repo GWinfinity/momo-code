@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: MIT
+// Bind momo's extensions to Pi's cwd-aware session runtime and mode lifecycle.
+
+import path from "path"
+import {
+  createAgentSessionFromServices,
+  createAgentSessionRuntime,
+  createAgentSessionServices,
+  runPrintMode,
+  SessionManager,
+  type AgentSessionRuntime,
+  type CreateAgentSessionRuntimeFactory,
+} from "@earendil-works/pi-coding-agent"
+import { getConfigDir } from "./config/config.js"
+import {
+  brandExtension,
+  experienceExtension,
+  permissionsExtension,
+  decisionsExtension,
+  cotExtension,
+  rsiExtension,
+} from "./pi-extensions/index.js"
+
+export async function createMomoRuntime() {
+  const createRuntime: CreateAgentSessionRuntimeFactory = async (options) => {
+    const services = await createAgentSessionServices({
+      cwd: options.cwd,
+      agentDir: options.agentDir,
+      resourceLoaderOptions: {
+        extensionFactories: [
+          brandExtension, experienceExtension, permissionsExtension,
+          decisionsExtension, cotExtension, rsiExtension,
+        ],
+      },
+    })
+    const errors = services.resourceLoader.getExtensions().errors
+    if (errors.length > 0) throw new Error(errors.map((entry) => entry.error).join("\n"))
+    const created = await createAgentSessionFromServices({
+      services,
+      sessionManager: options.sessionManager,
+      sessionStartEvent: options.sessionStartEvent,
+    })
+    return { ...created, services, diagnostics: services.diagnostics }
+  }
+  const cwd = process.cwd()
+  const agentDir = getConfigDir()
+  return createAgentSessionRuntime(createRuntime, {
+    cwd,
+    agentDir,
+    sessionManager: SessionManager.create(cwd, path.join(agentDir, "sessions")),
+  })
+}
+
+export async function runMomoPrint(runtime: AgentSessionRuntime, mode: "text" | "json", prompt?: string) {
+  const code = await runPrintMode(runtime, { mode, initialMessage: prompt })
+  // Pi 1.1.0 only checks assistant failures in text mode. Read the final
+  // session too: extensions may replace it, or a retry may recover an error.
+  const lastAssistant = runtime.session.state.messages.slice().reverse()
+    .find((message) => message.role === "assistant")
+  return lastAssistant?.stopReason === "error" || lastAssistant?.stopReason === "aborted" ? 1 : code
+}

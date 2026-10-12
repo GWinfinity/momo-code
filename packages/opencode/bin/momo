@@ -75,33 +75,13 @@ function runLegacy(argv) {
 // ── Run Pi agent (REPL / print / json) ────────────────────────────
 async function runPiAgent(args) {
   try {
-    const { createAgentSession } = await import("@earendil-works/pi-coding-agent")
-    const {
-      experienceExtension,
-      rsiExtension,
-      brandExtension,
-      permissionsExtension,
-      decisionsExtension,
-      cotExtension,
-    } = await import("../dist/pi-extensions/index.js")
-
-    const session = createAgentSession({
-      extensions: [
-        brandExtension,
-        experienceExtension,
-        permissionsExtension,
-        decisionsExtension,
-        cotExtension,
-        rsiExtension,
-      ],
-      interactive: args.mode === "repl",
-      outputMode: args.mode === "json" ? "jsonl" : "text",
-    })
-
-    if (args.prompt) {
-      await session.startTask(args.prompt)
+    const { InteractiveMode } = await import("@earendil-works/pi-coding-agent")
+    const { createMomoRuntime, runMomoPrint } = await import("../dist/pi-runtime.js")
+    const runtime = await createMomoRuntime()
+    if (args.mode === "repl" && process.stdin.isTTY) {
+      await new InteractiveMode(runtime, { initialMessage: args.prompt }).run()
     } else {
-      await session.startRepl()
+      process.exitCode = await runMomoPrint(runtime, args.mode === "json" ? "json" : "text", args.prompt)
     }
   } catch (err) {
     if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {

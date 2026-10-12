@@ -8,8 +8,27 @@ import fs from "fs"
 import path from "path"
 import os from "os"
 import { fileURLToPath } from "url"
+import { DefaultResourceLoader, SettingsManager, type ExtensionFactory } from "@earendil-works/pi-coding-agent"
 
 const SRC_DIR = fileURLToPath(new URL("../", import.meta.url))
+
+async function loadFactory(factory: ExtensionFactory) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "momo-integration-pi-"))
+  try {
+    const loader = new DefaultResourceLoader({
+      cwd: tmp, agentDir: tmp, settingsManager: SettingsManager.inMemory(),
+      noExtensions: true, noSkills: true, noPromptTemplates: true,
+      noThemes: true, noContextFiles: true, extensionFactories: [factory],
+    })
+    await loader.reload()
+    const result = loader.getExtensions()
+    assert.deepStrictEqual(result.errors, [])
+    assert.strictEqual(result.extensions.length, 1)
+    return result.extensions[0]
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+}
 
 describe("momo v2.0 Integration", () => {
   describe("P0: Honesty", () => {
@@ -33,23 +52,16 @@ describe("momo v2.0 Integration", () => {
 
   describe("P1: Pi Extensions", () => {
     it("should load experience extension", async () => {
-      try {
-        const { experienceExtension } = await import("../pi-extensions/experience.js")
-        assert.ok(experienceExtension, "experienceExtension not exported")
-        assert.ok(experienceExtension.hooks?.before_agent_start, "before_agent_start hook missing")
-      } catch {
-        // Pi not installed — skip
-        console.warn("[SKIP] Pi not installed")
-      }
+      const { experienceExtension } = await import("../pi-extensions/experience.js")
+      const extension = await loadFactory(experienceExtension)
+      assert.ok(extension.handlers.has("before_agent_start"))
     })
 
     it("should load RSI extension", async () => {
-      try {
-        const { rsiExtension } = await import("../pi-extensions/rsi.js")
-        assert.ok(rsiExtension, "rsiExtension not exported")
-      } catch {
-        console.warn("[SKIP] Pi not installed")
-      }
+      const { rsiExtension } = await import("../pi-extensions/rsi.js")
+      const extension = await loadFactory(rsiExtension)
+      assert.ok(extension.handlers.has("tool_result"))
+      assert.ok(extension.handlers.has("agent_settled"))
     })
   })
 
