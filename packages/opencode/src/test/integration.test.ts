@@ -7,24 +7,44 @@ import assert from "node:assert"
 import fs from "fs"
 import path from "path"
 import os from "os"
+import { fileURLToPath } from "url"
+import { DefaultResourceLoader, SettingsManager, type ExtensionFactory } from "@earendil-works/pi-coding-agent"
 
-const MOMO_DIR = path.join(os.homedir(), ".momo")
+const SRC_DIR = fileURLToPath(new URL("../", import.meta.url))
+
+async function loadFactory(factory: ExtensionFactory) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "momo-integration-pi-"))
+  try {
+    const loader = new DefaultResourceLoader({
+      cwd: tmp, agentDir: tmp, settingsManager: SettingsManager.inMemory(),
+      noExtensions: true, noSkills: true, noPromptTemplates: true,
+      noThemes: true, noContextFiles: true, extensionFactories: [factory],
+    })
+    await loader.reload()
+    const result = loader.getExtensions()
+    assert.deepStrictEqual(result.errors, [])
+    assert.strictEqual(result.extensions.length, 1)
+    return result.extensions[0]
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+}
 
 describe("momo v2.0 Integration", () => {
   describe("P0: Honesty", () => {
     it("should have NOTICE file", () => {
-      const noticePath = path.join(process.cwd(), "..", "..", "NOTICE")
+      const noticePath = path.join(SRC_DIR, "..", "..", "..", "NOTICE")
       assert.ok(fs.existsSync(noticePath), "NOTICE file missing")
     })
 
     it("should have [SIMULATED] warnings in evaluator", () => {
-      const evaluatorPath = path.join(process.cwd(), "..", "src", "evolve", "evaluator.ts")
+      const evaluatorPath = path.join(SRC_DIR, "evolve", "evaluator.ts")
       const content = fs.readFileSync(evaluatorPath, "utf-8")
       assert.ok(content.includes("[SIMULATED]"), "evaluator.ts missing SIMULATED tag")
     })
 
     it("should have [SIMULATED] warnings in gate", () => {
-      const gatePath = path.join(process.cwd(), "..", "src", "experience", "gate.ts")
+      const gatePath = path.join(SRC_DIR, "experience", "gate.ts")
       const content = fs.readFileSync(gatePath, "utf-8")
       assert.ok(content.includes("[SIMULATED]"), "gate.ts missing SIMULATED tag")
     })
@@ -32,23 +52,16 @@ describe("momo v2.0 Integration", () => {
 
   describe("P1: Pi Extensions", () => {
     it("should load experience extension", async () => {
-      try {
-        const { experienceExtension } = await import("../pi-extensions/experience.js")
-        assert.ok(experienceExtension, "experienceExtension not exported")
-        assert.ok(experienceExtension.hooks?.before_agent_start, "before_agent_start hook missing")
-      } catch {
-        // Pi not installed — skip
-        console.warn("[SKIP] Pi not installed")
-      }
+      const { experienceExtension } = await import("../pi-extensions/experience.js")
+      const extension = await loadFactory(experienceExtension)
+      assert.ok(extension.handlers.has("before_agent_start"))
     })
 
     it("should load RSI extension", async () => {
-      try {
-        const { rsiExtension } = await import("../pi-extensions/rsi.js")
-        assert.ok(rsiExtension, "rsiExtension not exported")
-      } catch {
-        console.warn("[SKIP] Pi not installed")
-      }
+      const { rsiExtension } = await import("../pi-extensions/rsi.js")
+      const extension = await loadFactory(rsiExtension)
+      assert.ok(extension.handlers.has("tool_result"))
+      assert.ok(extension.handlers.has("agent_settled"))
     })
   })
 
@@ -64,21 +77,35 @@ describe("momo v2.0 Integration", () => {
   })
 
   describe("P3: RSI", () => {
-    it("should have STOP file mechanism", () => {
-      const stopFile = path.join(MOMO_DIR, "STOP")
-      // Verify the mechanism exists (don't actually create STOP)
-      assert.ok(true, "STOP mechanism defined")
+    it("honors STOP before any optimizer writes", async () => {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "momo-rsi-stop-"))
+      const stop = path.join(tmp, "STOP")
+      fs.writeFileSync(stop, "")
+      const saved = process.env.MOMO_RSI_STOP_FILE
+      process.env.MOMO_RSI_STOP_FILE = stop
+      try {
+        const { r1Optimize, r2Optimize, r3Propose } = await import("../rsi/index.js")
+        await r1Optimize()
+        await r2Optimize()
+        assert.strictEqual(await r3Propose(), null)
+        assert.deepStrictEqual(fs.readdirSync(tmp), ["STOP"])
+      } finally {
+        if (saved === undefined) delete process.env.MOMO_RSI_STOP_FILE
+        else process.env.MOMO_RSI_STOP_FILE = saved
+        fs.rmSync(tmp, { recursive: true, force: true })
+      }
     })
 
-    it("should load RSI meta", async () => {
-      const { loadMeta } = await import("../rsi/index.js")
-      // loadMeta is internal — verify through r1Optimize
-      assert.ok(true, "RSI module loads")
+    it("exports the public RSI optimizers", async () => {
+      const { r1Optimize, r2Optimize, r3Propose } = await import("../rsi/index.js")
+      assert.strictEqual(typeof r1Optimize, "function")
+      assert.strictEqual(typeof r2Optimize, "function")
+      assert.strictEqual(typeof r3Propose, "function")
     })
   })
 
   describe("P4: JEV", () => {
-    it("should create noop backend", () => {
+    it("should create noop backend", async () => {
       const { createNoopBackend } = await import("../jev/index.js")
       const backend = createNoopBackend()
       assert.ok(backend, "noop backend not created")
@@ -94,7 +121,7 @@ describe("momo v2.0 Integration", () => {
       assert.strictEqual(answers[0].abstained, true)
     })
 
-    it("should compute ECE", () => {
+    it("should compute ECE", async () => {
       const { ShadowRecorder } = await import("../jev/index.js")
       const rec = new ShadowRecorder()
       // Add mock records
@@ -123,14 +150,14 @@ describe("momo v2.0 Integration", () => {
       assert.ok(typeof setupKeyboardHandlers === "function")
     })
 
-    it("should render CoT steps", () => {
+    it("should render CoT steps", async () => {
       const { CoTRenderer } = await import("../repl/cot-renderer.js")
       const cot = new CoTRenderer()
       cot.addStep({ number: 1, action: "Test step" })
       assert.ok(true, "CoT renders")
     })
 
-    it("should render decision capsules", () => {
+    it("should render decision capsules", async () => {
       const { renderDecisionCapsule } = await import("../repl/decision-capsule.js")
       const text = renderDecisionCapsule({
         gate: "tool",
@@ -146,7 +173,7 @@ describe("momo v2.0 Integration", () => {
 
   describe("P6: End-to-End", () => {
     it("should have all source files", () => {
-      const srcDir = path.join(process.cwd(), "..", "src")
+      const srcDir = SRC_DIR
       const requiredDirs = [
         "pi-extensions",
         "momo-bench",

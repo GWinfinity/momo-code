@@ -158,7 +158,7 @@ function loadBudget(): RSIBudget {
     maxConcurrentExperiments: parseInt(process.env.MOMO_RSI_MAX_CONCURRENT || "1", 10),
     maxAutomaticPromotionsPerScopePerDay: parseInt(process.env.MOMO_RSI_MAX_PROMOTIONS_PER_DAY || "1", 10),
     maxTaskContinuations: parseInt(process.env.MOMO_RSI_MAX_CONTINUATIONS || "1", 10),
-    maxCampaignCostUsd: parseFloat(process.env.MOMO_RSI_MAX_COST || "5", 10),
+    maxCampaignCostUsd: parseFloat(process.env.MOMO_RSI_MAX_COST || "5"),
   }
 }
 
