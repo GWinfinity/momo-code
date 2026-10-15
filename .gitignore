@@ -1,5 +1,13 @@
 node_modules/
 packages/opencode/dist/
+
+# Desktop GUI (tinyjs) build artifacts — sidecar/dist are built, not committed
+desktop/dist/
+desktop/.build/
+desktop/node_modules/
+desktop/executables/
+.codegraph/
+.trae/
 *.tgz
 .DS_Store
 .env

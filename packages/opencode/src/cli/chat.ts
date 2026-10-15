@@ -55,8 +55,14 @@ interface ChatOptions {
   timeout?: number
   /** Optional per-token callback when streaming (serve SSE, UI progress). */
   onToken?: (chunk: string) => void
+  /** Optional per-token callback for reasoning tokens (thinking blocks). */
+  onReasoning?: (chunk: string) => void
   /** Optional usage callback (token counters from the provider response). */
   onUsage?: (usage: Usage) => void
+  /** Suppress console output (gui-bridge owns stdout as its NDJSON channel). */
+  quiet?: boolean
+  /** External abort signal (gui cancel button). */
+  signal?: AbortSignal
 }
 
 /** Token usage counters reported by an OpenAI-compatible endpoint. */
@@ -165,7 +171,10 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
     headers: extraHeaders = {},
     timeout = 120_000,
     onToken,
+    onReasoning,
     onUsage,
+    quiet = false,
+    signal,
   } = opts
 
   // Build messages array
@@ -188,6 +197,10 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeout)
+  if (signal) {
+    if (signal.aborted) controller.abort()
+    else signal.addEventListener("abort", () => controller.abort(), { once: true })
+  }
 
   try {
     let response = await fetch(`${baseUrl}/chat/completions`, {
@@ -258,17 +271,21 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
     for await (const { text, reasoning } of parseSSEStream(reader, onUsage)) {
       // Reasoning is meta-output: keep it off stdout so captured subagent
       // stdout is just the final answer. Interactive terminals still show it.
-      if (reasoning) process.stderr.write(text)
-      else process.stdout.write(text)
-      fullText += text
-      onToken?.(text)
+      if (reasoning) {
+        if (!quiet) process.stderr.write(text)
+        onReasoning?.(text)
+      } else {
+        if (!quiet) process.stdout.write(text)
+        fullText += text
+        onToken?.(text)
+      }
     }
 
     return fullText
   } catch (err) {
     clearTimeout(timer)
     if (err instanceof Error && err.name === "AbortError") {
-      throw new Error(`Request timed out after ${timeout}ms`)
+      throw new Error(signal?.aborted ? "Request aborted" : `Request timed out after ${timeout}ms`)
     }
     throw err
   }

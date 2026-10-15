@@ -19,6 +19,7 @@ import { runSimCommand } from "./cmd/sim.js"
 import { runVoiceCommand } from "./cmd/voice.js"
 import { runOptimCommand } from "./cmd/optim.js"
 import { runServeCommand } from "./cmd/serve.js"
+import { runGuiBridge } from "./cmd/gui.js"
 import { runSetupCommand } from "./cmd/setup.js"
 import { runRepl } from "./cmd/repl.js"
 import { runWebCommand } from "./cmd/web.js"
@@ -123,6 +124,9 @@ export async function runCli(argv: string[]): Promise<void> {
     case "/serve":
     case "serve":
       await runServeCommand(args)
+      break
+    case "gui-bridge":
+      await runGuiBridge(args)
       break
     case "/setup":
     case "setup":
