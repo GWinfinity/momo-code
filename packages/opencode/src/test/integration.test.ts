@@ -18,13 +18,13 @@ describe("momo v2.0 Integration", () => {
     })
 
     it("should have [SIMULATED] warnings in evaluator", () => {
-      const evaluatorPath = path.join(process.cwd(), "..", "src", "evolve", "evaluator.ts")
+      const evaluatorPath = path.join(process.cwd(), "src", "evolve", "evaluator.ts")
       const content = fs.readFileSync(evaluatorPath, "utf-8")
       assert.ok(content.includes("[SIMULATED]"), "evaluator.ts missing SIMULATED tag")
     })
 
     it("should have [SIMULATED] warnings in gate", () => {
-      const gatePath = path.join(process.cwd(), "..", "src", "experience", "gate.ts")
+      const gatePath = path.join(process.cwd(), "src", "experience", "gate.ts")
       const content = fs.readFileSync(gatePath, "utf-8")
       assert.ok(content.includes("[SIMULATED]"), "gate.ts missing SIMULATED tag")
     })
@@ -160,7 +160,7 @@ describe("momo v2.0 Integration", () => {
 
   describe("P6: End-to-End", () => {
     it("should have all source files", () => {
-      const srcDir = path.join(process.cwd(), "..", "src")
+      const srcDir = path.join(process.cwd(), "src")
       const requiredDirs = [
         "pi-extensions",
         "momo-bench",
