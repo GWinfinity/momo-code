@@ -4,6 +4,31 @@ All notable changes to momo Code are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.0] - 2026-10-11
+
+Major architecture upgrade: converged Pi-based agent architecture.
+
+### Added
+
+- **Unified CLI entry** (`bin/momo`) — single entry point supporting three modes: interactive REPL, Pi agent, and legacy `/evolve` `/fine-tune` handlers
+- **JEV decision layer** (`src/jev/`) — 5 decision points, shadow mode, and ECE calibration
+- **DecisionPort contract** (`src/decision/port.ts`) — typed decision interface (choice / bool / score / abstain)
+- **RSI 3-level self-evolution loop** (`src/rsi/`) — R1/R2/R3 loop with budget control and AbortController
+- **momo-bench** (`src/momo-bench/`) — three-tier evaluation framework (selection / holdout / canary) plus promotion gate with 7 reverse test cases
+- **EvolutionCandidate contract** (`src/evolve/candidate.ts`) — candidate + PromotionResult with CAS guard
+- **Experience closure** (`src/experience/closure.ts`) — idempotent TaskExposure → TaskOutcome → Solidify loop
+- **Pi extensions** (`src/pi-extensions/`) — 6 extensions: brand banner, CoT panel, decision capsules, tactical experience injection, sensitive-operation confirmation, RSI signal collection
+- **Interactive REPL** (`src/repl/`) — TTY entry with keyboard bindings (⌃T / ⌃O / ⌃C), collapsed/expanded CoT rendering, decision capsules with evidence bars
+- **Runtime event envelope** (`src/runtime/types.ts`) — TaskResult + 8 event envelope types
+- **momo.jsonc v2 config schema** (`src/config/schema.ts`)
+- **Tests** — e2e smoke suite (23 checks) and P0–P6 integration tests
+
+### Changed
+
+- LICENSE / NOTICE: original-work declaration; Pi (`@earendil-works/pi-coding-agent`) is consumed as a third-party Apache-2.0 dependency, not a derivative work
+- Simulated `Math.random()` paths in evaluator and gate are now explicitly marked with `[SIMULATED]` warnings
+- Dependencies: added `@earendil-works/pi-coding-agent@1.1.0` and `tsx`; added `smoke` / `loop` / `bench` scripts
+
 ## [1.0.0] - 2026-06-16
 
 ### Added

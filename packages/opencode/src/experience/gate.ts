@@ -253,8 +253,8 @@ export class Gate extends Effect.Service<Gate>()("experience/Gate", {
       Effect.gen(function* () {
         yield* Effect.log(`[Gate] Running A/B test for ${tactic.id} on ${bench}...`)
 
-        // In production: load bench tasks from eval store and run eval
-        // For now, simulate realistic A/B test results
+        // [SIMULATED] In production: load bench tasks from eval store and run eval
+        console.warn("[SIMULATED] Gate.abTest using Math.random() — not real A/B test")
         // withTactic should generally be slightly better if the tactic works
 
         const wr = winRate(tactic.stats)

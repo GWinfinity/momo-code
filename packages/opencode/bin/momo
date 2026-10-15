@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 /**
- * MOMO CODE — CLI entry point (ESM)
+ * MOMO CODE v2.0 — CLI Entry Point
  *
- * Routes commands between Node.js handlers and native binary.
+ * Converged entry: Pi-based REPL agent for interactive mode,
+ * legacy Node.js handlers for built-in subcommands.
  */
 
 import { spawn } from "child_process"
-import { existsSync, readFileSync } from "fs"
+import { readFileSync } from "fs"
 import { dirname, join } from "path"
 import { fileURLToPath } from "url"
-import { createRequire } from "module"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// ── Built-in commands handled by Node.js ──────────────────────────
-const NODE_COMMANDS = new Set([
+// ── Built-in commands handled by the legacy Node.js CLI ────────────
+const LEGACY_COMMANDS = new Set([
   "models",
   "/optim",
   "optim",
@@ -30,6 +30,7 @@ const NODE_COMMANDS = new Set([
   "setup",
   "web",
   "repl",
+  "gui-bridge",
   "help",
   "--help",
   "-h",
@@ -38,62 +39,129 @@ const NODE_COMMANDS = new Set([
   "-v",
 ])
 
-function isNodeCommand(argv) {
+function isLegacyCommand(argv) {
   if (argv.length === 0) return false
   const first = argv[0]
   if (first.startsWith("/")) return true
-  return NODE_COMMANDS.has(first)
+  if (first === "-p" || first === "--provider") return true
+  return LEGACY_COMMANDS.has(first)
 }
 
-// ── Find native binary ────────────────────────────────────────────
-function findNativeBinary() {
-  if (process.env.MOMO_BIN_PATH && existsSync(process.env.MOMO_BIN_PATH)) {
-    return process.env.MOMO_BIN_PATH
+// ── Argument parsing ──────────────────────────────────────────────
+function parseArgs(argv) {
+  if (isLegacyCommand(argv)) {
+    return { mode: "legacy", legacyArgv: argv }
   }
 
-  const cached = join(__dirname, ".momo")
-  if (existsSync(cached)) return cached
-
-  const { platform, arch } = process
-  const pMap = { darwin: "darwin", linux: "linux", win32: "win32" }
-  const aMap = { x64: "x64", arm64: "arm64", arm: "arm" }
-  const p = pMap[platform] || platform
-  const a = aMap[arch] || arch
-  const base = `momo-${p}-${a}`
-  const binary = p === "win32" ? "momo.exe" : "momo"
-
-  let current = __dirname
-  for (;;) {
-    const modules = join(current, "node_modules")
-    if (existsSync(modules)) {
-      const candidate = join(modules, base, "bin", binary)
-      if (existsSync(candidate)) return candidate
+  if (argv[0] === "exec" || argv[0] === "--exec") {
+    const next = argv[1]
+    if (next === "--json") {
+      return { mode: "json", prompt: argv.slice(2).join(" "), legacyArgv: [] }
     }
-    const parent = dirname(current)
-    if (parent === current) break
-    current = parent
+    return { mode: "print", prompt: argv.slice(1).join(" "), legacyArgv: [] }
   }
-  return null
+
+  if (argv[0] === "--json") {
+    return { mode: "json", prompt: argv.slice(1).join(" "), legacyArgv: [] }
+  }
+
+  if (argv.length === 0) {
+    return { mode: "repl", legacyArgv: [] }
+  }
+
+  return { mode: "repl", prompt: argv.join(" "), legacyArgv: [] }
 }
 
-// ── Run native binary ─────────────────────────────────────────────
-function runNative(binary, argv) {
-  const child = spawn(binary, argv, { stdio: "inherit" })
-  child.on("error", (err) => {
-    console.error(`momo: ${err.message}`)
-    process.exit(1)
-  })
-  child.on("exit", (code, signal) => {
-    if (signal) {
-      process.kill(process.pid, signal)
-      return
+// ── Run legacy Node.js CLI ────────────────────────────────────────
+function runLegacy(argv) {
+  import("../dist/cli/index.js")
+    .then(({ runCli }) => runCli(argv))
+    .catch((err) => {
+      if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
+        console.error("\x1b[31mError:\x1b[0m Build output not found or ESM import broken.")
+        console.error("Original error:", err.message)
+        console.error("Try: npm run build")
+      } else {
+        console.error(`\x1b[31mError:\x1b[0m ${err.message}`)
+        if (err.stack) console.error(err.stack)
+      }
+      process.exit(1)
+    })
+}
+
+// ── Run Pi agent (REPL / print / json) ────────────────────────────
+async function runPiAgent(args) {
+  try {
+    const { createAgentSession } = await import("@earendil-works/pi-coding-agent")
+    const {
+      experienceExtension,
+      rsiExtension,
+      brandExtension,
+      permissionsExtension,
+      decisionsExtension,
+      cotExtension,
+    } = await import("../dist/pi-extensions/index.js")
+
+    const session = createAgentSession({
+      extensions: [
+        brandExtension,
+        experienceExtension,
+        permissionsExtension,
+        decisionsExtension,
+        cotExtension,
+        rsiExtension,
+      ],
+      interactive: args.mode === "repl",
+      outputMode: args.mode === "json" ? "jsonl" : "text",
+    })
+
+    if (args.prompt) {
+      await session.startTask(args.prompt)
+    } else {
+      await session.startRepl()
     }
-    process.exit(typeof code === "number" ? code : 0)
+  } catch (err) {
+    if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
+      console.warn("⚠️  Pi runtime not installed. Using momo native REPL.")
+      console.warn("   Install Pi: npm install @earendil-works/pi-coding-agent@1.1.0")
+      console.warn("")
+      await runNativeRepl(args)
+    } else {
+      throw err
+    }
+  }
+}
+
+// ── Native REPL fallback (no Pi required) ─────────────────────────
+async function runNativeRepl(args) {
+  // Use tsx to run the TypeScript REPL directly
+  const tsx = spawn(
+    "npx",
+    ["tsx", "src/repl/index.ts", args.mode, args.prompt || ""],
+    {
+      cwd: join(__dirname, ".."),
+      stdio: "inherit",
+      shell: true,
+    }
+  )
+
+  return new Promise((resolve, reject) => {
+    tsx.on("close", (code) => {
+      if (code === 0) resolve()
+      else reject(new Error(`REPL exited with code ${code}`))
+    })
   })
 }
 
-// ── Main ──────────────────────────────────────────────────────────
-const argv = process.argv.slice(2)
+// ── Version ───────────────────────────────────────────────────────
+function showVersion() {
+  try {
+    const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"))
+    console.log(pkg.version || "0.1.0")
+  } catch {
+    console.log("0.1.0")
+  }
+}
 
 // ── ASCII Banner (MOMO CODE — ANSI Shadow) ────────────────────────
 // NOTE: Keep this in sync with src/cli/banner.ts
@@ -106,8 +174,7 @@ const BANNER = [
   "\x1b[95m╚═╝     ╚═╝ ╚═════╝ ╚═╝     ╚═╝ ╚═════╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝\x1b[0m",
 ].join("\n")
 
-// Quick help / version (but not for empty args — that starts REPL)
-if (["help", "--help", "-h"].includes(argv[0])) {
+function showHelp() {
   console.log(BANNER)
   console.log()
   console.log("\x1b[36m\x1b[1m  The coding agent that evolves\x1b[0m")
@@ -157,52 +224,28 @@ if (["help", "--help", "-h"].includes(argv[0])) {
   console.log(``)
   console.log(`\x1b[37mDocs: https://momozi.cc\x1b[0m`)
   console.log(``)
-  process.exit(0)
 }
+
+// ── Main ──────────────────────────────────────────────────────────
+const argv = process.argv.slice(2)
 
 if (["version", "--version", "-v"].includes(argv[0])) {
-  try {
-    const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"))
-    console.log(pkg.version || "0.1.0")
-  } catch {
-    console.log("0.1.0")
-  }
+  showVersion()
   process.exit(0)
 }
 
-// Route to Node.js CLI for built-in commands (or no args → REPL)
-if (argv.length === 0 || isNodeCommand(argv)) {
-  import("../dist/cli/index.js")
-    .then(({ runCli }) => runCli(argv))
-    .catch((err) => {
-      if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
-        console.error("\x1b[31mError:\x1b[0m Build output not found or ESM import broken.")
-        console.error("Original error:", err.message)
-        console.error("Try: npm run build")
-      } else {
-        console.error(`\x1b[31mError:\x1b[0m ${err.message}`)
-        if (err.stack) console.error(err.stack)
-      }
-      process.exit(1)
-    })
+if (["help", "--help", "-h"].includes(argv[0])) {
+  showHelp()
+  process.exit(0)
+}
+
+const args = parseArgs(argv)
+
+if (args.mode === "legacy") {
+  runLegacy(args.legacyArgv)
 } else {
-  // Try native binary first, then fall back to Node.js
-  const binary = findNativeBinary()
-  if (binary) {
-    runNative(binary, argv)
-  } else {
-    import("../dist/cli/index.js")
-      .then(({ runCli }) => runCli(argv))
-      .catch((err) => {
-        if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
-        console.error("\x1b[31mError:\x1b[0m Build output not found or ESM import broken.")
-        console.error("Original error:", err.message)
-        console.error("Try: npm run build")
-      } else {
-          console.error(`\x1b[31mError:\x1b[0m ${err.message}`)
-          if (err.stack) console.error(err.stack)
-        }
-        process.exit(1)
-      })
-  }
+  runPiAgent(args).catch((err) => {
+    console.error("\x1b[31mError:\x1b[0m", err.message)
+    process.exit(1)
+  })
 }
