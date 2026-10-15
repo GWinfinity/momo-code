@@ -13,6 +13,7 @@ import { createStudy, appendTrial } from "../optim/study"
 
 let tmp: string
 let saved: string | undefined
+let savedNotify: string | undefined
 let app: ServeApp
 
 function seedFixtures(dir: string): void {
@@ -52,6 +53,9 @@ before(async () => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "momo-serve-"))
   saved = process.env.MOMO_CONFIG_DIR
   process.env.MOMO_CONFIG_DIR = tmp
+  // Never spawn OS notifiers during tests (notify-send ENOENT on headless CI).
+  savedNotify = process.env.MOMO_NOTIFY
+  process.env.MOMO_NOTIFY = "0"
   seedFixtures(tmp)
   createStudy({
     name: "svc",
@@ -67,6 +71,8 @@ after(async () => {
   await app.close()
   if (saved === undefined) delete process.env.MOMO_CONFIG_DIR
   else process.env.MOMO_CONFIG_DIR = saved
+  if (savedNotify === undefined) delete process.env.MOMO_NOTIFY
+  else process.env.MOMO_NOTIFY = savedNotify
   fs.rmSync(tmp, { recursive: true, force: true })
 })
 

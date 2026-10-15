@@ -23,7 +23,7 @@ import { fileURLToPath } from "url"
 import { getMomoHome } from "../session/recorder.js"
 import { resolveProviderConfig } from "../cli/chat.js"
 import { getRoutes } from "./routes.js"
-import { getActions } from "./actions.js"
+import { getActions, closeSimBridge } from "./actions.js"
 import { DASHBOARD_HTML, WORKBENCH_HTML } from "./assets.generated.js"
 
 const require = createRequire(import.meta.url)
@@ -293,10 +293,15 @@ export async function createServeApp(opts: ServeOptions = {}): Promise<ServeApp>
     url,
     host,
     port: actualPort,
-    close: () =>
-      new Promise<void>((resolve) => {
+    close: async () => {
+      // Tear down background work the routes may have started (the sim world
+      // bridge spawns a Python child process) so nothing outlives the app and
+      // emits async activity after tests finish.
+      await closeSimBridge()
+      await new Promise<void>((resolve) => {
         server.close(() => resolve())
         server.closeAllConnections?.()
-      }),
+      })
+    },
   }
 }

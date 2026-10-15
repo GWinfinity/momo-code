@@ -45,6 +45,26 @@ function envFlag(name: string, def: boolean): boolean {
   return v !== "0" && v !== "false"
 }
 
+/**
+ * Fire-and-forget spawn that can never crash the host process.
+ *
+ * A missing binary (e.g. `notify-send` on a headless CI runner) surfaces as an
+ * async `'error'` event on the child. With no listener Node promotes it to an
+ * uncaught exception — often after a test hook has already finished. We always
+ * attach an `'error'` handler and swallow it; the notifier is best-effort.
+ */
+function fireSpawn(cmd: string, args: string[]): void {
+  try {
+    const child = spawn(cmd, args, { detached: true, stdio: "ignore" })
+    child.on("error", () => {
+      // ENOENT (binary missing) or any spawn failure — never throw from a notifier
+    })
+    child.unref()
+  } catch {
+    // synchronous spawn failure — swallow
+  }
+}
+
 export function notifyEnabled(): boolean {
   return envFlag("MOMO_NOTIFY", true)
 }
@@ -79,25 +99,18 @@ const SOUNDS: Record<NotifyKind, Array<[freq: number, ms: number]>> = {
 }
 
 function playWindows(freq: number, ms: number): void {
-  spawn(
-    "powershell",
-    [
-      "-NoProfile",
-      "-WindowStyle",
-      "Hidden",
-      "-Command",
-      `[console]::beep(${freq},${ms})`,
-    ],
-    { detached: true, stdio: "ignore" },
-  ).unref()
+  fireSpawn("powershell", [
+    "-NoProfile",
+    "-WindowStyle",
+    "Hidden",
+    "-Command",
+    `[console]::beep(${freq},${ms})`,
+  ])
 }
 
 function playDarwin(freq: number, _ms: number): void {
   // macOS beep count conveys the pattern; freq is ignored.
-  spawn("osascript", ["-e", "beep " + Math.max(1, Math.min(3, Math.round(freq / 300)))], {
-    detached: true,
-    stdio: "ignore",
-  }).unref()
+  fireSpawn("osascript", ["-e", "beep " + Math.max(1, Math.min(3, Math.round(freq / 300)))])
 }
 
 function playLinux(freq: number, _ms: number): void {
@@ -147,26 +160,22 @@ function notifyWindows(title: string, body: string): void {
     "$toast = New-Object Windows.UI.Notifications.ToastNotification $template",
     "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('momo').Show($toast)",
   ].join("; ")
-  spawn("powershell", ["-NoProfile", "-WindowStyle", "Hidden", "-Command", script], {
-    detached: true,
-    stdio: "ignore",
-  }).unref()
+  fireSpawn("powershell", ["-NoProfile", "-WindowStyle", "Hidden", "-Command", script])
 }
 
 function notifyDarwin(title: string, body: string): void {
   const safeTitle = sanitize(title).replace(/"/g, "\\\"")
   const safeBody = sanitize(body).replace(/"/g, "\\\"")
-  spawn(
-    "osascript",
-    ["-e", `display notification "${safeBody}" with title "${safeTitle}" sound name "Glass"`],
-    { detached: true, stdio: "ignore" },
-  ).unref()
+  fireSpawn("osascript", [
+    "-e",
+    `display notification "${safeBody}" with title "${safeTitle}" sound name "Glass"`,
+  ])
 }
 
 function notifyLinux(title: string, body: string): void {
   const safeTitle = sanitize(title).replace(/"/g, "")
   const safeBody = sanitize(body).replace(/"/g, "")
-  spawn("notify-send", [safeTitle, safeBody], { detached: true, stdio: "ignore" }).unref()
+  fireSpawn("notify-send", [safeTitle, safeBody])
 }
 
 export function notifySystem(title: string, body: string): void {
