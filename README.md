@@ -34,8 +34,18 @@
 > Built on [opencode](https://github.com/sst/opencode) with a unique dual-speed self-evolution system based on [Pioneer Agent](https://arxiv.org/abs/2604.09791).
 
 ### ⚠️ Experimental / Active Development
-
-**v2.0 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。v1.x 的 `/evolve`、`/fine-tune` 等命令继续兼容，但内部实现将逐步迁移到新架构。
+** v2.0.0 (2026-10-11) 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。
+* Pi 框架集成（`@earendil-works/pi-coding-agent@1.1.0`）作为扩展依赖
+* 交互式 REPL，带思维链面板、决策胶囊与键盘快捷键
+* JEV 决策层 — 5 个决策门，影子模式 + ECE 校准
+* RSI 3 级自进化循环（R1/R2/R3），带预算护栏与 STOP 保护
+* momo-bench — 3 层评估（selection/holdout/canary）+ 7 个反向测试
+* 6 个 Pi 扩展：experience、rsi、permissions、decisions、cot、brand
+* DecisionPort 类型契约（choice/bool/score/abstain）
+* TaskResult + EventEnvelope 类型，用于结构化日志
+* EvolutionCandidate 接口，带 CAS 晋升保护
+* 经验闭环链（TaskExposure → TaskOutcome → Solidify）
+* momo.jsonc v2 配置 schema，带优先级 resolver
 
 ---
 ## 🚀 v2.0 新特性
