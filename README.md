@@ -38,6 +38,12 @@
 **v2.0 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。v1.x 的 `/evolve`、`/fine-tune` 等命令继续兼容，但内部实现将逐步迁移到新架构。
 
 ---
+## 🌟 Star History
+
+[![Star History Chart](https://star-history.dera.page/svg?repos=momozi1996/momo-code&type=Date)](https://star-history.dera.page/#momozi1996/momo-code&Date)
+
+---
+
 
 ## 🚀 v2.0 新特性
 
