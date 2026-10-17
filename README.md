@@ -38,12 +38,6 @@
 **v2.0 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。v1.x 的 `/evolve`、`/fine-tune` 等命令继续兼容，但内部实现将逐步迁移到新架构。
 
 ---
-## 🌟 Star History
-<img width="753" height="506" alt="image" src="https://github.com/user-attachments/assets/62fcb8f0-ae7b-44ce-9173-6de5afb6af64" />
-
----
-
-
 ## 🚀 v2.0 新特性
 
 ### 1. Pi 框架集成（Extension 模式）
@@ -93,7 +87,10 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 - 任务隔离：快照 + 验证器分离 + 预算限制
 
 ---
+## 🌟 Star History
+<img width="753" height="506" alt="image" src="https://github.com/user-attachments/assets/62fcb8f0-ae7b-44ce-9173-6de5afb6af64" />
 
+---
 ## Architecture
 | Two-Speed Evolution Algorithm | System Technical Architecture |
 |------|----------|
