@@ -39,8 +39,7 @@
 
 ---
 ## 🌟 Star History
-
-[![Star History Chart](https://star-history.dera.page/svg?repos=momozi1996/momo-code&type=Date)](https://star-history.dera.page/#momozi1996/momo-code&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=momozi1996/momo-code)](https://star-history.dera.page/momozi1996/momo-code)
 
 ---
 
