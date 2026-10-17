@@ -39,7 +39,7 @@
 
 ---
 ## 🌟 Star History
-[![Star History Chart](https://star-history.dera.page/svg?repos=momozi1996/momo-code)](https://star-history.dera.page/momozi1996/momo-code)
+<img width="753" height="506" alt="image" src="https://github.com/user-attachments/assets/62fcb8f0-ae7b-44ce-9173-6de5afb6af64" />
 
 ---
 
