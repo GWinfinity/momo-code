@@ -239,25 +239,35 @@ sed -i.bak '/# momo Code CLI/,+1d' \~/.bashrc   # bash
 
 ## Quick Start
 
-### 1. 配置 API Key
-```
-\# 通用 Key（适用于任意服务商）
-export MOMO\_API\_KEY=your-api-key
+### 1. 配置 API 密钥（推荐方式：交互式向导）
 
-\# 或指定服务商
-export MOMO\_ANTHROPIC\_API\_KEY=sk-ant-...
-export MOMO\_OPENAI\_API\_KEY=sk-...
+```bash
+momo /setup
+```
+
+按提示选择服务商（DeepSeek / OpenAI / Anthropic 等），输入 API Key，配置自动保存到 `~/.momo/momo.jsonc`。也可手动配置环境变量：
+
+```bash
+# 通用密钥（适配所有服务商）
+export MOMO_API_KEY=你的API密钥
+
+# 服务商专属密钥（优先级更高）
+export MOMO_DEEPSEEK_API_KEY=sk-...
+export MOMO_ANTHROPIC_API_KEY=sk-...
+export MOMO_OPENAI_API_KEY=sk-...
 ```
 
 ### 2. 开始编码
 
-
-```
-\# 交互式 REPL（v2.0 默认）
+```bash
+# 直接输入 momo 进入交互式对话（多轮上下文，Ctrl+C 退出）
 momo
 
-\# 单次任务
-momo "Refactor auth to use Effect"
+# 打开 Web 工作台（浏览器可视化界面，含 Chat/Graph/Sim/Optim 等面板）
+momo web
+
+# 单次执行任务（无需进入交互模式）
+momo "使用Effect重构鉴权模块"
 
 \# 使用模型档位
 momo --model ultra "Complex architecture review"
