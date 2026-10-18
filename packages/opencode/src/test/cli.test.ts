@@ -39,13 +39,15 @@ describe("runCli help", () => {
 })
 
 describe("bin/momo --help", () => {
-  it("prints help without requiring an API key", () => {
-    const result = runHelp("node", ["bin/momo", "--help"])
-    assert.strictEqual(result.status, 0, result.stderr || result.stdout)
-    assert(result.stdout.includes("The coding agent that evolves"))
-    assert(result.stdout.includes("DESCRIPTION:"))
-    assert(result.stdout.includes("USAGE:"))
-  })
+  for (const flag of ["help", "--help", "-h"]) {
+    it(`prints help for '${flag}' without requiring an API key`, () => {
+      const result = runHelp("node", ["bin/momo", flag])
+      assert.strictEqual(result.status, 0, result.stderr || result.stdout)
+      assert(result.stdout.includes("The coding agent that evolves"))
+      assert(result.stdout.includes("DESCRIPTION:"))
+      assert(result.stdout.includes("USAGE:"))
+    })
+  }
 })
 
 describe("src/cli/main.ts --help", () => {

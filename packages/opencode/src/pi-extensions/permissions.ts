@@ -1,74 +1,31 @@
 // SPDX-License-Identifier: MIT
 // momo Code — Pi Extension: Permission Gate
-// Adds momo-style confirmation for sensitive operations
 
-import type { InlineExtension } from "@earendil-works/pi-coding-agent"
-import readline from "readline"
+import type { ExtensionFactory } from "@earendil-works/pi-coding-agent"
 
 const DANGEROUS_PATTERNS = [
   /rm\s+-rf\s+\//,
   />\s*\/dev\/null/,
   /mkfs\./,
   /dd\s+if=/,
-  /:\(\)\{\s*:\|:\s*\&\s*\};:\s*\)/, // fork bomb
+  /:\(\)\{\s*:\|:\s*\&\s*\};:\s*\)/,
 ]
 
-function isDangerous(command: string): boolean {
-  return DANGEROUS_PATTERNS.some((p) => p.test(command))
-}
+export const permissionsExtension: ExtensionFactory = (pi) => {
+  pi.on("tool_call", async (event, context) => {
+    const input = event.input
+    const command = "command" in input ? input.command : undefined
+    const dangerous = event.toolName === "bash" && typeof command === "string" &&
+      DANGEROUS_PATTERNS.some((pattern) => pattern.test(command))
+    const writing = ["write", "edit", "apply_patch"].includes(event.toolName)
+    if (!dangerous && !writing) return
 
-async function askUser(question: string): Promise<boolean> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
+    // Print/JSON mode cannot obtain interactive approval.
+    if (!context.hasUI) return { block: true, reason: "Operation requires interactive approval" }
+
+    const file = "path" in input ? input.path : "file" in input ? input.file : "unknown"
+    const detail = dangerous ? String(command) : `${event.toolName}: ${file}`
+    const allowed = await context.ui.confirm("momo: Allow operation?", detail)
+    if (!allowed) return { block: true, reason: "User declined" }
   })
-
-  return new Promise((resolve) => {
-    rl.question(`${question} [Y/n] `, (answer) => {
-      rl.close()
-      resolve(answer.trim().toLowerCase() !== "n")
-    })
-  })
-}
-
-export const permissionsExtension: InlineExtension = {
-  name: "momo-permissions",
-
-  factory: (pi) => {
-    pi.on("tool_call", async (event) => {
-      const tool = event.toolName
-      const args = (event.input ?? {}) as Record<string, unknown>
-
-      // Auto-allow safe tools
-      const safeTools = ["read", "view", "grep", "glob", "ls"]
-      if (safeTools.includes(tool)) {
-        return
-      }
-
-      // Dangerous command detection
-      if (tool === "bash" && args.command && isDangerous(String(args.command))) {
-        console.error(`\n⚠️  Dangerous command detected: ${args.command}`)
-        const allowed = await askUser("Block this command?")
-        if (!allowed) {
-          return {
-            block: true,
-            reason: "User blocked dangerous command",
-          }
-        }
-      }
-
-      // Write/Edit tools — always confirm
-      if (["write", "edit", "apply_patch"].includes(tool)) {
-        const filePath = args.path || args.file || "unknown"
-        console.error(`\n🔧 ${tool.toUpperCase()}: ${filePath}`)
-        const allowed = await askUser("Allow?")
-        if (!allowed) {
-          return {
-            block: true,
-            reason: "User declined",
-          }
-        }
-      }
-    })
-  },
 }

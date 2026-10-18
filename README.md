@@ -34,11 +34,20 @@
 > Built on [opencode](https://github.com/sst/opencode) with a unique dual-speed self-evolution system based on [Pioneer Agent](https://arxiv.org/abs/2604.09791).
 
 ### ⚠️ Experimental / Active Development
-
-**v2.0 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。v1.x 的 `/evolve`、`/fine-tune` 等命令继续兼容，但内部实现将逐步迁移到新架构。
+** v2.0.0 (2026-10-11) 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。
+* Pi 框架集成（`@earendil-works/pi-coding-agent@1.1.0`）作为扩展依赖
+* 交互式 REPL，带思维链面板、决策胶囊与键盘快捷键
+* JEV 决策层 — 5 个决策门，影子模式 + ECE 校准
+* RSI 3 级自进化循环（R1/R2/R3），带预算护栏与 STOP 保护
+* momo-bench — 3 层评估（selection/holdout/canary）+ 7 个反向测试
+* 6 个 Pi 扩展：experience、rsi、permissions、decisions、cot、brand
+* DecisionPort 类型契约（choice/bool/score/abstain）
+* TaskResult + EventEnvelope 类型，用于结构化日志
+* EvolutionCandidate 接口，带 CAS 晋升保护
+* 经验闭环链（TaskExposure → TaskOutcome → Solidify）
+* momo.jsonc v2 配置 schema，带优先级 resolver
 
 ---
-
 ## 🚀 v2.0 新特性
 
 ### 1. Pi 框架集成（Extension 模式）
@@ -88,7 +97,13 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 - 任务隔离：快照 + 验证器分离 + 预算限制
 
 ---
+## 📈 Star History
 
+![Star History Chart](https://api.star-history.com/svg?repos=momozi1996/momo-code\&type=Date)
+
+> 自动更新的 Star 涨幅线（由[star-history.com](https://star-history.com)提供）。2026-10-17 快照：**1,162 stars**（2026-06-16 创建 → 2026-07 末 181 → 2026-08 末 394 → 2026-09 末 884 → 2026-10-17 1,162）。
+
+---
 ## Architecture
 | Two-Speed Evolution Algorithm | System Technical Architecture |
 |------|----------|
@@ -824,7 +839,53 @@ wrapSSE() → Streaming with 8min timeout
 - bin/momo: CJS → ESM command router
 - package.json: Production-ready exports, files whitelist
 
-## License
 
-[MIT](LICENSE) — see [NOTICE](NOTICE) for third-party attributions.  
-See [USE_RESTRICTIONS.md](USE_RESTRICTIONS.md) and [SECURITY.md](SECURITY.md).
+## 🗺 Roadmap
+
+> 公开路线图，欢迎在 [Discussions](https://github.com/momozi1996/momo-code/discussions)讨论与投票。
+
+* **v2.0 收尾** — 完成 v1.x 遗留命令（`/evolve`、`/fine-tune`）向新架构的迁移，稳定 REPL 与 JEV 校准
+* **npm 发布** — `@momo/cli` 上架 npm（规划于 v1.1 /v2.1）
+* **更多服务商** — 持续扩展 25+ LLM 服务商与自定义接入体验
+* **团队共享经验库** — 经验库（`~/.momo/experience/`）支持导出 / 导入与团队同步（讨论中）
+* **GUI / 插件化** — 桌面端与插件系统的社区投票候选（见 [Discussions Ideas](https://github.com/momozi1996/momo-code/discussions)）
+
+## 🤝 Community
+| 入口                                                                         | 用途                      |
+| -------------------------------------------------------------------------- | ----------------------- |
+| [Discussions](https://github.com/momozi1996/momo-code/discussions)         | 提问、分享工作流、功能投票、成果展示      |
+| [Wiki](https://github.com/momozi1996/momo-code/wiki)                       | 完整文档：安装、CLI 参考、核心概念、FAQ |
+| [Issues](https://github.com/momozi1996/momo-code/issues)                   | Bug 反馈与功能请求             |
+| [Security policy](https://github.com/momozi1996/momo-code/security/policy) | 安全漏洞上报                  |
+| [momozi.cc](https://momozi.cc)                                             | 官方网站                    |
+| [Hugging Face](https://huggingface.co/momozi)                              | 模型与实验                   |
+
+## 🙏 Acknowledgements
+* [opencode](https://github.com/sst/opencode) — 基础 agent 框架
+* [Pioneer Agent](https://arxiv.org/abs/2604.09791) — 双速自进化方法论
+* [Pi Coding Agent](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) — v2.0 agent runtime（npm 依赖，非 fork）
+* [Genesis](https://genesis-embodied-ai.github.io/) — 物理仿真后端（`/sim`）
+* [Effect](https://effect.website/) — 组合式、类型安全的 TypeScript 基础
+* [optim-agent](https://optim-agent.github.io/optim-agent/) — `/optim` 推理驱动优化的灵感来源
+
+## 🤝 Contributing
+
+欢迎贡献！开始前请阅读：
+* [AGENTS.md](./AGENTS.md) — AI 协作约定
+* [docs/build-release.md](./docs/build-release.md) — 构建、测试与发布流程
+* [USE\_RESTRICTIONS.md](./USE_RESTRICTIONS.md) — 使用限制
+
+开发流程速览：
+```
+git clone https://github.com/momozi1996/momo-code.git
+cd momo-code/packages/opencode
+npm install
+npm run build
+npm run smoke          # 23 项冒烟检查
+npm run typecheck      # TypeScript 类型检查
+```
+提交 PR 前请确保：测试通过、类型检查 0 错误、CHANGELOG.md 已更新、通过品牌检查（`bash scripts/check-rebrand.sh`）。遇到问题先去 [Discussions](https://github.com/momozi1996/momo-code/discussions) 搜索或提问。
+
+## License
+[MIT](LICENSE) — see [NOTICE](NOTICE) for third-party attributions.
+See [USE\_RESTRICTIONS.md](USE_RESTRICTIONS.md) and [SECURITY.md](SECURITY.md).
