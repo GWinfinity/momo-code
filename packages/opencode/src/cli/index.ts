@@ -9,6 +9,7 @@ import { runEvolveCommand } from "./cmd/evolve.js"
 import { runFinetuneCommand } from "./cmd/finetune.js"
 import { runModelsCommand } from "./cmd/models.js"
 import { runRefineCommand } from "./cmd/refine.js"
+import { runAspireCommand } from "./cmd/aspire.js"
 import { runAgentCommand } from "./cmd/agent.js"
 import { runGraphCommand } from "./cmd/graph.js"
 import { runGoalCommand } from "./cmd/goal.js"
@@ -84,6 +85,10 @@ export async function runCli(argv: string[]): Promise<void> {
     case "/refine":
     case "refine":
       await runRefineCommand(args)
+      break
+    case "/aspire":
+    case "aspire":
+      await runAspireCommand(args)
       break
     case "/agent":
     case "agent":
