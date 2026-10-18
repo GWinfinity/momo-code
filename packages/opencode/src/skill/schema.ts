@@ -110,13 +110,20 @@ export interface CampaignManifest {
  * A coding-task "seed": prompt + acceptance check command + band.
  *
  * `check` must start with a whitelisted prefix (reuse of
- * experience/guard.ts ALLOWED_CHECK_PREFIXES).
+ * experience/guard.ts ALLOWED_CHECK_PREFIXES), except the narrow
+ * `python -m sim_eval ...` sim-evaluator exception owned by
+ * verifier.ts isCheckAllowed.
  */
 export interface SkillTask {
   id: string
   /** Task description handed to the worker/verifier. */
   prompt: string
-  /** Acceptance command (whitelist prefix) whose exit 0 means success. */
+  /**
+   * Acceptance command whose exit 0 means success. Normally a whitelisted
+   * prefix; the only exception is `python -m sim_eval ...` /
+   * `python3 -m sim_eval ...`. Literal `{task_dir}` placeholders expand to
+   * the task's campaign directory when staged into agent prompts.
+   */
   check: string
   /** dev tasks drive proposals; heldout tasks guard final claims. */
   band: "dev" | "heldout"
