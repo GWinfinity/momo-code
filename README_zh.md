@@ -171,7 +171,7 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 
 ### 环境要求
 
-* **macOS** 或 **Linux**（Windows 请用 WSL）
+* **macOS** 或 **Linux**（Windows 可使用 `install.ps1` 一键安装，见下文；或使用 WSL）
 * **Node.js** ≥ 20.0.0 — 从 [https://nodejs.org](https://nodejs.org) 安装
 * **git** 与 **curl**
 
@@ -200,6 +200,15 @@ momo --version    # 1.0.0
 momo --help
 ```
 若提示 `command not found: momo`，说明 PATH 未生效 — 见 [INSTALL.md](./INSTALL.md#troubleshooting)。
+
+### Windows 一键安装
+
+```powershell
+# PowerShell 中运行
+irm https://momozi.cc/install.ps1 | iex
+```
+
+安装完成后自动进入配置向导（`momo /setup`），按提示选择服务商、输入 API Key 即可。
 
 ### 源码安装（手动）
 
