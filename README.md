@@ -154,13 +154,13 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 ### Prerequisites
 
 - **macOS** or **Linux** (Windows via WSL)
-- **Node.js** ≥ 20.0.0 — install from https://nodejs.org if you don't have it
+- **Node.js** ≥ 22.19.0 — install from https://nodejs.org if you don't have it
 - **git** and **curl**
 
 Check with:
 
 ```bash
-node -v   # should print v20.x or later
+node -v   # should print v22.x or later
 npm -v
 git --version
 curl --version

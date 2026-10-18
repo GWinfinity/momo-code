@@ -8,7 +8,7 @@
 
 | Requirement | Why | Check |
 |-------------|-----|-------|
-| **Node.js ≥ 20** | runtime | `node -v` |
+| **Node.js ≥ 22** | runtime | `node -v` |
 | **npm ≥ 9** | comes with Node | `npm -v` |
 | **git** | clones the repo | `git --version` |
 
@@ -21,7 +21,7 @@ irm https://momozi.cc/install.ps1 | iex
 ```
 
 What happens:
-1. Checks Node.js ≥ 20
+1. Checks Node.js ≥ 22
 2. Clones momo-code into `~/.momo/lib/`
 3. Runs `npm install` + `npm run build`
 4. Creates `~/.momo/bin/momo.cmd` wrapper

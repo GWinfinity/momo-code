@@ -172,13 +172,13 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 ### 环境要求
 
 * **macOS** 或 **Linux**（Windows 可使用 `install.ps1` 一键安装，见下文；或使用 WSL）
-* **Node.js** ≥ 20.0.0 — 从 [https://nodejs.org](https://nodejs.org) 安装
+* **Node.js** ≥ 22.19.0 — 从 [https://nodejs.org](https://nodejs.org) 安装
 * **git** 与 **curl**
 
   检查：
 
 ```
-node -v   # 应输出 v20.x 或更高
+node -v   # 应输出 v22.x 或更高
 npm -v
 git --version
 curl --version

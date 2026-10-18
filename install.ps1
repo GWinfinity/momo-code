@@ -6,7 +6,7 @@
 #   .\install.ps1
 #
 # What it does:
-#   1. Checks Node.js >= 20
+#   1. Checks Node.js >= 22
 #   2. Clones or updates momo-code into ~/.momo/lib/
 #   3. Runs npm install + npm run build
 #   4. Creates a wrapper at ~/.momo/bin/momo.cmd
@@ -47,14 +47,14 @@ Write-Host "${DIM}  Checking Node.js...${RESET}"
 try {
     $nodeVersion = & node -v 2>$null
     $nodeMajor = [int]($nodeVersion -replace 'v(\d+)\..*', '$1')
-    if ($nodeMajor -lt 20) {
-        Write-Host "${RED}  Node.js $nodeVersion found, but >= 20 is required.${RESET}"
+    if ($nodeMajor -lt 22) {
+        Write-Host "${RED}  Node.js $nodeVersion found, but >= 22 is required.${RESET}"
         Write-Host "  Download: https://nodejs.org/"
         exit 1
     }
     Write-Host "${GREEN}  Node.js $nodeVersion OK${RESET}"
 } catch {
-    Write-Host "${RED}  Node.js not found. Please install Node.js >= 20:${RESET}"
+    Write-Host "${RED}  Node.js not found. Please install Node.js >= 22:${RESET}"
     Write-Host "  https://nodejs.org/"
     exit 1
 }
