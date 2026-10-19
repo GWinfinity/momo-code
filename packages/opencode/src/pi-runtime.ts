@@ -15,6 +15,7 @@ import { getConfigDir } from "./config/config.js"
 import {
   brandExtension,
   experienceExtension,
+  memoryExtension,
   permissionsExtension,
   decisionsExtension,
   cotExtension,
@@ -28,7 +29,7 @@ export async function createMomoRuntime() {
       agentDir: options.agentDir,
       resourceLoaderOptions: {
         extensionFactories: [
-          brandExtension, experienceExtension, permissionsExtension,
+          brandExtension, experienceExtension, memoryExtension, permissionsExtension,
           decisionsExtension, cotExtension, rsiExtension,
         ],
       },
