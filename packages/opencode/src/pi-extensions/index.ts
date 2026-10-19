@@ -3,6 +3,7 @@
 // All momo-specific extensions loaded into Pi runtime
 
 export { experienceExtension } from "./experience.js"
+export { memoryExtension } from "./memory.js"
 export { rsiExtension } from "./rsi.js"
 export { brandExtension } from "./brand.js"
 export { permissionsExtension } from "./permissions.js"

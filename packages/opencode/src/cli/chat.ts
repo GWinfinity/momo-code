@@ -3,6 +3,7 @@ import { recordSession } from "../session/recorder.js"
 import { SignalScorer } from "../evolve/signals.js"
 import { getPromptPatchPath } from "../refine/apply.js"
 import { activeGoalsBlock } from "../goal/store.js"
+import { getCapture, newMemorySessionId, recallMemory } from "../memory/index.js"
 import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
@@ -486,6 +487,7 @@ Guidelines:
  * @returns Exit code (0 = success, 1 = error)
  */
 export async function runChat(prompt: string): Promise<number> {
+  const memSessionId = newMemorySessionId()
   // Resolve provider configuration
   const config = await resolveProviderConfig()
 
@@ -571,6 +573,16 @@ export async function runChat(prompt: string): Promise<number> {
       // Goal injection is best-effort
     }
 
+    // Inject long-term user memory recall (Hy-Memory)
+    try {
+      const memBlock = await recallMemory(prompt)
+      if (memBlock) {
+        systemPrompt += "\n\n---\n\n" + memBlock
+      }
+    } catch {
+      // Memory recall is best-effort
+    }
+
     // Call the model
     const startMs = Date.now()
     const usageFile = process.env.MOMO_USAGE_FILE
@@ -614,6 +626,17 @@ export async function runChat(prompt: string): Promise<number> {
       rlmDepth: Number(process.env.MOMO_RLM_DEPTH || 0) || 0,
     })
 
+    // Passive memory write-back (Hy-Memory, best-effort)
+    try {
+      const capture = getCapture(memSessionId)
+      if (capture) {
+        capture.addTurn(prompt, response)
+        await capture.flush()
+      }
+    } catch {
+      // Memory write-back must never break the chat
+    }
+
     console.error(``) // newline after stream
     return 0
   } catch (err) {
@@ -633,6 +656,17 @@ export async function runChat(prompt: string): Promise<number> {
       durationMs: 0,
       rlmDepth: Number(process.env.MOMO_RLM_DEPTH || 0) || 0,
     })
+
+    // Passive memory write-back (Hy-Memory, best-effort)
+    try {
+      const capture = getCapture(memSessionId)
+      if (capture) {
+        capture.addTurn(prompt, `ERROR: ${err instanceof Error ? err.message : String(err)}`)
+        await capture.flush()
+      }
+    } catch {
+      // Memory write-back must never break the chat
+    }
 
     // Helpful hints for common errors
     const msg = err instanceof Error ? err.message : ""
