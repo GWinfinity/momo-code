@@ -64,6 +64,7 @@ interface GuiConfig {
   activeModelRef?: string
   providers?: Record<string, { models?: GuiModelEntry[] }>
   proxy?: { enabled?: boolean; url?: string; bypass?: string }
+  jev?: { provider?: string; model?: string; baseUrl?: string; apiKey?: string; mode?: string }
 }
 
 // ---------------------------------------------------------------------------
@@ -381,6 +382,7 @@ async function handleRequest(req: BridgeRequest): Promise<void> {
         allModels,
         providers: cfg.providers || {},
         proxy: cfg.proxy || { enabled: false, url: "", bypass: "" },
+        jev: cfg.jev || {},
         PROVIDER_DEFS,
         PROVIDER_MODELS,
       })
@@ -392,6 +394,7 @@ async function handleRequest(req: BridgeRequest): Promise<void> {
       if (payload.providers !== undefined) cfg.providers = payload.providers as GuiConfig["providers"]
       if (payload.activeModelRef !== undefined) cfg.activeModelRef = payload.activeModelRef as string
       if (payload.proxy !== undefined) cfg.proxy = payload.proxy as GuiConfig["proxy"]
+      if (payload.jev !== undefined) cfg.jev = payload.jev as GuiConfig["jev"]
       writeGuiConfig(cfg)
       const allModels = buildAllModels(cfg)
       reply(id, { ok: true, allModels, activeModelRef: cfg.activeModelRef || allModels[0]?.ref || null })

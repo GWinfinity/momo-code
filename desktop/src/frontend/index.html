@@ -104,6 +104,32 @@
         <!-- 各提供商配置区（动态生成） -->
         <div id="settings-providers"></div>
 
+        <!-- 决策模型 (JEV) 配置区 -->
+        <div id="settings-jev-section">
+          <div class="settings-divider"></div>
+          <div class="form-row" style="margin-bottom:10px;">
+            <span class="settings-label-sm">决策模型 (JEV)</span>
+          </div>
+          <div class="form-row">
+            <span class="form-label">状态</span>
+            <select id="settings-jev-mode" class="form-input" style="cursor:pointer;">
+              <option value="shadow">影子模式（只记录不干预）</option>
+              <option value="off">关闭</option>
+            </select>
+            <input type="text" class="form-input" id="settings-jev-model"
+              placeholder="startlux-decision-27b-autothink" />
+          </div>
+          <div class="form-row">
+            <span class="form-label">API Key</span>
+            <div class="apikey-wrap">
+              <input type="password" class="form-input" id="settings-jev-apikey" placeholder="Bamboo API Key" />
+              <button type="button" class="key-toggle" id="settings-jev-key-toggle">显示</button>
+            </div>
+            <input type="text" class="form-input" id="settings-jev-baseurl"
+              placeholder="https://api.bamboonode.dev" />
+          </div>
+        </div>
+
       </div>
 
       <div class="modal-footer">

@@ -416,6 +416,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('settings-cancel').addEventListener('click', closeSettings);
   $('settings-save').addEventListener('click',   saveSettings);
 
+  $('settings-jev-key-toggle').addEventListener('click', () => {
+    const inp = $('settings-jev-apikey');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    $('settings-jev-key-toggle').textContent = show ? '隐藏' : '显示';
+  });
+
   $('proxy-btn').addEventListener('click', openProxyPopup);
   $('proxy-enabled').addEventListener('change', () =>
     $('proxy-fields').classList.toggle('hidden', !$('proxy-enabled').checked));
@@ -748,6 +755,13 @@ async function openSettings() {
       if (!m.name) m.name = m.alias || '';
     }
   }
+
+  // 决策模型 (JEV) 区块回填（无 jev 段时给默认）
+  const jev = fullCfg.jev || {};
+  $('settings-jev-mode').value    = (jev.mode === 'off' || jev.provider === 'off') ? 'off' : 'shadow';
+  $('settings-jev-model').value   = jev.model   || 'startlux-decision-27b-autothink';
+  $('settings-jev-apikey').value  = jev.apiKey  || '';
+  $('settings-jev-baseurl').value = jev.baseUrl || 'https://api.bamboonode.dev';
 
   renderSettingsDraft();
 
@@ -1126,6 +1140,20 @@ function renderAddProviderSection(configuredIds) {
   settingsProvidersEl.appendChild(section);
 }
 
+function collectJevSettings() {
+  const mode = $('settings-jev-mode').value;
+  if (mode === 'off') return { provider: 'off', mode: 'off' };
+  const jev = {
+    provider: 'bamboonode',
+    mode: 'shadow',
+    model:   $('settings-jev-model').value.trim()   || 'startlux-decision-27b-autothink',
+    baseUrl: $('settings-jev-baseurl').value.trim() || 'https://api.bamboonode.dev',
+  };
+  const apiKey = $('settings-jev-apikey').value.trim();
+  if (apiKey) jev.apiKey = apiKey;
+  return jev;
+}
+
 async function saveSettings() {
   // Collect latest DOM values
   settingsProvidersEl.querySelectorAll('.provider-block').forEach(block => {
@@ -1172,6 +1200,7 @@ async function saveSettings() {
   const result = await window.electronAPI.saveProviderSettings({
     providers: settingsDraft,
     activeModelRef: activeModelRef,
+    jev: collectJevSettings(),
   });
 
   if (result?.ok) {

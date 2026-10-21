@@ -651,6 +651,31 @@ Shadow-mode L0 decision model with 5 gates:
 
 **Calibration:** ECE < 0.05 before enforce mode takeover.
 
+**Backend: StartLux via Bamboo Relay** (`packages/opencode/src/jev/`)
+
+The `bamboonode` backend calls `POST {baseUrl}/v1/decisions` with the StartLux decision model and maps `choice` answers back to JEV gates; `none_probability >= 0.2` or a null choice abstains to the LLM/human path. Configuration priority: env > `gui.json` `jev` (desktop settings) > `momo.jsonc` `decision` block > defaults.
+
+```jsonc
+// ~/.momo/momo.jsonc
+{
+  "decision": {
+    "provider": "bamboonode",                    // or "off"
+    "model": "startlux-decision-27b-autothink",
+    "mode": "shadow",                            // shadow / enforce / off
+    "points": ["tool"],                          // gates: tool/tactic/route/diff/promote
+    "deadlineMs": 1500,
+    "rawLogging": "redacted"                     // full / redacted / none
+  }
+}
+```
+
+```bash
+export BAMBOO_API_KEY="YOUR_BAMBOO_API_KEY"     # or MOMO_DECISION_API_KEY
+momo   # shadow records append to ~/.momo/jev-shadow.jsonl
+```
+
+Desktop: the settings dialog configures the chat model providers and the JEV decision model side by side; both persist to `~/.momo/gui.json` (`providers` / `jev`). Other env overrides: `MOMO_DECISION_PROVIDER`, `MOMO_DECISION_MODEL`, `MOMO_DECISION_MODE`, `MOMO_DECISION_BASE_URL`, `MOMO_DECISION_GATES`.
+
 ### RSI 3-Tier Loop
 
 | Tier | Scope | Frequency | Human Review |
