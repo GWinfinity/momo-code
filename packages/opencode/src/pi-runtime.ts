@@ -34,9 +34,16 @@ export async function createMomoRuntime() {
       cwd: options.cwd,
       agentDir: options.agentDir,
       resourceLoaderOptions: {
+        // Named inline extensions so the startup "[Extensions]" list shows
+        // meaningful names instead of <inline:1>…<inline:7> fallbacks.
         extensionFactories: [
-          brandExtension, experienceExtension, memoryExtension, permissionsExtension,
-          decisionsExtension, cotExtension, rsiExtension,
+          { name: "momo-brand", factory: brandExtension },
+          { name: "momo-experience", factory: experienceExtension },
+          { name: "momo-memory", factory: memoryExtension },
+          { name: "momo-permissions", factory: permissionsExtension },
+          { name: "momo-decisions", factory: decisionsExtension },
+          { name: "momo-cot", factory: cotExtension },
+          { name: "momo-rsi", factory: rsiExtension },
         ],
       },
     })
