@@ -6,7 +6,7 @@ import { activeGoalsBlock } from "../goal/store.js"
 import { getCapture, newMemorySessionId, recallMemory } from "../memory/index.js"
 import * as fs from "fs"
 import * as path from "path"
-import * as os from "os"
+import os from "os"
 
 /**
  * MOMO CODE — Core agent chat loop.
