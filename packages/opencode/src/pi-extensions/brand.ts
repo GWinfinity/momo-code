@@ -9,8 +9,8 @@ const BANNER = `
 ║                                                                ║
 ║     ███╗   ███╗ ██████╗ ███╗   ███╗ ██████╗      ██████╗ ███████╗██████╗ ███████╗
 ║     ████╗ ████║██╔═══██╗████╗ ████║██╔═══██╗    ██╔════╝ ██╔════╝██╔══██╗██╔════╝
-║     ██╔████╔██║██║   ██║██╔████╔██║██║   ██║    ██║  ███╗█████╗  ██████╔╝█████╗  
-║     ██║╚██╔╝██║██║   ██║██║╚██╔╝██║██║   ██║    ██║   ██║██╔══╝  ██╔══██╗██╔══╝  
+║     ██╔████╔██║██║   ██║██╔████╔██║██║   ██║    ██║  ███╗█████╗  ██████╔╝█████╗
+║     ██║╚██╔╝██║██║   ██║██║╚██╔╝██║██║   ██║    ██║   ██║██╔══╝  ██╔══██╗██╔══╝
 ║     ██║ ╚═╝ ██║╚██████╔╝██║ ╚═╝ ██║╚██████╔╝    ╚██████╔╝███████╗██║  ██║███████╗
 ║     ╚═╝     ╚═╝ ╚═════╝ ╚═╝     ╚═╝ ╚═════╝      ╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝
 ║                                                                ║
@@ -20,9 +20,21 @@ const BANNER = `
 `
 
 export const brandExtension: ExtensionFactory = (pi) => {
-  pi.on("before_agent_start", async () => {
-    // Only show banner in TTY mode
-    if (process.stdout.isTTY) {
+  // session_start fires once per session — never on before_agent_start,
+  // which re-fires every turn and would repaint the banner over the TUI frame.
+  pi.on("session_start", async (_event, ctx) => {
+    if (ctx.mode === "tui") {
+      // Render through the TUI header; writing the banner to stderr would
+      // scribble over the interactive frame.
+      ctx.ui.setHeader(() => ({
+        render(_width: number): string[] {
+          return BANNER.split("\n").filter((line) => line.trim().length > 0)
+        },
+        invalidate() {},
+      }))
+      return
+    }
+    if (process.stderr.isTTY) {
       console.error(BANNER)
     }
   })
