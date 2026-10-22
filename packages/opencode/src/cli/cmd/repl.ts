@@ -5,6 +5,8 @@
  *   momo repl
  *
  * Multi-turn conversation with history, readline editing, and Ctrl+C to exit.
+ * Every momo slash command (/graph, /evolve, /agent, ...) also runs here —
+ * anything else is sent to the model as chat.
  */
 import * as readline from "readline"
 import { Effect } from "effect"
@@ -20,6 +22,7 @@ import { activeGoalsBlock } from "../../goal/store.js"
 import { recordSession } from "../../session/recorder.js"
 import { getCapture, newMemorySessionId, recallMemory } from "../../memory/index.js"
 import { resolveProviderConfig, chatComplete, type Usage } from "../chat.js"
+import { dispatchCommand } from "../dispatch.js"
 import * as fs from "fs"
 
 // ---------------------------------------------------------------------------
@@ -44,6 +47,26 @@ const SYSTEM_PROMPT = `You are MOMO CODE, an AI coding assistant.
 - Ask clarifying questions when requirements are ambiguous
 - Prefer modern best practices
 - Consider security implications`
+
+// ---------------------------------------------------------------------------
+// Input tokenizing (for the command bridge)
+// ---------------------------------------------------------------------------
+
+/**
+ * Split a REPL input line into argv-style tokens, honoring double/single
+ * quotes so task prompts survive the trip into command handlers
+ * (e.g. `graph run "fix the auth bug" --max-nodes=4`).
+ */
+export function tokenize(input: string): string[] {
+  const tokens: string[] = []
+  const re = /(?:[^\s"']+|"[^"]*"|'[^']*')+/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(input)) !== null) {
+    // quotes are structural — strip them (also handles --flag="quoted value")
+    tokens.push(m[0].replace(/["']/g, ""))
+  }
+  return tokens
+}
 
 // ---------------------------------------------------------------------------
 // REPL
@@ -153,33 +176,48 @@ export async function runRepl(): Promise<number> {
         return
       }
 
-      // Special commands
-      if (input === "/clear" || input === "/cls") {
+      const tokens = tokenize(input)
+      const head = tokens[0]
+
+      // REPL-local specials
+      if (head === "/exit" || head === "/quit") {
+        console.log(`\n${DIM}  Bye!${RESET}\n`)
+        rl.close()
+        resolve(0)
+        return
+      }
+      if (head === "/clear" || head === "/cls") {
         history.length = 0
         console.clear()
         console.log(`${DIM}  History cleared.${RESET}\n`)
         rl.prompt()
         return
       }
-      if (input === "/help") {
-        console.log(`\n${BOLD}  Commands:${RESET}`)
-        console.log(`    ${CYAN}/clear${RESET}  Clear conversation history`)
-        console.log(`    ${CYAN}/history${RESET} Show message count`)
-        console.log(`    ${CYAN}/setup${RESET}  Re-run setup wizard`)
-        console.log(`    ${CYAN}/web${RESET}    Open web dashboard`)
-        console.log(`    ${CYAN}/exit${RESET}   Exit REPL\n`)
-        rl.prompt()
-        return
-      }
-      if (input === "/history") {
+      if (head === "/history") {
         console.log(`\n${DIM}  ${history.length} messages in history.${RESET}\n`)
         rl.prompt()
         return
       }
-      if (input === "/exit" || input === "/quit") {
-        console.log(`\n${DIM}  Bye!${RESET}\n`)
-        rl.close()
-        resolve(0)
+      if (head === "/help") {
+        showHelp()
+        rl.prompt()
+        return
+      }
+
+      // Slash-command bridge: /graph, /evolve, /agent, ... run in-process.
+      if (head.startsWith("/")) {
+        try {
+          if (await dispatchCommand(head, tokens.slice(1))) {
+            console.log()
+            rl.prompt()
+            return
+          }
+          console.log(`\n${DIM}  Unknown command ${head} — type /help for the list.${RESET}\n`)
+          rl.prompt()
+        } catch (err) {
+          console.error(`\n${MAGENTA}MOMO CODE${RESET} Command error: ${err instanceof Error ? err.message : String(err)}`)
+          rl.prompt()
+        }
         return
       }
 
@@ -242,4 +280,27 @@ export async function runRepl(): Promise<number> {
       resolve(0)
     })
   })
+}
+
+function showHelp(): void {
+  process.stderr.write(`
+${BOLD}  REPL commands:${RESET}
+    ${CYAN}/help${RESET}      Show this help
+    ${CYAN}/clear${RESET}     Clear conversation history
+    ${CYAN}/history${RESET}   Show message count
+    ${CYAN}/exit${RESET}      Exit REPL
+
+${BOLD}  momo commands (run in-process):${RESET}
+    ${CYAN}/setup${RESET}                    Run setup wizard
+    ${CYAN}/models${RESET}                   List models & providers
+    ${CYAN}/evolve${RESET} / ${CYAN}/fine-tune${RESET}        Experience loop / weight training
+    ${CYAN}/refine${RESET} / ${CYAN}/aspire${RESET}           Self-improvement / skill library
+    ${CYAN}/agent "<task>"${RESET}           Recursive subagents (RLM)
+    ${CYAN}/graph run|resume|list${RESET}    Long-horizon DAG of subagents
+    ${CYAN}/goal${RESET} / ${CYAN}/schedule${RESET} / ${CYAN}/heartbeat${RESET} / ${CYAN}/daemon${RESET}
+    ${CYAN}/sim${RESET} / ${CYAN}/voice${RESET} / ${CYAN}/memory${RESET} / ${CYAN}/optim${RESET}
+    ${CYAN}/web${RESET}                      Open web dashboard
+
+${DIM}  Anything else is sent to the model as chat.${RESET}
+`)
 }

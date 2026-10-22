@@ -1,30 +1,11 @@
 /**
  * MOMO CODE - CLI command router
  */
-import { Effect } from "effect"
 import { createRequire } from "module"
-import { AuthLive } from "../auth.js"
 import { printHelp } from "./help.js"
-import { runEvolveCommand } from "./cmd/evolve.js"
-import { runFinetuneCommand } from "./cmd/finetune.js"
-import { runModelsCommand } from "./cmd/models.js"
-import { runRefineCommand } from "./cmd/refine.js"
-import { runAspireCommand } from "./cmd/aspire.js"
-import { runAgentCommand } from "./cmd/agent.js"
-import { runGraphCommand } from "./cmd/graph.js"
-import { runGoalCommand } from "./cmd/goal.js"
-import { runScheduleCommand } from "./cmd/schedule.js"
-import { runHeartbeatCommand } from "./cmd/heartbeat.js"
-import { runDaemonCommand } from "./cmd/daemon.js"
-import { runSimCommand } from "./cmd/sim.js"
-import { runVoiceCommand } from "./cmd/voice.js"
-import { runMemoryCommand } from "./cmd/memory.js"
-import { runOptimCommand } from "./cmd/optim.js"
-import { runServeCommand } from "./cmd/serve.js"
-import { runGuiBridge } from "./cmd/gui.js"
+import { dispatchCommand } from "./dispatch.js"
 import { runSetupCommand } from "./cmd/setup.js"
 import { runRepl } from "./cmd/repl.js"
-import { runWebCommand } from "./cmd/web.js"
 import { runChat } from "./chat.js"
 
 const require = createRequire(import.meta.url)
@@ -72,99 +53,15 @@ export async function runCli(argv: string[]): Promise<void> {
   const cmd = remaining[0]
   const args = remaining.slice(1)
 
-  switch (cmd) {
-    case "/evolve":
-    case "evolve":
-      await runEvolveCommand(args)
-      break
-    case "/fine-tune":
-    case "/finetune":
-    case "fine-tune":
-    case "finetune":
-      runFinetuneCommand(args)
-      break
-    case "/refine":
-    case "refine":
-      await runRefineCommand(args)
-      break
-    case "/aspire":
-    case "aspire":
-      await runAspireCommand(args)
-      break
-    case "/agent":
-    case "agent":
-      await runAgentCommand(args)
-      break
-    case "/graph":
-    case "graph":
-      await runGraphCommand(args)
-      break
-    case "/goal":
-    case "goal":
-      runGoalCommand(args)
-      break
-    case "/schedule":
-    case "schedule":
-      runScheduleCommand(args)
-      break
-    case "/heartbeat":
-    case "heartbeat":
-      await runHeartbeatCommand(args)
-      break
-    case "/daemon":
-    case "daemon":
-      await runDaemonCommand(args)
-      break
-    case "/sim":
-    case "sim":
-      await runSimCommand(args)
-      break
-    case "/voice":
-    case "voice":
-      await runVoiceCommand(args)
-      break
-    case "/memory":
-    case "memory":
-      await runMemoryCommand(args)
-      break
-    case "/optim":
-    case "optim":
-      await runOptimCommand(args)
-      break
-    case "/serve":
-    case "serve":
-      await runServeCommand(args)
-      break
-    case "gui-bridge":
-      await runGuiBridge(args)
-      break
-    case "/setup":
-    case "setup":
-      process.exit(await runSetupCommand(args))
-      break
-    case "web":
-      await runWebCommand(args)
-      break
-    case "repl":
-      process.exit(await runRepl())
-      break
-    case "models":
-      await Effect.runPromise(
-        runModelsCommand(args).pipe(
-          Effect.provide(AuthLive),
-          Effect.catchAll((err) => Effect.sync(() => {
-            console.error("Error:", err instanceof Error ? err.message : String(err))
-            process.exit(1)
-          })),
-        ),
-      )
-      break
-    default:
-      const prompt = [cmd, ...args].join(" ")
-      const code = await runChat(prompt)
-      if (code !== 0) process.exit(code)
-      return
-  }
+  // These two take over the process; keep them out of the shared dispatcher
+  if (cmd === "repl") process.exit(await runRepl())
+  if (cmd === "/setup" || cmd === "setup") process.exit(await runSetupCommand(args))
+
+  if (await dispatchCommand(cmd, args)) return
+
+  const prompt = [cmd, ...args].join(" ")
+  const code = await runChat(prompt)
+  if (code !== 0) process.exit(code)
 }
 
 function showVersion(): void {
