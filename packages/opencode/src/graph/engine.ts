@@ -24,6 +24,7 @@
 
 import { spawnSubagent } from "../subagent/spawn.js"
 import { chatComplete, resolveProviderConfig, type Usage } from "../cli/chat.js"
+import { extractArtifacts } from "./extract.js"
 import {
   approvalNodes,
   blockedNodes,
@@ -43,6 +44,7 @@ import type {
   GraphRoute,
   GraphRun,
   GraphRunOpts,
+  GraphStatus,
   GraphTokens,
 } from "./types.js"
 
@@ -70,6 +72,11 @@ function defaultConcurrency(): number {
 
 function defaultTimeoutMs(): number {
   return Number(process.env.MOMO_RLM_TIMEOUT_MS || 300_000) || 300_000
+}
+
+/** Fire the onStatusChange callback when the run's status moved. */
+function emitStatus(run: GraphRun, prev: GraphStatus, opts: GraphRunOpts): void {
+  if (prev !== run.status) opts.onStatusChange?.(run, prev)
 }
 
 // ---------------------------------------------------------------------------
@@ -281,9 +288,11 @@ export async function executeGraph(
     }
   }
 
+  const prevStatus: GraphStatus = run.status
   if (run.status !== "waiting") run.status = "running"
   run.updatedAt = new Date().toISOString()
   saveRun(run)
+  emitStatus(run, prevStatus, opts)
 
   while (!isTerminal(run.nodes)) {
     // 1. Evaluate conditional edges for finished nodes, and route failures
@@ -310,6 +319,7 @@ export async function executeGraph(
       run.status = "waiting"
       run.updatedAt = now
       saveRun(run)
+      emitStatus(run, prevStatus, opts)
       break
     }
 
@@ -359,6 +369,17 @@ export async function executeGraph(
     saveRun(run)
 
     await Promise.all(batch.map((n) => runNode(n, run, timeoutMs)))
+
+    // Extract code artifacts from completed nodes to disk
+    for (const n of batch) {
+      if (n.state === "done" && n.output) {
+        const arts = extractArtifacts(run.id, n.id, n.output)
+        if (arts.length > 0) {
+          n.artifacts = arts.map((a) => ({ path: a.path, size: a.size }))
+        }
+      }
+    }
+
     run.executions = (run.executions ?? 0) + batch.length
     run.updatedAt = new Date().toISOString()
     saveRun(run)
@@ -373,6 +394,7 @@ export async function executeGraph(
     run.status = computeStatus(run.nodes)
     run.updatedAt = new Date().toISOString()
     saveRun(run)
+    emitStatus(run, prevStatus, opts)
   }
 }
 
@@ -489,6 +511,19 @@ export async function resumeGraph(
   const run = loadRun(id)
   if (!run) return null
 
+  // Only explicit resume retries settled failures. Approval decisions continue
+  // the current attempt, so a rejection must remain failed.
+  for (const n of run.nodes) {
+    if (n.state === "failed" || n.state === "skipped") {
+      n.state = "pending"
+      n.error = undefined
+      n.finishedAt = undefined
+    }
+  }
+  return continueRun(run, opts)
+}
+
+async function continueRun(run: GraphRun, opts: GraphRunOpts): Promise<GraphRun> {
   await executeGraph(run, opts)
   run.output = await synthesizeRun(run, opts)
   run.updatedAt = new Date().toISOString()
@@ -520,7 +555,7 @@ export async function approveRun(
     run.updatedAt = now
     saveRun(run)
   }
-  return resumeGraph(id, opts)
+  return continueRun(run, opts)
 }
 
 /** Mark waiting approval nodes rejected (failed), then continue the run. */
@@ -547,5 +582,5 @@ export async function rejectRun(
     run.updatedAt = now
     saveRun(run)
   }
-  return resumeGraph(id, opts)
+  return continueRun(run, opts)
 }

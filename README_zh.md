@@ -50,7 +50,18 @@
 
 ### ⚠️ Experimental / Active Development
 
-**v2.0 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。v1.x 的 `/evolve`、`/fine-tune` 等命令继续兼容，但内部实现将逐步迁移到新架构。
+** v2.0.0 (2026-10-11) 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。
+* Pi 框架集成（`@earendil-works/pi-coding-agent@1.1.0`）作为扩展依赖
+* 交互式 REPL，带思维链面板、决策胶囊与键盘快捷键
+* JEV 决策层 — 5 个决策门，影子模式 + ECE 校准
+* RSI 3 级自进化循环（R1/R2/R3），带预算护栏与 STOP 保护
+* momo-bench — 3 层评估（selection/holdout/canary）+ 7 个反向测试
+* 6 个 Pi 扩展：experience、rsi、permissions、decisions、cot、brand
+* DecisionPort 类型契约（choice/bool/score/abstain）
+* TaskResult + EventEnvelope 类型，用于结构化日志
+* EvolutionCandidate 接口，带 CAS 晋升保护
+* 经验闭环链（TaskExposure → TaskOutcome → Solidify）
+* momo.jsonc v2 配置 schema，带优先级 resolver
 
 ---
 
@@ -103,6 +114,13 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 - 任务隔离：快照 + 验证器分离 + 预算限制
 
 ---
+## 📈 Star History
+
+![Star History Chart](https://api.star-history.com/svg?repos=momozi1996/momo-code\&type=Date) 
+
+>自动更新的 Star 涨幅线（由  [star-history.com](https://star-history.com)提供）。2026-10-17 快照：**1,162 Stars**（2026-06-16 创建 → 2026-07 末 181 → 2026-08 末 394 → 2026-09 末 884 → 2026-10-17 1,162）。
+
+---
 
 ## Architecture
 | Two-Speed Evolution Algorithm | System Technical Architecture |
@@ -129,719 +147,733 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 
 ## Features
 
-- **25+ LLM Providers** — Deepseek, Zhipu (GLM), Moonshot (Kimi), Claude, GPT-4, Gemini, Doubao, OpenRouter, Groq, Mistral, and more. The `\chat` command uses OpenAI-compatible protocol only
-- **Custom Provider** — Plug in any OpenAI-compatible API with `MOMO_CUSTOM_*` env vars
-- **Model Tiers** — Zero-config selection: `ultra` / `standard` / `lite`
-- **Interactive REPL** — v2.0 native TTY interface with CoT panel, decision chips, keyboard shortcuts
-- **Pi Framework Integration** — v2.0 extension-mode agent runtime with 6 momo-specific extensions
-- **JEV Decision Layer** — Shadow-mode L0 decision model with ECE calibration
-- **RSI Self-Evolution** — 3-tier recursive improvement (R1/R2/R3) with budget rails and STOP guard
-- **momo-bench** — 3-tier evaluation (selection/holdout/canary) with 7 reverse tests
-- **Experience Fast Loop (`/evolve`)** — Second-level prompt injection via KEP protocol. Tactics distilled from success are auto-selected via Thompson sampling
-- **Self-Evolution Training (`/fine-tune`)** — Hour-level weight improvement via Monte Carlo Graph Search (MCGS) + LoRA
-- **Self-Refinement (`/refine`)** — Reviews session trajectories and proposes small, evidence-based improvements (tactics/prompt patches) that only take effect after human approval
-- **Recursive Subagents (`/agent`)** — RLM-style task decomposition: plan → parallel child processes → synthesis, with depth/budget rails
-- **Graph Engine (`/graph`)** — Long-horizon tasks as a resumable DAG of subagents: LLM-planned dependency graph, parallel execution, retries, and `/sim` world-agent nodes
-- **Long-Running Work (`/goal` + `/heartbeat` + `/daemon`)** — Persistent goals injected into every session, timed tasks, and a daemon loop for multi-hour autonomy
-- **Simulation Agent (`/sim`)** — LLM-driven control of a persistent Genesis physics world: the agent writes Python into a long-lived namespace (RLM-style), with skills-as-code loaded from `~/.momo/sim/skills/`
-- **Voice Input (`/voice`)** — Speak your prompt: mic recording (sounddevice) → OpenAI-compatible STT (Whisper/Groq) → coding session
-- **Claude Code Interop** — Seamless migration, inherits `.claude/` config, MCP servers, prompts
-- **Local-first** — Your code never leaves your machine. Open source, auditable
-- **Effect-powered** — Built with Effect for composable, type-safe code
+* **25+ LLM 服务商** — Deepseek、智谱（GLM）、Moonshot（Kimi）、Claude、GPT-4、Gemini、豆包、OpenRouter、Groq、Mistral 等。`\chat` 命令仅使用 OpenAI 兼容协议
+* **自定义服务商** — 通过 `MOMO_CUSTOM_*` 环境变量接入任意 OpenAI 兼容 API
+* **模型分档** — 零配置选择：`ultra` / `standard` / `lite`
+* **交互式 REPL** — v2.0 原生 TTY 界面，带思维链面板、决策胶囊与键盘快捷键
+* **Pi 框架集成** — v2.0 扩展模式 agent 运行时，含 6 个 momo 专属扩展
+* **JEV 决策层** — 影子模式 L0 决策模型，带 ECE 校准
+* **RSI 自进化** — 3 级递归改进（R1/R2/R3），带预算护栏与 STOP 保护
+* **momo-bench** — 3 层评估（selection/holdout/canary）+ 7 个反向测试
+* **经验快循环（**`/evolve`**）** — 基于 KEP 协议的秒级提示词注入；成功经验经 Thompson 采样自动提炼与选择
+* **自进化训练（**`/fine-tune`**）** — 基于蒙特卡洛图搜索（MCGS）+ LoRA 的小时级权重改进
+* **自我精炼（**`/refine`**）** — 复盘会话轨迹，提出小而基于证据的改进建议（战术 / 提示词补丁），仅在人工批准后生效
+* **递归子代理（**`/agent`**）** — RLM 式任务分解：规划 → 并行子进程 → 合成，带深度 / 预算护栏
+* **图引擎（**`/graph`**）** — 把长时任务建模为可恢复的子代理 DAG：LLM 规划依赖图、并行执行、重试、`/sim` 世界智能体节点
+* **长时任务（**`/goal`**&#x20;+&#x20;**`/heartbeat`**&#x20;+&#x20;**`/daemon`**）** — 持久目标注入每个会话、定时任务、多小时自主运行的守护循环
+* **仿真智能体（**`/sim`**）** — LLM 驱动控制持久的 Genesis 物理世界：智能体向长期存活的命名空间写入 Python（RLM 风格），技能以代码形式从 `~/.momo/sim/skills/` 加载
+* **语音输入（**`/voice`**）** — 说出你的需求：麦克风录音（sounddevice）→ OpenAI 兼容 STT（Whisper/Groq）→ 编码会话
+* **Claude Code 互操作** — 无缝迁移，继承 `.claude/` 配置、MCP 服务器与提示词
+* **本地优先** — 你的代码永远不会离开你的机器。开源、可审计
+* **Effect 驱动** — 基于 Effect 构建，代码组合式、类型安全
 
 ## Installation
 
-### Prerequisites
+### 环境要求
 
-- **macOS** or **Linux** (Windows via WSL)
-- **Node.js** ≥ 20.0.0 — install from https://nodejs.org if you don't have it
-- **git** and **curl**
+* **macOS** 或 **Linux**（Windows 可使用 `install.ps1` 一键安装，见下文；或使用 WSL）
+* **Node.js** ≥ 22.19.0 — 从 [https://nodejs.org](https://nodejs.org) 安装
+* **git** 与 **curl**
 
-Check with:
+  检查：
 
-```bash
-node -v   # should print v20.x or later
+```
+node -v   # 应输出 v22.x 或更高
 npm -v
 git --version
 curl --version
 ```
 
-### Quick install (recommended)
-
-```bash
+### 一键安装（推荐）
+```
 curl -fsSL https://momozi.cc/install | bash
 ```
 
-The installer:
-1. Clones the repo into `~/.momo/lib/momo-code`
-2. Runs `npm install` + `npm run build` (about 30-60 s)
-3. Drops a wrapper at `~/.momo/bin/momo`
-4. Appends `~/.momo/bin` to your PATH in `~/.zshrc` or `~/.bashrc`
-
-**Open a new terminal** (or run `source ~/.zshrc`) and then:
-
-```bash
+安装器会：
+1. 将仓库克隆到 `~/.momo/lib/momo-code`
+2. 执行 `npm install` + `npm run build`（约 30-60 秒）
+3. 在 `~/.momo/bin/momo` 生成启动脚本
+4. 将 `~/.momo/bin` 追加到 `~/.zshrc` 或 `~/.bashrc` 的 PATH
+   **打开新终端**（或执行 `source ~/.zshrc`），然后：
+```
 momo --version    # 1.0.0
 momo --help
 ```
+若提示 `command not found: momo`，说明 PATH 未生效 — 见 [INSTALL.md](./INSTALL.md#troubleshooting)。
 
-If you see `command not found: momo`, your PATH didn't pick up the change — see [INSTALL.md](./INSTALL.md#troubleshooting).
+### Windows 一键安装
 
-### From source (manual)
+```powershell
+# PowerShell 中运行
+irm https://momozi.cc/install.ps1 | iex
+```
 
-```bash
+安装完成后自动进入配置向导（`momo /setup`），按提示选择服务商、输入 API Key 即可。
+
+### 源码安装（手动）
+
+```
 git clone https://github.com/momozi1996/momo-code.git
 cd momo-code/packages/opencode
-npm install                # installs all deps including TypeScript + Pi framework
-npm run build              # compiles TS + fixes ESM imports
-npm run smoke              # run smoke tests (23 checks)
+npm install                # 安装全部依赖，含 TypeScript + Pi 框架
+npm run build              # 编译 TS + 修复 ESM 导入
+npm run smoke              # 运行冒烟测试（23 项检查）
 node bin/momo --version
 ```
 
-> **Note:** If `npm install` fails to fetch `@earendil-works/pi-coding-agent` (network issues), the CLI automatically falls back to **momo Native REPL** (simulation mode). All other features remain usable.
+> **注意：**若  `npm install` 无法获取 `@earendil-works/pi-coding-agent`（网络问题），CLI 会自动回退到  **momo Native REPL**（模拟模式）。其余功能不受影响。
 
-### From npm
+### 通过 npm
+npm 包将在 v1.1 发布。v1.0 请使用上面的 **一键安装** 。
 
-> npm package coming in v1.1. Use the **Quick install** above for v1.0.
+### 卸载
 
-### Uninstall
+```
+\# 删除安装产物
+rm -rf \~/.momo
 
-```bash
-# Remove install artifacts
-rm -rf ~/.momo
-
-# Remove the PATH line from your shell rc
-sed -i.bak '/# momo Code CLI/,+1d' ~/.zshrc    # zsh
-sed -i.bak '/# momo Code CLI/,+1d' ~/.bashrc   # bash
+\# 移除 shell rc 中的 PATH 行
+sed -i.bak '/# momo Code CLI/,+1d' \~/.zshrc    # zsh
+sed -i.bak '/# momo Code CLI/,+1d' \~/.bashrc   # bash
 ```
 
 ## Quick Start
 
-### 1. Set up API key
+### 1. 配置 API 密钥（推荐方式：交互式向导）
 
 ```bash
-# Generic key (works with any provider)
-export MOMO_API_KEY=your-api-key
+momo /setup
+```
 
-# Or provider-specific
-export MOMO_ANTHROPIC_API_KEY=sk-ant-...
+按提示选择服务商（DeepSeek / OpenAI / Anthropic 等），输入 API Key，配置自动保存到 `~/.momo/momo.jsonc`。也可手动配置环境变量：
+
+```bash
+# 通用密钥（适配所有服务商）
+export MOMO_API_KEY=你的API密钥
+
+# 服务商专属密钥（优先级更高）
+export MOMO_DEEPSEEK_API_KEY=sk-...
+export MOMO_ANTHROPIC_API_KEY=sk-...
 export MOMO_OPENAI_API_KEY=sk-...
 ```
 
-### 2. Start coding
+### 2. 开始编码
 
 ```bash
-# Interactive REPL (v2.0 default)
+# 直接输入 momo 进入交互式对话（多轮上下文，Ctrl+C 退出）
 momo
 
-# One-shot task
-momo "Refactor auth to use Effect"
+# 打开 Web 工作台（浏览器可视化界面，含 Chat/Graph/Sim/Optim 等面板）
+momo web
 
-# Use a model tier
+# 单次执行任务（无需进入交互模式）
+momo "使用Effect重构鉴权模块"
+
+\# 使用模型档位
 momo --model ultra "Complex architecture review"
 momo --model standard "Fix the login bug"
 momo --model lite "Quick code review"
 
-# JSONL structured output (v2.0)
+\# JSONL 结构化输出（v2.0）
 momo --json "Generate a todo app"
 
-# Legacy one-shot (v1.x compatible)
+\# 遗留单次执行（v1.x 兼容）
 momo -p anthropic "task"
 ```
 
-### 3. First run
+### 3. 首次运行
 
-On first run, momo creates `~/.momo/`:
+首次运行 momo 会创建 `~/.momo/`：
 
 ```
-~/.momo/
-├── momo.jsonc          # Config
-├── sessions/           # History
-├── experience/         # Learned tactics (auto-created)
+\~/.momo/
+├── momo.jsonc          # 配置
+├── sessions/           # 历史
+├── experience/         # 学到的战术（自动创建）
 │   ├── tactics.json
 │   └── ledger.jsonl
-├── rsi-meta.json       # RSI loop metadata (v2.0)
-└── STOP                # Safety halt file (create to stop RSI)
+├── rsi-meta.json       # RSI 循环元数据（v2.0）
+└── STOP                # 安全停止文件（创建即停止 RSI）
 ```
 
 ## Usage
 
-### Model Tiers
+### 模型档位
 
-| Tier | Use Case |
-|------|----------|
-| `ultra` | Complex tasks, large context |
-| `standard` | Daily coding work |
-| `lite` | Quick tasks, low latency |
+| 档位         | 适用场景      |
+| ---------- | --------- |
+| `ultra`    | 复杂任务、大上下文 |
+| `standard` | 日常编码      |
+| `lite`     | 快速任务、低延迟  |
 
-### CLI Options
+### CLI 选项
 
-```bash
-momo [options] [prompt]
-
+```
+momo \[options] \[prompt]
 Options:
-  --model, -m <id>       Model ID or tier
-  --provider, -p <name>  Provider
-  --json                 JSONL structured output (v2.0)
-  --help                 Show help
-  --version              Show version
+&#x20; \--model, -m \<id>       Model ID 或档位
+&#x20; \--provider, -p \<name>  服务商
+&#x20; \--json                 JSONL 结构化输出（v2.0）
+&#x20; \--help                 显示帮助
+&#x20; \--version              显示版本
 ```
 
 ## CLI Commands
 
-### Interactive REPL (v2.0)
+### 交互式 REPL（v2.0）
 
-```bash
-momo                     # Enter interactive REPL
-momo "prompt"            # One-shot task (auto-detects TTY)
-momo exec "prompt"       # Explicit single-run mode
-momo --json "prompt"     # JSONL event stream output
+```
+momo                     # 进入交互式 REPL
+momo "prompt"            # 单次任务（自动检测 TTY）
+momo exec "prompt"       # 显式单次运行
+momo --json "prompt"     # JSONL 事件流输出
 ```
 
-**REPL built-in commands:**
-| Command | Description |
-|---------|-------------|
-| `/help` | Show help |
-| `/exit` | Exit REPL |
-| `/cot` | Toggle CoT display |
+**REPL 内置命令：**
 
-**Keyboard shortcuts:**
-| Shortcut | Action |
-|----------|--------|
-| `⌃T` | Expand/collapse thinking chain |
-| `⌃O` | Toggle tool details |
-| `⌃C` | Interrupt / exit |
+| 命令         | 说明         |
+| ---------- | ---------- |
+| `/help`    | 显示帮助       |
+| `/exit`    | 退出 REPL    |
+| `/cot`     | 切换思维链显示    |
+| **键盘快捷键：** |            |
+| 快捷键        | 动作         |
+| ---------- | --------   |
+| `⌃T`       | 展开 / 折叠思维链 |
+| `⌃O`       | 切换工具详情     |
+| `⌃C`       | 中断 / 退出    |
 
-### Coding Session (Legacy)
+### 编码会话（遗留模式）
 
-```bash
-momo                     # Show help and banner
-momo "prompt"            # One-shot task
+
+```
+momo                     # 显示帮助与 Banner
+momo "prompt"            # 单次任务
 momo --model claude-sonnet-4 "task"
 ```
 
-### Experience Fast Loop (`/evolve`)
+### 经验快循环（`/evolve`）
 
-```bash
-momo /evolve                       # Run evolution with default settings
-momo /evolve --mode=explore        # Favor exploration of new tactics
-momo /evolve --mode=harden         # Favor proven high-win-rate tactics
-momo /evolve --mode=convention-only # Only convention-type tactics
-momo /evolve --list                # Show all learned tactics
-momo /evolve --inject              # Inject tactics for current task
-momo /evolve --solidify            # Apply verdict, update stats
+```
+momo /evolve                       # 默认设置运行进化
+momo /evolve --mode=explore        # 偏向探索新战术
+momo /evolve --mode=harden         # 偏向已验证高胜率战术
+momo /evolve --mode=convention-only # 仅约定类战术
+momo /evolve --list                # 显示所有已学战术
+momo /evolve --inject              # 为当前任务注入战术
+momo /evolve --solidify            # 应用裁决，更新统计
 ```
 
-### Self-Evolution Training (`/fine-tune`)
+### 自进化训练（`/fine-tune`）
 
-```bash
-momo /fine-tune              # Diagnose, show training proposal
-momo /fine-tune run          # Execute training pipeline
-momo /fine-tune run --dry-run # Preview without executing
-momo /fine-tune status       # Check training status
-momo /fine-tune promote      # Promote candidate to production
+```
+momo /fine-tune              # 诊断，显示训练提案
+momo /fine-tune run          # 执行训练流水线
+momo /fine-tune run --dry-run # 预览，不实际执行
+momo /fine-tune status       # 查看训练状态
+momo /fine-tune promote      # 将候选晋升到生产
 ```
 
-### Self-Refinement (`/refine`)
+### 自我精炼（`/refine`）
 
-Reviews recent session trajectories and proposes small, reviewable
-improvements. Nothing is applied without human approval.
+复盘近期会话轨迹，提出小而可审阅的改进。未经人工批准不会应用任何改动。
 
-```bash
-momo /refine                 # Generate proposals from recent sessions
-momo /refine list            # List proposals
-momo /refine show <id>       # Inspect evidence + content
-momo /refine approve <id>    # Approve (review gate)
-momo /refine apply <id>      # Apply: tactic → draft, patch → prompt file
-momo /refine reject <id>     # Reject
+```
+momo /refine                 # 从近期会话生成提案
+momo /refine list            # 列出提案
+momo /refine show \<id>       # 查看证据与内容
+momo /refine approve \<id>    # 批准（评审门）
+momo /refine apply \<id>      # 应用：战术→草稿，补丁→提示词文件
+momo /refine reject \<id>     # 拒绝
 ```
 
-### Recursive Subagents (`/agent`)
+### 递归子代理（`/agent`）
 
-RLM-style recursion: the model decomposes a complex task, subagents run
-as child `momo` processes (parallel where possible), and a synthesizer
-merges results.
+RLM 式递归：模型把复杂任务分解，子代理以子 `momo` 进程运行（尽可能并行），合成器合并结果。
 
-```bash
+```
 momo /agent "Refactor the provider layer and update all callers and tests"
 ```
 
-Rails: `MOMO_RLM_MAX_DEPTH` (3), `MOMO_RLM_BUDGET` (8), `MOMO_RLM_TIMEOUT_MS` (300000).
+护栏：`MOMO_RLM_MAX_DEPTH`（3）、`MOMO_RLM_BUDGET`（8）、`MOMO_RLM_TIMEOUT_MS`（300000）。
 
-### Graph Engine (`/graph`)
+### 图引擎（`/graph`）
 
-Turns a long-horizon task into a **directed acyclic graph** of self-contained
-subagent tasks. The model plans the DAG (with real dependencies), nodes run as
-child `momo` processes — in parallel per topological level, with dependency
-outputs passed downstream — failed nodes retry, and a final LLM pass
-synthesizes the report. State persists to `~/.momo/graphs/<id>.json` after
-every batch, so runs survive restarts.
+把长时任务转成**有向无环图（DAG）**，由自包含的子代理任务组成。模型规划 DAG（含真实依赖），节点以子 `momo` 进程运行 —— 按拓扑层级并行，依赖输出向下游传递 —— 失败节点重试，最后由 LLM 合成报告。状态在每批后持久化到 `~/.momo/graphs/<id>.json`，因此运行可跨重启存活。
 
-```bash
-momo /graph run "Design + implement + test a persistence layer"   # plan → execute → synthesize
-momo /graph resume <id>        # Continue a long-horizon run where it stopped
-momo /graph status <id>        # Node states + outputs
-momo /graph list               # Recent runs
+```
+momo /graph run "Design + implement + test a persistence layer"   # 规划 → 执行 → 合成
+momo /graph resume \<id>        # 从断点继续长时运行
+momo /graph status \<id>        # 节点状态与输出
+momo /graph list               # 最近运行
 ```
 
-Nodes can be marked `"kind": "sim"` by the planner — those become simulation
-agents driving the Genesis world via `/sim run`, so a graph can mix coding
-subagents with physics experiments.
+规划器可以把节点标记为 `"kind": "sim"`—— 这些节点通过 `/sim run` 变成驱动 Genesis 世界的仿真智能体，因此一个图可以混合编码子代理与物理实验。
+护栏：`MOMO_GRAPH_MAX_NODES`（12）、`MOMO_GRAPH_MAX_RETRIES`（2）、`MOMO_GRAPH_CONCURRENCY`（默认取 `MOMO_RLM_BUDGET`）。
 
-Rails: `MOMO_GRAPH_MAX_NODES` (12), `MOMO_GRAPH_MAX_RETRIES` (2),
-`MOMO_GRAPH_CONCURRENCY` (defaults to `MOMO_RLM_BUDGET`).
+### 长时任务（`/goal`、`/schedule`、`/heartbeat`、`/daemon`）
 
-### Long-Running Work (`/goal`, `/schedule`, `/heartbeat`, `/daemon`)
-
-```bash
-momo /goal add "Ship v2.0" "with full test coverage"   # Persistent goal
-momo /goal list | log <id> "progress" | done <id>      # Manage goals
-momo /schedule add --every=60m "run tests and report"  # Timed task
-momo /schedule add --at=07:30 "daily standup summary"  # Daily task
-momo /heartbeat            # Run due tasks once
-momo /daemon               # Foreground loop (Ctrl+C to stop)
+```
+momo /goal add "Ship v2.0" "with full test coverage"   # 持久目标
+momo /goal list | log \<id> "progress" | done \<id>      # 管理目标
+momo /schedule add --every=60m "run tests and report"  # 定时任务
+momo /schedule add --at=07:30 "daily standup summary"  # 每日任务
+momo /heartbeat            # 运行一次到期任务
+momo /daemon               # 前台循环（Ctrl+C 停止）
 ```
 
-Active goals are injected into every chat session. The daemon is a
-foreground process by design — background it with nohup/systemd/Task
-Scheduler. Budget rails: `MOMO_DAEMON_MAX_RUNS`, `MOMO_DAEMON_MAX_HOURS` (24).
+活动目标会注入每个聊天会话。守护进程设计上前台运行 —— 可用 nohup/systemd/Task Scheduler 后台化。预算护栏：`MOMO_DAEMON_MAX_RUNS`、`MOMO_DAEMON_MAX_HOURS`（24）。
 
-### Simulation Agent (`/sim`)
+### 仿真智能体（`/sim`）
 
-An LLM-driven agent that controls a persistent [Genesis](https://genesis-embodied-ai.github.io/)
-physics world. Requires Python with `genesis-world` installed
-(`pip install genesis-world`).
+LLM 驱动的智能体，控制持久的 [Genesis](https://genesis-embodied-ai.github.io/) 物理世界。需要安装 `genesis-world` 的 Python（`pip install genesis-world`）。
 
-```bash
-momo /sim doctor                      # Check python/genesis/provider setup
-momo /sim run "Stack the red cube on the blue cube"   # LLM control loop
-momo /sim run "<task>" --steps=40 --viewer            # Budget + live viewer
-momo /sim exec "print(42)"            # One-shot world REPL
-momo /sim exec --file=scene.py        # Run a script in a fresh world
-momo /sim skills                      # List installed world skills
-momo /sim eval --tasks=tasks.json     # Batch evaluation (fresh world per episode)
+
+```
+momo /sim doctor                      # 检查 python/genesis/provider 环境
+momo /sim run "Stack the red cube on the blue cube"   # LLM 控制循环
+momo /sim run "\<task>" --steps=40 --viewer            # 预算步数 + 实时查看器
+momo /sim exec "print(42)"            # 一次性世界 REPL
+momo /sim exec --file=scene.py        # 在新世界中运行脚本
+momo /sim skills                      # 列出已安装世界技能
+momo /sim eval --tasks=tasks.json     # 批量评估（每个 episode 全新世界）
 ```
 
-How it works: the CLI spawns a persistent Python process
-(`python/genesis_world/server.py`) holding a Genesis scene. Each loop
-step, the model replies with `{"thought": ..., "code": ...}`; the code
-runs in the persistent world namespace (`gs`, `scene`, `step(n)`, your
-variables survive across steps). Skills are plain `.py` files dropped
-into `~/.momo/sim/skills/` — auto-loaded into every world. Sim runs are
-recorded as trajectories, feeding the `/refine` self-improvement loop.
+原理：CLI 启动一个持久的 Python 进程（`python/genesis_world/server.py`）持有 Genesis 场景。每个循环步，模型回复 `{"thought": ..., "code": ...}`；代码在持久世界命名空间中运行（`gs`、`scene`、`step(n)`，变量跨步存活）。技能是放入 `~/.momo/sim/skills/` 的普通 `.py` 文件 —— 自动加载进每个世界。仿真运行记录为轨迹，馈入 `/refine` 自改进循环。
 
-Env: `MOMO_SIM_PYTHON`, `MOMO_SIM_BACKEND` (cpu/gpu),
-`MOMO_SIM_MAX_STEPS` (20), `MOMO_SIM_SERVER`.
+环境变量：`MOMO_SIM_PYTHON`、`MOMO_SIM_BACKEND`（cpu/gpu）、`MOMO_SIM_MAX_STEPS`（20）、`MOMO_SIM_SERVER`。
 
-### Reasoning-Driven Optimization (`/optim`)
+### 推理驱动参数优化（`/optim`）
 
-Parameter tuning driven by **code understanding + explicit reasoning**
-(inspired by [optim-agent](https://optim-agent.github.io/optim-agent/)).
-The agent reads your code first and infers the physical/business meaning of
-every parameter, then proposes configurations with explicit `_reasoning` and
-a `_note` scratchpad fed forward across trials. Invalid proposals degrade to
-random sampling — a flaky agent can never crash a study.
+由**代码理解 + 显式推理**驱动的参数调优（灵感来自 [optim-agent](https://optim-agent.github.io/optim-agent/)）。智能体先读代码，推断每个参数的物理 / 业务含义，然后携带显式 `_reasoning`（为什么选这个点）和 `_note`（对目标地形的定性观察，作为跨试验持久草稿纸）提出配置。无效提案降级为随机采样 ——**不稳定的智能体永远不会搞崩一次研究**。
 
-```bash
-momo /optim scan src/serve.py --param=threshold:0.05:0.95   # read code → semantic map
-momo /optim init quality --target=src/serve.py \
-  --param=threshold:0.05:0.95 --param=budget:10:200:int,log \
-  --metric=score --direction=max --cmd="python eval.py --threshold {threshold}"
-momo /optim semantics quality approve     # human review gate
-momo /optim run quality --trials=20       # reasoning-driven loop
-momo /optim history quality               # full reasoning trace
+
+```
+momo /optim scan src/serve.py --param=threshold:0.05:0.95   # 读代码 → 语义地图
+momo /optim init quality --target=src/serve.py \\
+&#x20; \--param=threshold:0.05:0.95 --param=budget:10:200:int,log \\
+&#x20; \--metric=score --direction=max --cmd="python eval.py --threshold {threshold}"
+momo /optim semantics quality approve     # 人工评审门
+momo /optim run quality --trials=20       # 推理驱动循环
+momo /optim history quality               # 完整推理轨迹
 ```
 
-Evaluators: `--cmd` (business command, metric from stdout) or `--sim`
-(experiment in the Genesis world, ESTOP-honored). Studies persist under
-`~/.momo/optim/studies/<name>/` and resume automatically. See
-[docs/optim.md](docs/optim.md).
+评估器：`--cmd`（业务命令，从 stdout 解析指标）或 `--sim`（在 Genesis 世界做实验，遵循 ESTOP）。研究持久化在 `~/.momo/optim/studies/<name>/` 下并自动恢复。详见 [docs/optim.md](docs/optim.md)。
 
-Env: `MOMO_OPTIM_HISTORY` (5), `MOMO_OPTIM_N_INIT` (2), `MOMO_OPTIM_TIMEOUT` (300).
+环境变量：`MOMO_OPTIM_HISTORY`（5）、`MOMO_OPTIM_N_INIT`（2）、`MOMO_OPTIM_TIMEOUT`（300）。
 
-### Local Server & Dashboard (`serve`)
+### 本地服务器与仪表盘（`serve`）
 
-A zero-dependency local HTTP server that exposes momo's state as a JSON
-API + SSE live feed, with a single-file dashboard (no build step).
+零依赖本地 HTTP 服务器，把 momo 的状态暴露为 JSON API + SSE 实时流，带单文件仪表盘（无需构建）。
 
-```bash
-momo serve                      # http://127.0.0.1:4097 (dashboard at /)
+```
+momo serve                      # http://127.0.0.1:4097（仪表盘在 /）
 momo serve --port=8080 --token=s3cret
 ```
 
-- API: `GET /api/sessions|goals|schedule`, `GET /api/optim/studies[/:name[/trials]]`,
-  `GET /api/sim/observe`, SSE `GET /api/optim/studies/:name/stream`
-- Actions: `POST /api/optim/studies/:name/run`, `POST /api/sim/estop|resume`, `POST /api/chat`
-- Dashboard tabs: Overview / Sessions / **Optim (live reasoning trace + best-so-far chart)** /
-  Sim (ESTOP control) / Schedule & Goals / Chat
-- Binds loopback by default; non-loopback requires `--token` (Bearer auth,
-  `?token=` fallback for browser EventSource)
+* API：`GET /api/sessions|goals|schedule`、`GET /api/optim/studies[/:name[/trials]]`、`GET /api/sim/observe`、SSE `GET /api/optim/studies/:name/stream`
+* 动作：`POST /api/optim/studies/:name/run`、`POST /api/sim/estop|resume`、`POST /api/chat`
+* 仪表盘标签页：Overview / Sessions / **Optim（实时推理轨迹 + 最优结果图表）** / Sim（ESTOP 控制）/ Schedule & Goals / Chat
+* 默认仅绑定回环地址；非回环监听需 `--token`（Bearer 鉴权，浏览器 EventSource 回退用 `?token=`）
+  环境变量：`MOMO_SERVE_PORT`（4097）、`MOMO_SERVE_HOST`（127.0.0.1）、`MOMO_SERVE_TOKEN`。
 
-Env: `MOMO_SERVE_PORT` (4097), `MOMO_SERVE_HOST` (127.0.0.1), `MOMO_SERVE_TOKEN`.
+### 语音输入（`/voice`）
+说出需求代替打字。录音需要 `pip install sounddevice scipy`，以及一个 OpenAI 兼容的语音转文字端点。
 
-### Voice Input (`/voice`)
-
-Speak your prompt instead of typing. Requires `pip install sounddevice scipy`
-for recording, and an OpenAI-compatible speech-to-text endpoint.
-
-```bash
-momo /voice                       # Record 5s → transcribe → run as prompt
+```
+momo /voice                       # 录音 5 秒 → 转写 → 作为 prompt 运行
 momo /voice --seconds=10 --lang=zh
-momo /voice --file=meeting.mp3    # Transcribe an audio file → run
-momo /voice transcribe --file=x.wav  # Print transcription only
+momo /voice --file=meeting.mp3    # 转写音频文件 → 运行
+momo /voice transcribe --file=x.wav  # 仅打印转写结果
 ```
 
-```bash
-export MOMO_STT_API_KEY=sk-...       # falls back to MOMO_OPENAI_API_KEY / MOMO_API_KEY
-export MOMO_STT_MODEL=whisper-1      # default
-# Groq (fast, generous free tier):
-export MOMO_STT_BASE_URL=https://api.groq.com/openai/v1
-export MOMO_STT_MODEL=whisper-large-v3
+```
+export MOMO\_STT\_API\_KEY=sk-...       # 回退到 MOMO\_OPENAI\_API\_KEY / MOMO\_API\_KEY
+export MOMO\_STT\_MODEL=whisper-1      # 默认
+\# Groq（快速、慷慨的免费额度）：
+export MOMO\_STT\_BASE\_URL=https://api.groq.com/openai/v1
+export MOMO\_STT\_MODEL=whisper-large-v3
 ```
 
-### Models
+### 模型管理
 
-```bash
-momo models list         # List all models
-momo models info <id>    # Show model details
-momo models providers    # Show available providers
+```
+momo models list         # 列出所有模型
+momo models info \<id>    # 查看模型详情
+momo models providers    # 查看可用服务商
 ```
 
 ## Configuration
 
-### Config File (`~/.momo/momo.jsonc`)
+### 配置文件（`~/.momo/momo.jsonc`）
 
-```jsonc
+```
 {
-  "$schema": "https://momozi.cc/config.json",
-  "model": "standard",
-  "provider": "anthropic",
-  "inheritClaudeCode": true,
-  "evolve": {
-    "enabled": true,
-    "auto": false,
-    "clusterThreshold": 10,
-    "budgetUSD": 50
-  }
+&#x20; "\$schema": "https://momozi.cc/config.json",
+&#x20; "model": "standard",
+&#x20; "provider": "anthropic",
+&#x20; "inheritClaudeCode": true,
+&#x20; "evolve": {
+&#x20;   "enabled": true,
+&#x20;   "auto": false,
+&#x20;   "clusterThreshold": 10,
+&#x20;   "budgetUSD": 50
+&#x20; }
+
 }
 ```
 
-### v2.0 Config Schema (`momo.jsonc` v2)
+### v2.0 配置 Schema（`momo.jsonc` v2）
 
-v2.0 introduces an extended config schema supporting Pi runtime, JEV, RSI, and UI settings:
+v2.0 引入扩展配置 schema，支持 Pi 运行时、JEV、RSI 与 UI 设置：
 
-| Section | Key | Description | Default |
-|---------|-----|-------------|---------|
-| `runtime` | `engine` | Agent engine: `pi` or `legacy` | `pi` |
-| `decision` | `mode` | JEV mode: `shadow`/`enforce`/`off` | `shadow` |
-| `decision` | `points` | Active decision gates | `["tactic-relevance"]` |
-| `experience` | `maxInjectedTactics` | Max tactics per prompt | `3` |
-| `rsi` | `mode` | RSI mode: `observe`/`auto`/`off` | `observe` |
-| `rsi` | `maxCampaignCostUsd` | Max cost per campaign | `5` |
-| `rsi` | `stopFile` | Halt signal file path | `~/.momo/STOP` |
-| `ui` | `thinking` | CoT display: `collapsed`/`expanded`/`off` | `collapsed` |
+| Section      | Key                  | 说明                                 | 默认值                    |
+| ------------ | -------------------- | ---------------------------------- | ---------------------- |
+| `runtime`    | `engine`             | Agent 引擎：`pi` 或 `legacy`           | `pi`                   |
+| `decision`   | `mode`               | JEV 模式：`shadow`/`enforce`/`off`    | `shadow`               |
+| `decision`   | `points`             | 启用的决策门                             | `["tactic-relevance"]` |
+| `experience` | `maxInjectedTactics` | 每个提示注入的最大战术数                       | `3`                    |
+| `rsi`        | `mode`               | RSI 模式：`observe`/`auto`/`off`      | `observe`              |
+| `rsi`        | `maxCampaignCostUsd` | 单次实验成本上限                           | `5`                    |
+| `rsi`        | `stopFile`           | 停止信号文件路径                           | `~/.momo/STOP`         |
+| `ui`         | `thinking`           | 思维链显示：`collapsed`/`expanded`/`off` | `collapsed`            |
 
 ## Experience Fast Loop (`/evolve`)
 
-The experience fast loop (KEP — Knowledge Embedding Protocol) is momo's unique **second-level** learning system. Unlike `/fine-tune` which updates model weights over hours, `/evolve` learns and applies knowledge in **seconds** via prompt injection.
+经验快循环（KEP — Knowledge Embedding Protocol）是 momo 独特的**秒级**学习系统。与 `/fine-tune` 用数小时更新模型权重不同，`/evolve` 通过提示词注入在**数秒内**完成学习与应用。
 
-### How it works
+### 工作原理
 
-1. **Observe** — Extract signals from sessions (test pass/fail, edit accepted/rejected, user corrections)
-2. **Distill** — Convert successful patterns into compact Tactic cards
-3. **Select** — Rank tactics via **Thompson sampling** (Bayesian explore/exploit)
-4. **Inject** — Insert top-k tactics into the system prompt for the current task
-5. **Solidify** — Apply verdict, update Beta distribution statistics
-6. **Promote** — High-confidence tactics graduate to `/fine-tune` curriculum
+1. **Observe（观察）** — 从会话中提取信号（测试通过 / 失败、编辑接受 / 拒绝、用户纠正）
+2. **Distill（提炼）** — 把成功模式转化为紧凑的 Tactic 卡片
+3. **Select（选择）** — 通过 **Thompson 采样**（贝叶斯探索 / 利用）排序战术
+4. **Inject（注入）** — 将 top-k 战术插入当前任务的系统提示词
+5. **Solidify（固化）** — 应用裁决，更新 Beta 分布统计
+6. **Promote（晋升）** — 高置信战术晋级到 `/fine-tune` 课程
 
-### Three KEP Assets
+### 三类 KEP 资产
 
-| Asset | Description |
-|-------|-------------|
-| **Tactic** | Compact strategy card with triggers, steps, checks, guardrails |
-| **Case** | Successful task record with injected tactics |
-| **Ledger** | Append-only audit log (JSONL) |
+| 资产         | 说明                     |
+| ---------- | ---------------------- |
+| **Tactic** | 紧凑策略卡：触发条件、动作步骤、检查项、护栏 |
+| **Case**   | 注入战术后成功的任务记录           |
+| **Ledger** | 追加式审计日志（JSONL）         |
 
-### Tactic Statistics (Beta Distribution)
+### 战术统计（Beta 分布）
 
-Each tactic tracks a Beta(α, β) distribution:
-- α = 1 + wins, β = 1 + losses
-- **Thompson sampling** for exploration/exploitation balance
-- **UCB1** as alternative selection strategy
+每个战术跟踪一个 Beta (α, β) 分布：
+* α = 1 + 胜场数，β = 1 + 败场数
+* **Thompson 采样**：探索 / 利用平衡
+* **UCB1**：备选选择策略
 
-### Evolution Modes
+### 进化模式
 
-| Mode | Behavior |
-|------|----------|
-| `balanced` (default) | Normal explore/exploit trade-off |
-| `explore` | Favor new tactics, wider sampling |
-| `harden` | Favor proven tactics, tighter selection |
-| `convention-only` | Only convention-type tactics |
+| 模式                | 行为           |
+| ----------------- | ------------ |
+| `balanced`（默认）    | 常规探索 / 利用权衡  |
+| `explore`         | 偏向新战术，更宽采样   |
+| `harden`          | 偏向已验证战术，更紧选择 |
+| `convention-only` | 仅约定类战术       |
 
-### Storage
+### 存储
 
-Learned tactics are stored in `~/.momo/experience/`:
-- `tactics.jsonl` — All tactic records
-- `ledger.jsonl` — Audit log of all operations
+学到的战术存储在 `~/.momo/experience/`：
 
-### Environment Variables
+* `tactics.jsonl` — 全部战术记录
+* `ledger.jsonl` — 全部操作审计日志
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MOMO_XP_MODE` | Evolution mode | `balanced` |
-| `MOMO_XP_DIR` | Storage directory | `~/.momo/experience` |
+### 环境变量
+| 变量             | 说明   | 默认值                  |
+| -------------- | ---- | -------------------- |
+| `MOMO_XP_MODE` | 进化模式 | `balanced`           |
+| `MOMO_XP_DIR`  | 存储目录 | `~/.momo/experience` |
 
 ## Self-Evolution Training (`/fine-tune`)
 
-The weight slow loop improves momo's **model weights** via fine-tuning. This runs at hour-level timescales.
+权重慢循环通过微调改进 momo 的**模型权重**，以小时级时间尺度运行。
 
-### How it works
+### 工作原理
+1. **Signal Mining** — 从会话中提取学习信号
+2. **Curriculum Synthesis** — 构建训练数据（Gold / 硬负样本 / Replay 切片）
+3. **Monte Carlo Graph Search（MCGS）** — 探索训练流水线空间
+4. **LoRA Fine-tuning** — 训练候选模型
+5. **Ratchet Gate** — 确保单调改进
 
-1. **Signal Mining** — Extract learning signals from sessions
-2. **Curriculum Synthesis** — Build training data (Gold/Hard-neg/Replay slices)
-3. **Monte Carlo Graph Search (MCGS)** — Explore training pipeline space
-4. **LoRA Fine-tuning** — Train candidate model
-5. **Ratchet Gate** — Ensure monotonic improvement
+### 命令
 
-### Commands
-
-```bash
-momo /fine-tune              # Diagnose, show proposal
-momo /fine-tune run          # Execute training
-momo /fine-tune run --dry-run # Preview
-momo /fine-tune status       # Check status
-momo /fine-tune promote      # Promote candidate
+```
+momo /fine-tune              # 诊断，显示提案
+momo /fine-tune run          # 执行训练
+momo /fine-tune run --dry-run # 预览
+momo /fine-tune status       # 查看状态
+momo /fine-tune promote      # 晋升候选
 ```
 
-### Configuration
+### 配置
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MOMO_EVOLVE_ENABLED` | Enable self-evolution | `true` |
-| `MOMO_EVOLVE_AUTO` | Auto-trigger training | `false` |
-| `MOMO_EVOLVE_BUDGET_USD` | Max training budget | `50` |
+| 变量                       | 说明     | 默认值     |
+| ------------------------ | ------ | ------- |
+| `MOMO_EVOLVE_ENABLED`    | 启用自进化  | `true`  |
+| `MOMO_EVOLVE_AUTO`       | 自动触发训练 | `false` |
+| `MOMO_EVOLVE_BUDGET_USD` | 最大训练预算 | `50`    |
 
 ## v2.0 Architecture
 
-### Pi Extension Architecture
+### Pi 扩展架构
 
-momo v2.0 integrates Pi as an **npm dependency** (not a fork), loading 6 custom extensions into Pi's `AgentSessionRuntime`:
+momo v2.0 将 Pi 作为 **npm 依赖**（非 fork）集成，向 Pi 的 `AgentSessionRuntime` 加载 6 个自定义扩展：
+
 
 ```
 Pi AgentSessionRuntime
-├── momo-brand          # Show ASCII banner on start
-├── momo-experience     # Inject tactics into system prompt
-├── momo-permissions    # Y/n gate for write/dangerous ops
-├── momo-decisions      # Show L0 decision capsules
-├── momo-cot            # Thinking chain panel (⌃T toggle)
-└── momo-rsi            # Record tool_result + agent_settled
+├── momo-brand          # 启动时显示 ASCII Banner
+├── momo-experience     # 向系统提示词注入战术
+├── momo-permissions    # 写入/危险操作的 Y/n 门
+├── momo-decisions      # 显示 L0 决策胶囊
+├── momo-cot            # 思维链面板（⌃T 切换）
+└── momo-rsi            # 记录 tool\_result + agent\_settled
 ```
 
-### JEV Decision Layer
+### JEV 决策层
 
-Shadow-mode L0 decision model with 5 gates:
+影子模式 L0 决策模型，5 个决策门：
 
-| Gate | Purpose |
-|------|---------|
-| `tool` | Allow / confirm / block tool execution |
-| `tactic` | Inject tactic or not |
-| `route` | Select model tier (ultra/standard/lite) |
-| `diff` | Auto-apply diff or request human review |
-| `promote` | Approve RSI candidate promotion |
+| 门                                 | 用途                          |
+| --------------------------------- | --------------------------- |
+| `tool`                            | 允许 / 确认 / 阻止工具执行            |
+| `tactic`                          | 是否注入战术                      |
+| `route`                           | 选择模型档位（ultra/standard/lite） |
+| `diff`                            | 自动应用 diff 或请求人工审查           |
+| `promote`                         | 批准 RSI 候选晋升                 |
+| **校准：** enforce 模式接管前 ECE < 0.05。 |                             |
 
-**Calibration:** ECE < 0.05 before enforce mode takeover.
+### RSI 三级循环
+| 层级                                     | 范围         | 频率    | 人工审查   |
+| -------------------------------------- | ---------- | ----- | ------ |
+| R1 Product                             | 提示词补丁、战术参数 | 每次会话  | 无      |
+| R2 Strategy                            | L0 决策模型权重  | 每个校准门 | 门触发    |
+| R3 Mechanism                           | 评估器本身      | 罕见    | **必须** |
+| 安全：`touch ~/.momo/STOP` 立即停止所有 RSI 活动。 |            |       |        |
 
-### RSI 3-Tier Loop
+### momo-bench 评估
 
-| Tier | Scope | Frequency | Human Review |
-|------|-------|-----------|--------------|
-| R1 Product | Prompt patches, tactic params | Every session | No |
-| R2 Strategy | L0 decision model weights | Per calibration gate | Gate-triggered |
-| R3 Mechanism | Evaluator itself | Rare | **Required** |
+防止过拟合的三层数据切分：
+| 切分                     | 比例  | 用途              |
+| ---------------------- | --- | --------------- |
+| selection              | 60% | 战术优化            |
+| holdout                | 30% | 门验证             |
+| canary                 | 10% | 冻结 —— 自动流水线永不可见 |
+| 晋升门含 **7 个反向测试**（防作弊）： |     |                 |
 
-Safety: `touch ~/.momo/STOP` halts all RSI activity immediately.
 
-### momo-bench Evaluation
 
-Three-tier data split preventing overfit:
+1. 明显损坏的战术 → 拒绝
+2. 删除测试来通过 → 拒绝
+3. 退出码非零却伪造分数 → 拒绝
+4. 与基线完全相同 → 无结论
+5. 成本下降且无回归 → 接受
+6. 数据不足 → 无结论
+7. 开发集提升但 holdout 受损 → 拒绝
 
-| Split | Ratio | Purpose |
-|-------|-------|---------|
-| selection | 60% | Tactic optimization |
-| holdout | 30% | Gate validation |
-| canary | 10% | Frozen — never seen by auto-pipeline |
-
-Promotion gate includes **7 reverse tests** (cheating prevention):
-1. Obviously broken tactic → reject
-2. Delete tests to pass → reject
-3. Fake score with exit nonzero → reject
-4. Identical to baseline → inconclusive
-5. Cost down, no regression → accept
-6. Insufficient data → inconclusive
-7. Improve dev, hurt holdout → reject
-
-### Project Structure (v2.0)
+### 项目结构（v2.0）
 
 ```
 packages/opencode/src/
-├── cli/                 # v1.x legacy commands (/evolve /fine-tune)
+├── cli/                 # v1.x 遗留命令（/evolve /fine-tune）
 ├── config/              # momo.jsonc v2 schema + resolver
-├── decision/            # DecisionPort type contract
+├── decision/            # DecisionPort 类型契约
 ├── evolve/              # Evolution + EvolutionCandidate
-├── experience/          # KEP fast loop + closure chain
-├── jev/                 # JEV decision layer
-├── momo-bench/          # 3-tier evaluation + gate
-├── pi-extensions/       # 6 Pi extensions
-├── provider/            # 19 LLM provider integrations
-├── repl/                # Interactive TTY REPL
-├── rsi/                 # 3-tier self-evolution loop
-├── runtime/             # TaskResult + event envelopes
-├── session/             # Prompt routing
-├── test/                # Smoke + integration tests
-└── effect/              # Effect utilities
+├── experience/          # KEP 快循环 + 闭环链
+├── jev/                 # JEV 决策层
+├── momo-bench/          # 3 层评估 + 门
+├── pi-extensions/       # 6 个 Pi 扩展
+├── provider/            # 19 个 LLM 服务商集成
+├── repl/                # 交互式 TTY REPL
+├── rsi/                 # 3 级自进化循环
+├── runtime/             # TaskResult + 事件信封
+├── session/             # 提示词路由
+├── test/                # Smoke + 集成测试
+└── effect/              # Effect 工具集
 ```
 
 ## Migrating from Claude Code
 
-Zero-friction migration:
+零摩擦迁移：
 
-1. **Config inheritance** (default ON) — `~/.claude/settings.json` auto-merged
-2. **MCP servers** (default ON) — `.claude/mcp/` work out of the box
-3. **Prompts** (default ON) — `.claude/prompts/` available
+1. **配置继承**（默认开启）— `~/.claude/settings.json` 自动合并
+2. **MCP 服务器**（默认开启）— `.claude/mcp/` 开箱即用
+3. **提示词**（默认开启）— `.claude/prompts/` 直接可用
 
-```bash
-# Disable inheritance
-export MOMO_CLAUDE_CODE_INHERIT=false
-export MOMO_ONLY=1
+```
+\# 关闭继承
+
+export MOMO\_CLAUDE\_CODE\_INHERIT=false
+export MOMO\_ONLY=1
 ```
 
 ## Environment Variables
 
-| Variable | Description | v2.0 |
-|----------|-------------|------|
-| `MOMO_API_KEY` | Generic API key | |
-| `MOMO_HOME` | Home directory (default: `~/.momo`) | |
-| `MOMO_MODEL` | Default model/tier | |
-| `MOMO_PROVIDER` | Default provider | |
-| `MOMO_UI_DECISION_CHIPS` | Show decision capsules | ✅ |
-| `MOMO_UI_EVIDENCE_BAR` | Show evidence bar | ✅ |
-| `MOMO_RSI_ENABLED` | Enable RSI signal recording | ✅ |
-| `MOMO_RSI_MAX_PROMOTIONS_PER_DAY` | Daily promotion limit | ✅ |
-| `MOMO_RSI_MAX_COST` | Max campaign cost (USD) | ✅ |
-| `MOMO_XP_MODE` | Evolution mode (balanced/explore/harden/convention-only) | |
-| `MOMO_XP_DIR` | Experience storage dir | |
-| `MOMO_SESSION_RECORD` | Set `false` to disable session trajectory recording | |
-| `MOMO_RLM_MAX_DEPTH` | Subagent recursion limit (default: 3) | |
-| `MOMO_RLM_BUDGET` | Max subagents per orchestration (default: 8) | |
-| `MOMO_DAEMON_INTERVAL` | Daemon poll seconds (default: 60) | |
-| `MOMO_DAEMON_MAX_RUNS` / `MOMO_DAEMON_MAX_HOURS` | Daemon budget rails | |
-| `MOMO_SIM_PYTHON` | Python executable for the sim world server | |
-| `MOMO_SIM_BACKEND` | Genesis backend: cpu or gpu (default: cpu) | |
-| `MOMO_SIM_MAX_STEPS` | Max LLM control-loop steps (default: 20) | |
-| `MOMO_STT_API_KEY` | STT key for /voice (OpenAI-compatible) | |
-| `MOMO_STT_BASE_URL` / `MOMO_STT_MODEL` | STT endpoint/model (default: OpenAI whisper-1) | |
-| `MOMO_VOICE_SECONDS` | Default voice recording length (default: 5) | |
-| `MOMO_EVOLVE_ENABLED` | Enable self-evolution | |
-| `MOMO_EVOLVE_BUDGET_USD` | Training budget | |
-| `MOMO_ANTHROPIC_API_KEY` | Anthropic key | |
-| `MOMO_OPENAI_API_KEY` | OpenAI key | |
-| `MOMO_OPENROUTER_API_KEY` | OpenRouter key | |
-
-Full list: `src/env.ts`
+| 变量                                               | 说明                                            | v2.0 |
+| ------------------------------------------------ | --------------------------------------------- | ---- |
+| `MOMO_API_KEY`                                   | 通用 API Key                                    |      |
+| `MOMO_HOME`                                      | 主目录（默认：`~/.momo`）                             |      |
+| `MOMO_MODEL`                                     | 默认模型 / 档位                                     |      |
+| `MOMO_PROVIDER`                                  | 默认服务商                                         |      |
+| `MOMO_UI_DECISION_CHIPS`                         | 显示决策胶囊                                        | ✅    |
+| `MOMO_UI_EVIDENCE_BAR`                           | 显示证据条                                         | ✅    |
+| `MOMO_RSI_ENABLED`                               | 启用 RSI 信号记录                                   | ✅    |
+| `MOMO_RSI_MAX_PROMOTIONS_PER_DAY`                | 每日晋升上限                                        | ✅    |
+| `MOMO_RSI_MAX_COST`                              | 单次实验成本上限（USD）                                 | ✅    |
+| `MOMO_XP_MODE`                                   | 进化模式（balanced/explore/harden/convention-only） |      |
+| `MOMO_XP_DIR`                                    | 经验存储目录                                        |      |
+| `MOMO_SESSION_RECORD`                            | 设为 `false` 关闭会话轨迹记录                           |      |
+| `MOMO_RLM_MAX_DEPTH`                             | 子代理递归上限（默认：3）                                 |      |
+| `MOMO_RLM_BUDGET`                                | 单次编排最大子代理数（默认：8）                              |      |
+| `MOMO_DAEMON_INTERVAL`                           | 守护进程轮询秒数（默认：60）                               |      |
+| `MOMO_DAEMON_MAX_RUNS` / `MOMO_DAEMON_MAX_HOURS` | 守护进程预算护栏                                      |      |
+| `MOMO_SIM_PYTHON`                                | 仿真世界服务器的 Python 可执行文件                         |      |
+| `MOMO_SIM_BACKEND`                               | Genesis 后端：cpu 或 gpu（默认：cpu）                  |      |
+| `MOMO_SIM_MAX_STEPS`                             | LLM 控制循环最大步数（默认：20）                           |      |
+| `MOMO_STT_API_KEY`                               | /voice 的 STT Key（OpenAI 兼容）                   |      |
+| `MOMO_STT_BASE_URL` / `MOMO_STT_MODEL`           | STT 端点 / 模型（默认：OpenAI whisper-1）              |      |
+| `MOMO_VOICE_SECONDS`                             | 默认录音时长（默认：5）                                  |      |
+| `MOMO_EVOLVE_ENABLED`                            | 启用自进化                                         |      |
+| `MOMO_EVOLVE_BUDGET_USD`                         | 训练预算                                          |      |
+| `MOMO_ANTHROPIC_API_KEY`                         | Anthropic Key                                 |      |
+| `MOMO_OPENAI_API_KEY`                            | OpenAI Key                                    |      |
+| `MOMO_OPENROUTER_API_KEY`                        | OpenRouter Key                                |      |
+| 完整列表：`src/env.ts`                                |                                               |      |
 
 ## Architecture
 
-### Dual-Speed Evolution
-
+### 双速进化
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    momo Code                             │
 ├─────────────────────┬───────────────────────────────────┤
-│  Experience Fast    │  Weight Slow Loop                 │
-│  Loop (/evolve)     │  (/fine-tune)                     │
+│  经验快循环           │  权重慢循环                       │
+│  (/evolve)          │  (/fine-tune)                     │
 ├─────────────────────┼───────────────────────────────────┤
-│  Timescale: seconds │  Timescale: hours                 │
-│  Mechanism: prompt  │  Mechanism: LoRA fine-tuning      │
-│   injection         │                                   │
-│  Selection:         │  Search: Monte Carlo Graph        │
-│   Thompson/UCB      │   Search (MCGS)                   │
-│  Storage: JSONL     │  Training: LoRA                   │
-│   (~/.momo/xp/)     │  Gate: Ratchet check              │
-│  Bridge: promoted   │  Storage: model registry          │
-│   → curriculum      │                                   │
+│  时间尺度：秒        │  时间尺度：小时                     │
+│  机制：提示词注入     │  机制：LoRA 微调                   │
+│  选择：Thompson/UCB  │  搜索：蒙特卡洛图搜索（MCGS）       │
+│  存储：JSONL         │  训练：LoRA                        │
+│  (\~/.momo/xp/)      │  门：Ratchet 检查                  │
+│  桥接：晋升战术       │  存储：模型注册表                   │
+│   → 训练课程         │                                   │
 └─────────────────────┴───────────────────────────────────┘
 ```
 
-### Provider Layer
+### 服务商层
 
 ```
 User Request
-    |
-    v
-resolveModel("standard") → BUILTIN_TIERS.standard
-    |                           [claude-sonnet, gpt-4.1, ...]
-    v
-getCredentials() → MOMO_*_API_KEY env
-    |
-    v
+&#x20;   |
+&#x20;   v
+resolveModel("standard") → BUILTIN\_TIERS.standard
+&#x20;   \|                           \[claude-sonnet, gpt-4.1, ...]
+&#x20;   v
+getCredentials() → MOMO\_\*\_API\_KEY env
+&#x20;   |
+&#x20;   v
 Provider Factory → baseUrl, headers, timeout
-    |
-    v
+&#x20;   |
+&#x20;   v
 createModel() → LanguageModel adapter
-    |
-    v
+&#x20;   |
+&#x20;   v
 wrapSSE() → Streaming with 8min timeout
 ```
 
 ## Test Results
 
-- **TypeScript**: `tsc --noEmit` — **0 errors**
-- **Smoke Test**: 23/23 checks passed
-- **CLI verified**: REPL, `/evolve`, `/fine-tune`, `models`, `help`
-
+* **TypeScript**：`tsc --noEmit` — **0 错误**
+* **冒烟测试**：23/23 项通过
+* **CLI 已验证**：REPL、`/evolve`、`/fine-tune`、`models`、`help`
+* 
 ## Changelog
 
 ### v2.0.0 (2026-10-11)
+**新增：**
+* Pi 框架集成（`@earendil-works/pi-coding-agent@1.1.0`）作为扩展依赖
+* 交互式 REPL，带思维链面板、决策胶囊与键盘快捷键
+* JEV 决策层 — 5 个决策门，影子模式 + ECE 校准
+* RSI 3 级自进化循环（R1/R2/R3），带预算护栏与 STOP 保护
+* momo-bench — 3 层评估（selection/holdout/canary）+ 7 个反向测试
+* 6 个 Pi 扩展：experience、rsi、permissions、decisions、cot、brand
+* DecisionPort 类型契约（choice/bool/score/abstain）
+* TaskResult + EventEnvelope 类型，用于结构化日志
+* EvolutionCandidate 接口，带 CAS 晋升保护
+* 经验闭环链（TaskExposure → TaskOutcome → Solidify）
+* momo.jsonc v2 配置 schema，带优先级 resolver
 
-**Added:**
-- Pi framework integration (`@earendil-works/pi-coding-agent@1.1.0`) as extension dependency
-- Interactive REPL with CoT panel, decision capsules, keyboard shortcuts
-- JEV decision layer — 5 gates with shadow mode and ECE calibration
-- RSI 3-tier self-evolution loop (R1/R2/R3) with budget rails and STOP guard
-- momo-bench — 3-tier evaluation (selection/holdout/canary) + 7 reverse tests
-- 6 Pi extensions: experience, rsi, permissions, decisions, cot, brand
-- DecisionPort type contract with choice/bool/score/abstain kinds
-- TaskResult + EventEnvelope types for structured logging
-- EvolutionCandidate interface with CAS promotion guard
-- Experience closure chain (TaskExposure → TaskOutcome → Solidify)
-- momo.jsonc v2 config schema with priority resolver
-
-**Changed:**
-- Rewrote `bin/momo` as unified entry (REPL / Pi / legacy fallback)
-- Version: 0.1.1 → 1.0.0
-- Added `[SIMULATED]` warnings to all placeholder random data
-- Added `NOTICE` file for independent copyright declaration
-- LICENSE: clarified as THIRD-PARTY DEPENDENCIES (Pi is a dependency, not a fork)
+  **变更：**
+* 重写 `bin/momo` 为统一入口（REPL / Pi / 遗留回退）
+* 版本：0.1.1 → 1.0.0
+* 为所有占位随机数据添加 `[SIMULATED]` 警告
+* 新增 `NOTICE` 文件声明独立版权
+* LICENSE：澄清为第三方依赖（Pi 是依赖，不是 fork）
 
 ### v1.0.0 (2026-06-16)
 
-**Added:**
-- Experience fast loop (`/evolve`) — KEP protocol with Thompson sampling
-- Weight slow loop (`/fine-tune`) — MCGS training pipeline
-- CLI command system — `/evolve`, `/fine-tune`, `models`, `help`
-- 53 TypeScript modules across provider/evolve/experience/cli layers
-- Dual-speed evolution architecture
-- Beta distribution tracking for tactic selection
-- Two-speed bridge (promoted tactics → fine-tune curriculum)
+**新增：**
 
-**Changed:**
-- Product name: kqq Code → momo Code
-- bin/momo: CJS → ESM command router
-- package.json: Production-ready exports, files whitelist
+* 经验快循环（`/evolve`）— KEP 协议 + Thompson 采样
+* 权重慢循环（`/fine-tune`）— MCGS 训练流水线
+* CLI 命令系统 — `/evolve`、`/fine-tune`、`models`、`help`
+* 跨 provider/evolve/experience/cli 层的 53 个 TypeScript 模块
+* 双速进化架构
+* 战术选择的 Beta 分布跟踪
+* 双速桥接（晋升战术 → fine-tune 课程）
+  **变更：**
+* 产品名： → momo Code
+* bin/momo：CJS → ESM 命令路由器
+* package.json：生产级 exports、files 白名单
 
+## 🗺 Roadmap
+> 公开路线图，欢迎在  [Discussions](https://github.com/momozi1996/momo-code/discussions) 讨论与投票。
 
-## 开源协议
-MIT 开源协议 — 第三方组件版权说明见 NOTICE 文件；限制条款见 USE_RESTRICTIONS.md；安全规范见 SECURITY.md
-[MIT](LICENSE) — see [NOTICE](NOTICE) for third-party attributions.  
-See [USE_RESTRICTIONS.md](USE_RESTRICTIONS.md) and [SECURITY.md](SECURITY.md).
+* **v2.0 收尾** — 完成 v1.x 遗留命令（`/evolve`、`/fine-tune`）向新架构的迁移，稳定 REPL 与 JEV 校准
+* **npm 发布** — `@momo/cli` 上架 npm（规划于 v1.1 /v2.1）
+* **更多服务商** — 持续扩展 25+ LLM 服务商与自定义接入体验
+* **团队共享经验库** — 经验库（`~/.momo/experience/`）支持导出 / 导入与团队同步（讨论中）
+* **GUI / 插件化** — 桌面端与插件系统的社区投票候选（见 [Discussions Ideas](https://github.com/momozi1996/momo-code/discussions)）
+
+## 🤝 Community
+| 入口                                                                         | 用途                      |
+| -------------------------------------------------------------------------- | ----------------------- |
+| [Discussions](https://github.com/momozi1996/momo-code/discussions)         | 提问、分享工作流、功能投票、成果展示      |
+| [Wiki](https://github.com/momozi1996/momo-code/wiki)                       | 完整文档：安装、CLI 参考、核心概念、FAQ |
+| [Issues](https://github.com/momozi1996/momo-code/issues)                   | Bug 反馈与功能请求             |
+| [Security policy](https://github.com/momozi1996/momo-code/security/policy) | 安全漏洞上报                  |
+| [momozi.cc](https://momozi.cc)                                             | 官方网站                    |
+| [Hugging Face](https://huggingface.co/momozi)                              | 模型与实验                   |
+
+## 🙏 Acknowledgements
+* [opencode](https://github.com/sst/opencode) — 基础 agent 框架
+* [Pioneer Agent](https://arxiv.org/abs/2604.09791) — 双速自进化方法论
+* [Pi Coding Agent](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) — v2.0 agent 运行时（npm 依赖，非 fork）
+* [Genesis](https://genesis-embodied-ai.github.io/) — 物理仿真后端（`/sim`）
+* [Effect](https://effect.website/) — 组合式、类型安全的 TypeScript 基础
+* [optim-agent](https://optim-agent.github.io/optim-agent/) — `/optim` 推理驱动优化的灵感来源
+
+## 🤝 Contributing
+欢迎贡献！开始前请阅读：
+* [AGENTS.md](./AGENTS.md) — AI 协作约定
+* [docs/build-release.md](./docs/build-release.md) — 构建、测试与发布流程
+* [USE\_RESTRICTIONS.md](./USE_RESTRICTIONS.md) — 使用限制
+
+开发流程速览：
 ```
+git clone https://github.com/momozi1996/momo-code.git
+cd momo-code/packages/opencode
+npm install
+npm run build
+npm run smoke          # 23 项冒烟检查
+npm run typecheck      # TypeScript 类型检查
+```
+提交 PR 前请确保：测试通过、类型检查 0 错误、CHANGELOG.md 已更新、通过品牌检查（`bash scripts/check-rebrand.sh`）。遇到问题先去 [Discussions](https://github.com/momozi1996/momo-code/discussions) 搜索或提问。
+
+## License
+[MIT](LICENSE) — 第三方归属见 [NOTICE](NOTICE)。
+另见 [USE\_RESTRICTIONS.md](USE_RESTRICTIONS.md) 与 [SECURITY.md](SECURITY.md)。

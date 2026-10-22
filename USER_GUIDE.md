@@ -6,22 +6,29 @@
 
 ## 一、安装
 
-### 1. 克隆仓库
+### Windows 用户（推荐）
+```powershell
+# PowerShell 中运行
+irm https://momozi.cc/install.ps1 | iex
+```
+安装完成后自动进入配置向导。
+
+### macOS / Linux 用户
 ```bash
-cd ~
-git clone https://github.com/momozi1996/momo-code.git
+curl -fsSL https://momozi.cc/install | bash
 ```
 
-### 2. 安装依赖并构建
+### 源码安装（所有平台）
 ```bash
+git clone https://github.com/momozi1996/momo-code.git
 cd momo-code/packages/opencode
 npm install
 npm run build
 ```
 
-### 3. 验证安装
+### 验证安装
 ```bash
-node bin/momo --version
+momo --version
 ```
 输出 `1.0.0` 即安装成功。
 
@@ -31,36 +38,42 @@ node bin/momo --version
 
 momo-code 需要 AI 模型的 API Key 才能工作。**（必填）**
 
-### 方式 1：通用 Key（推荐）
+### 方式 1：交互式向导（推荐）
+```bash
+momo /setup
+```
+按提示选择服务商、输入 API Key，配置自动保存到 `~/.momo/momo.jsonc`。
+
+### 方式 2：环境变量 — 通用 Key
 ```bash
 export MOMO_API_KEY=sk-你的API密钥
 ```
 
-### 方式 2：指定服务商
+### 方式 3：环境变量 — 指定服务商
 ```bash
 export MOMO_OPENAI_API_KEY=sk-你的OpenAI密钥
 export MOMO_ANTHROPIC_API_KEY=sk-ant-你的Anthropic密钥
-export MOMO_MINIMAX_API_KEY=sk-你的MiniMax密钥
+export MOMO_DEEPSEEK_API_KEY=sk-你的DeepSeek密钥
 ```
 
 ### 支持的 AI 服务商
-| 服务商 | 环境变量 |
-|--------|---------|
-| OpenAI | `MOMO_OPENAI_API_KEY` |
-| Anthropic (Claude) | `MOMO_ANTHROPIC_API_KEY` |
-| Google (Gemini) | `MOMO_GOOGLE_API_KEY` |
-| MiniMax | `MOMO_MINIMAX_API_KEY` |
-| Moonshot (Kimi) | `MOMO_MOONSHOT_API_KEY` |
-| Zhipu (GLM) | `MOMO_ZHIPU_API_KEY` |
-| DeepSeek | `MOMO_DEEPSEEK_API_KEY` |
-| 其他 OpenAI 兼容 | `MOMO_API_KEY` |
+| 服务商 | 环境变量 | 推荐模型 |
+|--------|---------|---------|
+| DeepSeek | `MOMO_DEEPSEEK_API_KEY` | deepseek-chat |
+| OpenAI | `MOMO_OPENAI_API_KEY` | gpt-4.1 |
+| Anthropic (Claude) | `MOMO_ANTHROPIC_API_KEY` | claude-sonnet-4-20250514 |
+| Google (Gemini) | `MOMO_GOOGLE_API_KEY` | gemini-2.0-flash |
+| MiniMax | `MOMO_MINIMAX_API_KEY` | MiniMax-Text-01 |
+| Moonshot (Kimi) | `MOMO_MOONSHOT_API_KEY` | moonshot-v1-8k |
+| Zhipu (GLM) | `MOMO_ZHIPU_API_KEY` | glm-4-flash |
+| OpenRouter | `MOMO_OPENROUTER_API_KEY` | anthropic/claude-sonnet-4 |
+| 其他 OpenAI 兼容 | `MOMO_API_KEY` | — |
 
 ### 指定服务商
 ```bash
+export MOMO_PROVIDER=deepseek     # 用 DeepSeek
 export MOMO_PROVIDER=openai       # 用 OpenAI
 export MOMO_PROVIDER=anthropic    # 用 Claude
-export MOMO_PROVIDER=minimax      # 用 MiniMax
-export MOMO_PROVIDER=openrouter   # 用 OpenRouter
 ```
 
 ### 指定模型 / Tier
@@ -71,41 +84,70 @@ export MOMO_MODEL=lite       # GPT-4.1-mini
 ```
 
 ### 让配置永久生效
-编辑 `~/.zshrc`（或 `~/.bashrc`）：
+编辑 `~/.zshrc`（或 `~/.bashrc`、Windows 系统环境变量）：
 ```bash
 # momo-code 配置
 export MOMO_API_KEY=sk-你的API密钥
-export MOMO_PROVIDER=openai
+export MOMO_PROVIDER=deepseek
 export MOMO_MODEL=standard
+```
+
+### 配置文件 `~/.momo/momo.jsonc`
+也可以直接编辑配置文件（`momo /setup` 会自动生成）：
+```jsonc
+{
+  "provider": "deepseek",
+  "model": "deepseek-chat",
+  "providers": {
+    "deepseek": {
+      "apiKey": "sk-你的密钥",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "defaultModel": "deepseek-chat"
+    }
+  }
+}
 ```
 
 ---
 
 ## 三、基础命令
 
+### 首次配置（交互式向导）
+```bash
+momo /setup
+```
+按提示选择服务商（DeepSeek / OpenAI / Anthropic 等），输入 API Key，配置自动保存。
+
 ### 查看帮助
 ```bash
-node bin/momo
+momo --help
 ```
-或
-```bash
-node bin/momo --help
-```
-显示 MOMO CODE 的 Banner 和所有可用命令。
+显示所有可用命令。
 
 ---
 
-### 单轮对话（最基本的用法）
+### 交互式对话（推荐用法）
 ```bash
-node bin/momo "写一个 Python 函数，计算斐波那契数列"
+momo
 ```
-输出：AI 的回复（流式输出，逐字显示）
+直接进入多轮对话模式，支持上下文记忆。输入消息按 Enter 发送，`Ctrl+C` 退出。
+特殊命令：`/clear` 清除历史，`/help` 查看 REPL 命令。
+
+### 打开 Web 工作台
+```bash
+momo web
+```
+在浏览器中打开可视化工作台，包含 Chat、Graph、Sim、Optim 等面板。
+
+### 单轮对话
+```bash
+momo "写一个 Python 函数，计算斐波那契数列"
+```
+输出：AI 的回复（流式输出，逐字显示），完成后自动退出。
 
 ```bash
-node bin/momo "解释一下 React useEffect 的用法"
+momo "解释一下 React useEffect 的用法"
 ```
-
-> **注意**：这是单轮对话，没有上下文记忆。每次发送都是独立请求。
 
 ---
 
@@ -115,13 +157,13 @@ node bin/momo "解释一下 React useEffect 的用法"
 
 **用环境变量**：
 ```bash
-MOMO_PROVIDER=anthropic node bin/momo "写一个 TypeScript 接口"
-MOMO_MODEL=ultra node bin/momo "设计一个分布式系统架构"
+MOMO_PROVIDER=anthropic momo "写一个 TypeScript 接口"
+MOMO_MODEL=ultra momo "设计一个分布式系统架构"
 ```
 
 **或同时指定**：
 ```bash
-MOMO_PROVIDER=openai MOMO_MODEL=standard node bin/momo "修复这个 bug"
+MOMO_PROVIDER=openai MOMO_MODEL=standard momo "修复这个 bug"
 ```
 
 ---
@@ -132,7 +174,7 @@ MOMO_PROVIDER=openai MOMO_MODEL=standard node bin/momo "修复这个 bug"
 
 ### 5.1 生成示例经验
 ```bash
-node bin/momo /evolve --demo
+momo /evolve --demo
 ```
 用 9 条模拟信号生成初始经验，适合第一次体验。
 
@@ -147,7 +189,7 @@ node bin/momo /evolve --demo
 
 ### 5.2 查看学到的策略
 ```bash
-node bin/momo /evolve --list
+momo /evolve --list
 ```
 
 **输出示例**：
@@ -172,7 +214,7 @@ node bin/momo /evolve --list
 
 ### 5.3 测试策略注入
 ```bash
-node bin/momo /evolve --inject "Run tests after making changes"
+momo /evolve --inject "Run tests after making changes"
 ```
 查看哪些 ACTIVE 策略会被注入到对话中。
 
@@ -184,7 +226,7 @@ node bin/momo /evolve --inject "Run tests after making changes"
 cd /path/to/your/project
 
 # 然后运行（会自动执行 npm test 和 tsc 类型检查）
-node /path/to/momo-code/packages/opencode/bin/momo /evolve --auto
+momo /evolve --auto
 ```
 
 这会：
@@ -196,7 +238,7 @@ node /path/to/momo-code/packages/opencode/bin/momo /evolve --auto
 
 ### 5.5 手动添加信号
 ```bash
-node bin/momo /evolve --solidify tac_global_d57a5d64 pass
+momo /evolve --solidify tac_global_d57a5d64 pass
 ```
 手动确认某个策略是好的（`pass`）或坏的（`fail`）。
 
@@ -208,7 +250,7 @@ node bin/momo /evolve --solidify tac_global_d57a5d64 pass
 
 ### 6.1 诊断当前状态
 ```bash
-node bin/momo /fine-tune
+momo /fine-tune
 ```
 
 **输出示例**：
@@ -225,7 +267,7 @@ node bin/momo /fine-tune
 
 ### 6.2 执行策略优化
 ```bash
-node bin/momo /fine-tune run
+momo /fine-tune run
 ```
 
 **输出示例**：
@@ -249,7 +291,7 @@ node bin/momo /fine-tune run
 
 ### 6.3 查看运行记录
 ```bash
-node bin/momo /fine-tune status
+momo /fine-tune status
 ```
 
 **输出示例**：
@@ -262,7 +304,7 @@ node bin/momo /fine-tune status
 
 ### 6.4 提升策略（将 candidate 转为正式）
 ```bash
-node bin/momo /fine-tune promote run_xxxxxx
+momo /fine-tune promote run_xxxxxx
 ```
 把优化后的候选策略提升为正式策略。
 
@@ -277,7 +319,7 @@ node bin/momo /fine-tune promote run_xxxxxx
 
 ### 列出所有可用的 AI 模型
 ```bash
-node bin/momo models list
+momo models list
 ```
 
 **输出示例**：
@@ -302,24 +344,24 @@ export MOMO_API_KEY=sk-你的密钥
 export MOMO_MODEL=standard
 
 # 2. 先运行 evolve 学习
-node bin/momo /evolve --demo
+momo /evolve --demo
 
 # 3. 正常编码对话
-node bin/momo "帮我写一个 Express.js 的中间件"
+momo "帮我写一个 Express.js 的中间件"
 
 # 4. 从项目自动学习（进入你的项目目录后）
 cd my-project
-node ~/momo-code/packages/opencode/bin/momo /evolve --auto
+momo /evolve --auto
 
 # 5. 优化策略
-node ~/momo-code/packages/opencode/bin/momo /fine-tune run
+momo /fine-tune run
 
 # 6. 查看状态并提升
-node ~/momo-code/packages/opencode/bin/momo /fine-tune status
-node ~/momo-code/packages/opencode/bin/momo /fine-tune promote run_xxxxxx
+momo /fine-tune status
+momo /fine-tune promote run_xxxxxx
 
 # 7. 继续对话，此时学到的策略会自动注入
-node bin/momo "再帮我优化一下那个中间件"
+momo "再帮我优化一下那个中间件"
 ```
 
 ---

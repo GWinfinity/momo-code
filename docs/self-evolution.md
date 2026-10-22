@@ -67,6 +67,51 @@ After each agent response, you can rate it:
 | `min_rating_ratio` | 0.7 | Minimum good/total ratio to proceed |
 | `auto_suggest` | true | Automatically suggest fine-tuning when thresholds are met |
 
+## ASPIRE Core (`/aspire`)
+
+Port of the transportable core of NVIDIA's ASPIRE (agentic skill discovery,
+NVlabs) — the generic kernel of its self-improvement loop, without the
+robotics/simulation parts. The skill library is the only trusted cross-task
+channel: entries are Trigger → Code → Evidence markdown, versioned by a
+content hash, and nothing enters the library without passing a
+transmission test — a fresh agent, given only the skill text, must re-solve
+the task that motivated it.
+
+Everything lives in `packages/opencode/src/skill/` and is driven by the
+`/aspire` command:
+
+```
+/aspire init                 -- create the skill library skeleton (~/.momo/skills/)
+/aspire lint [--proposal f]  -- executable lint (parse/undefined-helper/§-refs/…)
+/aspire verify <p> <task>    -- transmission test for one staged proposal
+/aspire apply <report.json>  -- the ONLY library writer (verified reports only) [--tactic]
+/aspire grade <report.json>  -- record consulted-entry grades in skills/ledger.jsonl
+/aspire campaign init|run|status  -- worker campaigns (dev + heldout bands)
+/aspire evosearch init|run|status -- evolutionary search over strategy candidates
+```
+
+Where it sits in the evolution stack: `/refine` proposes small improvements
+from session trajectories → `/aspire verify` gates skill text through the
+transmission test → the skill library at `~/.momo/skills/` accumulates
+verified entries → `/aspire apply --tactic` can promote an entry to a draft
+KEP tactic, which the experience loop injects into future prompts. Campaigns
+(`skill/coordinator.ts`) run fleets of workers on task sets — workers stage
+`skill_report.json` proposals, the lint + verification gate decides, and
+the coordinator alone writes the library. Evosearch (`skill/evosearch.ts`)
+evolves K hypothesis-diverse strategy candidates per task (top-3 seeding,
+eliminated ledger, diversity rule, solved/max-iterations/plateau stops).
+
+Environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MOMO_ASPIRE_CONCURRENCY` | 2 | Parallel workers / candidate evaluations |
+| `MOMO_ASPIRE_TASK_TIMEOUT_MS` | 900000 | Per-worker timeout |
+| `MOMO_ASPIRE_VERIFY_TIMEOUT_MS` | 600000 | Per-verifier timeout |
+| `MOMO_ASPIRE_EVO_K` | 6 | Evosearch population size |
+| `MOMO_ASPIRE_EVO_MAX_ITER` | 5 | Evosearch iteration cap |
+| `MOMO_ASPIRE_EVO_THRESHOLD` | 0.8 | Evosearch solve threshold (best passRate) |
+
 ## Configuration
 
 Add to `~/.momo/momo.jsonc`:

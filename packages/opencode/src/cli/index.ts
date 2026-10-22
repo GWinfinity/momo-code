@@ -9,6 +9,7 @@ import { runEvolveCommand } from "./cmd/evolve.js"
 import { runFinetuneCommand } from "./cmd/finetune.js"
 import { runModelsCommand } from "./cmd/models.js"
 import { runRefineCommand } from "./cmd/refine.js"
+import { runAspireCommand } from "./cmd/aspire.js"
 import { runAgentCommand } from "./cmd/agent.js"
 import { runGraphCommand } from "./cmd/graph.js"
 import { runGoalCommand } from "./cmd/goal.js"
@@ -19,6 +20,10 @@ import { runSimCommand } from "./cmd/sim.js"
 import { runVoiceCommand } from "./cmd/voice.js"
 import { runOptimCommand } from "./cmd/optim.js"
 import { runServeCommand } from "./cmd/serve.js"
+import { runGuiBridge } from "./cmd/gui.js"
+import { runSetupCommand } from "./cmd/setup.js"
+import { runRepl } from "./cmd/repl.js"
+import { runWebCommand } from "./cmd/web.js"
 import { runChat } from "./chat.js"
 
 const require = createRequire(import.meta.url)
@@ -27,7 +32,13 @@ const HELP_FLAGS = new Set(["help", "--help", "-h"])
 const VERSION_FLAGS = new Set(["version", "--version", "-v"])
 
 export async function runCli(argv: string[]): Promise<void> {
-  if (argv.length === 0 || HELP_FLAGS.has(argv[0])) {
+  if (argv.length === 0) {
+    const code = await runRepl()
+    process.exit(code)
+    return
+  }
+
+  if (HELP_FLAGS.has(argv[0])) {
     printHelp()
     return
   }
@@ -75,6 +86,10 @@ export async function runCli(argv: string[]): Promise<void> {
     case "refine":
       await runRefineCommand(args)
       break
+    case "/aspire":
+    case "aspire":
+      await runAspireCommand(args)
+      break
     case "/agent":
     case "agent":
       await runAgentCommand(args)
@@ -114,6 +129,19 @@ export async function runCli(argv: string[]): Promise<void> {
     case "/serve":
     case "serve":
       await runServeCommand(args)
+      break
+    case "gui-bridge":
+      await runGuiBridge(args)
+      break
+    case "/setup":
+    case "setup":
+      process.exit(await runSetupCommand(args))
+      break
+    case "web":
+      await runWebCommand(args)
+      break
+    case "repl":
+      process.exit(await runRepl())
       break
     case "models":
       await Effect.runPromise(

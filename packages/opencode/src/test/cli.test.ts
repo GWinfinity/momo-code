@@ -27,16 +27,8 @@ function runHelp(command: string, args: string[]) {
 }
 
 describe("runCli help", () => {
-  it("shows help when called with no arguments", async () => {
-    const output = await captureStdout(() => runCli([]))
-    assert(output.includes("The coding agent that evolves"))
-    assert(output.includes("DESCRIPTION:"))
-    assert(output.includes("USAGE:"))
-    assert(output.includes("momo <prompt>"))
-    assert(output.includes("EVOLVE COMMANDS:"))
-    assert(output.includes("Docs: https://momozi.cc"))
-  })
-
+  // v2.0: no-args starts the interactive REPL, so help is only reachable
+  // through the help flags. (`runCli([])` would open the REPL and hang.)
   for (const flag of ["help", "--help", "-h"]) {
     it(`shows help for '${flag}'`, async () => {
       const output = await captureStdout(() => runCli([flag]))

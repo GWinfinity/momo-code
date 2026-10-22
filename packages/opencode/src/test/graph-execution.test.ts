@@ -3,7 +3,8 @@ import assert from "node:assert"
 import * as fs from "fs"
 import * as os from "os"
 import * as path from "path"
-import { executeGraph, rejectRun } from "../graph/engine.js"
+import { approveRun, executeGraph, rejectRun, resumeGraph } from "../graph/engine.js"
+import { getGraphOutputDir } from "../graph/extract.js"
 import { planToNodes } from "../graph/parse.js"
 import { loadRun, newRunId, saveRun } from "../graph/store.js"
 import type { GraphPlan, GraphRun } from "../graph/types.js"
@@ -80,6 +81,89 @@ describe("graph execution skip propagation", () => {
     assert.deepStrictEqual(rejected.nodes.map((n) => n.state), ["failed", "skipped", "skipped"])
     assert.strictEqual(rejected.nodes[0].approved, false)
     assertPersisted(rejected)
+  })
+
+  it("preserves unrelated failures when continuing after approval", async (t) => {
+    // Synthesis must stay offline even when a developer has a provider configured.
+    t.mock.method(globalThis, "fetch", async () => { throw new Error("offline fixture") })
+    const run = makeRun({ nodes: [
+      { id: "review", task: "Review", kind: "approval" },
+      { id: "work", task: "Work" },
+      { id: "child", task: "Child", dependsOn: ["work"] },
+      { id: "report", task: "Report", dependsOn: ["child"] },
+    ] })
+    run.status = "waiting"
+    run.nodes[0].state = "waiting"
+    run.nodes[1].state = "failed"
+    run.nodes[1].error = "original failure"
+    saveRun(run)
+
+    const approved = await approveRun(run.id)
+
+    assert.ok(approved)
+    assert.strictEqual(approved.status, "partial")
+    assert.deepStrictEqual(approved.nodes.map((n) => n.state), ["done", "failed", "skipped", "skipped"])
+    assert.strictEqual(approved.nodes[0].approved, true)
+    assert.strictEqual(approved.nodes[1].error, "original failure")
+    assertPersisted(approved)
+  })
+
+  it("retries failed and skipped nodes on explicit resume and persists their artifacts", async (t) => {
+    t.mock.method(globalThis, "fetch", async () => { throw new Error("offline fixture") })
+    const code = "// work/resumed.ts\nexport const resumed = true;"
+    const output = "```typescript\n" + code + "\n```"
+    const fixture = path.join(tmp, "resume-child.cjs")
+    fs.writeFileSync(fixture, `
+      const task = process.argv[2].split("Your node task:\\n").at(-1)
+      console.log(task === "work" ? ${JSON.stringify(output)} : "child completed")
+    `)
+    const run = makeRun({ nodes: [
+      { id: "done", task: "Already complete" },
+      { id: "work", task: "work", dependsOn: ["done"] },
+      { id: "child", task: "child", dependsOn: ["work"] },
+    ] })
+    run.status = "partial"
+    run.executions = 2
+    run.nodes[0].state = "done"
+    run.nodes[0].output = "already complete"
+    run.nodes[0].attempts = 1
+    run.nodes[1].state = "failed"
+    run.nodes[1].attempts = 1
+    run.nodes[1].error = "original failure"
+    run.nodes[1].finishedAt = run.createdAt
+    run.nodes[2].state = "skipped"
+    run.nodes[2].error = "blocked by failed dependency"
+    run.nodes[2].finishedAt = run.createdAt
+    saveRun(run)
+
+    const originalEntry = process.argv[1]
+    const originalDepth = process.env.MOMO_RLM_DEPTH
+    const completed: string[] = []
+    let resumed: GraphRun | null
+    try {
+      process.argv[1] = fixture
+      process.env.MOMO_RLM_DEPTH = "0"
+      resumed = await resumeGraph(run.id, {
+        concurrency: 1, timeoutMs: 5000,
+        onNode: (node) => { completed.push(node.id) },
+      })
+    } finally {
+      process.argv[1] = originalEntry
+      if (originalDepth === undefined) delete process.env.MOMO_RLM_DEPTH
+      else process.env.MOMO_RLM_DEPTH = originalDepth
+    }
+
+    assert.ok(resumed)
+    assert.deepStrictEqual(completed, ["work", "child"])
+    assert.strictEqual(resumed.status, "done")
+    assert.strictEqual(resumed.executions, 4)
+    assert.deepStrictEqual(resumed.nodes.map((n) => n.state), ["done", "done", "done"])
+    assert.deepStrictEqual(resumed.nodes.map((n) => n.attempts), [1, 2, 1])
+    assert.ok(resumed.nodes.every((n) => n.error === undefined))
+    assert.strictEqual(resumed.nodes[0].output, "already complete")
+    assert.deepStrictEqual(resumed.nodes[1].artifacts, [{ path: "work/resumed.ts", size: code.length }])
+    assert.strictEqual(fs.readFileSync(path.join(getGraphOutputDir(run.id), "work/resumed.ts"), "utf8"), code)
+    assert.deepStrictEqual(loadRun(run.id), JSON.parse(JSON.stringify(resumed)))
   })
 
   it("settles unchosen branches, their joins, and nested dormant routes", async () => {

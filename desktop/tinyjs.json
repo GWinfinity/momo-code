@@ -1,0 +1,8 @@
+{
+  "name": "momo desktop",
+  "title": "momo chat desktop",
+  "size": "1200x800",
+  "id": "app.momo.desktop",
+  "version": "0.1.0",
+  "minTinyjsVersion": "0.56.0"
+}

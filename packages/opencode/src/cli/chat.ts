@@ -4,6 +4,8 @@ import { SignalScorer } from "../evolve/signals.js"
 import { getPromptPatchPath } from "../refine/apply.js"
 import { activeGoalsBlock } from "../goal/store.js"
 import * as fs from "fs"
+import * as path from "path"
+import * as os from "os"
 
 /**
  * MOMO CODE — Core agent chat loop.
@@ -53,8 +55,14 @@ interface ChatOptions {
   timeout?: number
   /** Optional per-token callback when streaming (serve SSE, UI progress). */
   onToken?: (chunk: string) => void
+  /** Optional per-token callback for reasoning tokens (thinking blocks). */
+  onReasoning?: (chunk: string) => void
   /** Optional usage callback (token counters from the provider response). */
   onUsage?: (usage: Usage) => void
+  /** Suppress console output (gui-bridge owns stdout as its NDJSON channel). */
+  quiet?: boolean
+  /** External abort signal (gui cancel button). */
+  signal?: AbortSignal
 }
 
 /** Token usage counters reported by an OpenAI-compatible endpoint. */
@@ -163,7 +171,10 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
     headers: extraHeaders = {},
     timeout = 120_000,
     onToken,
+    onReasoning,
     onUsage,
+    quiet = false,
+    signal,
   } = opts
 
   // Build messages array
@@ -186,6 +197,10 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeout)
+  if (signal) {
+    if (signal.aborted) controller.abort()
+    else signal.addEventListener("abort", () => controller.abort(), { once: true })
+  }
 
   try {
     let response = await fetch(`${baseUrl}/chat/completions`, {
@@ -201,6 +216,9 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
 
     // Some providers reject `stream_options` with a 400 — retry once plain.
     if (response.status === 400 && wantUsage) {
+      // Release the rejected body without waiting for it to finish. Both
+      // attempts and their bodies share the original request deadline.
+      await response.body?.cancel().catch(() => {})
       const plainBody = JSON.stringify({
         model,
         messages: bodyMessages,
@@ -218,8 +236,6 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
         signal: controller.signal,
       })
     }
-
-    clearTimeout(timer)
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "")
@@ -256,19 +272,24 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
     for await (const { text, reasoning } of parseSSEStream(reader, onUsage)) {
       // Reasoning is meta-output: keep it off stdout so captured subagent
       // stdout is just the final answer. Interactive terminals still show it.
-      if (reasoning) process.stderr.write(text)
-      else process.stdout.write(text)
-      fullText += text
-      onToken?.(text)
+      if (reasoning) {
+        if (!quiet) process.stderr.write(text)
+        onReasoning?.(text)
+      } else {
+        if (!quiet) process.stdout.write(text)
+        fullText += text
+        onToken?.(text)
+      }
     }
 
     return fullText
   } catch (err) {
-    clearTimeout(timer)
-    if (err instanceof Error && err.name === "AbortError") {
-      throw new Error(`Request timed out after ${timeout}ms`)
+    if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
+      throw new Error(signal?.aborted ? "Request aborted" : `Request timed out after ${timeout}ms`)
     }
     throw err
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -277,7 +298,7 @@ export async function chatComplete(opts: ChatOptions): Promise<string> {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve provider config from environment variables.
+ * Resolve provider config from CC Switch, config file, then environment variables.
  * Returns null if no credentials found.
  */
 export async function resolveProviderConfig(): Promise<{
@@ -301,28 +322,36 @@ export async function resolveProviderConfig(): Promise<{
     }
   }
 
-  // 2. Fall back to environment variables.
-  const genericKey = process.env.MOMO_API_KEY
-  const provider = process.env.MOMO_PROVIDER || "openai"
+  // 2. Try config file (~/.momo/momo.jsonc)
+  const fileConfig = loadMomoConfigFile()
 
-  // Check provider-specific key
+  // 3. Fall back to environment variables.
+  const genericKey = process.env.MOMO_API_KEY
+  const provider = process.env.MOMO_PROVIDER || fileConfig?.provider || "openai"
+
+  // Check provider-specific key (env > config file > generic env)
   const providerUpper = provider.toUpperCase().replace(/-/g, "_")
-  const specificKey =
+  const envSpecificKey =
     process.env[`MOMO_${providerUpper}_API_KEY`] ||
     process.env[`MOMO_${provider.replace(/-/g, "_").toUpperCase()}_API_KEY`]
 
-  const apiKey = specificKey || genericKey
+  const fileProviderCfg = fileConfig?.providers?.[provider]
+  const fileApiKey = fileProviderCfg?.apiKey
+  const fileBaseUrl = fileProviderCfg?.baseUrl
+  const fileModel = fileProviderCfg?.defaultModel || fileConfig?.model
+
+  const apiKey = envSpecificKey || genericKey || fileApiKey
   if (!apiKey) return null
 
-  // Get base URL from factory or env
+  // Get base URL from factory or env or config file
   const baseUrlFromEnv = process.env.MOMO_BASE_URL
   const modelFromEnv = process.env.MOMO_MODEL
 
   // Use factory to get defaults
   const factory = getFactoryConfig(provider)
 
-// Resolve model, handling tier names (ultra/standard/lite)
-  let resolvedModel = modelFromEnv || factory.defaultModel || "gpt-4"
+  // Resolve model, handling tier names (ultra/standard/lite)
+  let resolvedModel = modelFromEnv || fileModel || factory.defaultModel || "gpt-4"
   const tierModels: Record<string, string> = {
     ultra: "claude-sonnet-4-20250514",
     standard: "gpt-4.1",
@@ -333,10 +362,32 @@ export async function resolveProviderConfig(): Promise<{
   }
 
   return {
-    baseUrl: baseUrlFromEnv || factory.baseUrl || "",
+    baseUrl: baseUrlFromEnv || fileBaseUrl || factory.baseUrl || "",
     apiKey,
     model: resolvedModel,
     providerName: provider,
+  }
+}
+
+/**
+ * Load ~/.momo/momo.jsonc config file.
+ * Returns parsed config or null if not found/invalid.
+ */
+function loadMomoConfigFile(): {
+  provider?: string
+  model?: string
+  providers?: Record<string, { apiKey?: string; baseUrl?: string; defaultModel?: string }>
+} | null {
+  try {
+    const configPath = path.join(os.homedir(), ".momo", "momo.jsonc")
+    if (!fs.existsSync(configPath)) return null
+    const content = fs.readFileSync(configPath, "utf-8")
+    const stripped = content
+      .replace(/\/\/.*$/gm, "")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+    return JSON.parse(stripped)
+  } catch {
+    return null
   }
 }
 
@@ -356,6 +407,10 @@ function getFactoryConfig(name: string): {
     anthropic: {
       baseUrl: "https://api.anthropic.com/v1",
       defaultModel: "claude-sonnet-4-20250514",
+    },
+    deepseek: {
+      baseUrl: "https://api.deepseek.com/v1",
+      defaultModel: "deepseek-chat",
     },
     google: {
       baseUrl: "https://generativelanguage.googleapis.com/v1beta",
@@ -439,15 +494,18 @@ export async function runChat(prompt: string): Promise<number> {
     console.error(
       `${MAGENTA}MOMO CODE${RESET}: No API key configured.\n`,
     )
-    console.error(`Set one of the following environment variables:`)
-    console.error(`  ${CYAN}MOMO_API_KEY${RESET}          Generic key (works with any provider)`)
-    console.error(`  ${CYAN}MOMO_<PROVIDER>_API_KEY${RESET}  Provider-specific key`)
+    console.error(`${GREEN}Quick fix — run the setup wizard:${RESET}`)
+    console.error(`  ${CYAN}momo /setup${RESET}\n`)
+    console.error(`Or configure manually:`)
+    console.error(`  ${CYAN}MOMO_API_KEY${RESET}              Generic key (works with any provider)`)
+    console.error(`  ${CYAN}MOMO_<PROVIDER>_API_KEY${RESET}      Provider-specific key`)
+    console.error(`  ${CYAN}~/.momo/momo.jsonc${RESET}           Config file (persistent)`)
     console.error(`\nExamples:`)
     console.error(`  export MOMO_API_KEY=sk-...`)
-    console.error(`  export MOMO_MINIMAX_API_KEY=sk-...`)
-    console.error(`  export MOMO_PROVIDER=minimax`)
+    console.error(`  export MOMO_DEEPSEEK_API_KEY=sk-...`)
+    console.error(`  export MOMO_PROVIDER=deepseek`)
     console.error(`\nSupported providers: openai, anthropic, google, openrouter,`)
-    console.error(`  minimax, zhipu, moonshot, doubao, stepfun, alibaba, ...`)
+    console.error(`  deepseek, minimax, zhipu, moonshot, doubao, stepfun, alibaba, ...`)
     console.error(`\nDocs: https://momozi.cc`)
     return 1
   }
