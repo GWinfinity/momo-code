@@ -52,6 +52,9 @@ export const ENV_NAMES = {
   /** Disable CC Switch provider inheritance. */
   NO_CC_SWITCH: "MOMO_NO_CC_SWITCH",
 
+  /** Disable syncing momo provider config into Pi's auth/models/settings. */
+  PI_CONFIG_SYNC: "MOMO_PI_CONFIG_SYNC",
+
   /** OpenRouter API key. */
   OPENROUTER_API_KEY: "MOMO_OPENROUTER_API_KEY",
 

@@ -12,6 +12,7 @@ import {
   type CreateAgentSessionRuntimeFactory,
 } from "@earendil-works/pi-coding-agent"
 import { getConfigDir } from "./config/config.js"
+import { syncMomoConfigToPi } from "./pi-config-sync.js"
 import {
   brandExtension,
   experienceExtension,
@@ -23,6 +24,11 @@ import {
 } from "./pi-extensions/index.js"
 
 export async function createMomoRuntime() {
+  // Bridge momo's provider config (CC Switch → momo.jsonc → MOMO_* env) into
+  // Pi's auth.json / models.json / settings.json so the Pi engine starts
+  // with working credentials instead of "No API key found for the model".
+  await syncMomoConfigToPi(getConfigDir())
+
   const createRuntime: CreateAgentSessionRuntimeFactory = async (options) => {
     const services = await createAgentSessionServices({
       cwd: options.cwd,
