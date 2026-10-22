@@ -9,6 +9,7 @@ import os from "os"
 import path from "path"
 import fs from "fs"
 import { loadActiveCcSwitchProvider } from "../provider/cc-switch.js"
+import type { MemoryUserConfig } from "../memory/types.js"
 
 /** Configuration directory name for momo Code. */
 export const CONFIG_DIR_NAME = ".momo"
@@ -110,6 +111,9 @@ export interface UserConfig {
 
   /** Enable experimental features. */
   readonly experimental?: Record<string, boolean>
+
+  /** Hy-Memory long-term memory integration (see src/memory/). */
+  readonly memory?: MemoryUserConfig
 }
 
 /**

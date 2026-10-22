@@ -51,7 +51,7 @@
 ### ⚠️ Experimental / Active Development
 
 ** v2.0.0 (2026-10-11) 重大架构升级中。** 当前版本引入了 Pi 框架集成、RSI 自进化循环和 JEV 决策层。
-* Pi 框架集成（`@earendil-works/pi-coding-agent@1.1.0`）作为扩展依赖
+* Pi 框架集成（`@earendil-works/pi-coding-agent@1.4.0`）作为扩展依赖
 * 交互式 REPL，带思维链面板、决策胶囊与键盘快捷键
 * JEV 决策层 — 5 个决策门，影子模式 + ECE 校准
 * RSI 3 级自进化循环（R1/R2/R3），带预算护栏与 STOP 保护
@@ -68,7 +68,7 @@
 ## 🚀 v2.0 新特性
 
 ### 1. Pi 框架集成（Extension 模式）
-- 以 npm 依赖形式集成 `@earendil-works/pi-coding-agent@1.1.0`，**非 fork**
+- 以 npm 依赖形式集成 `@earendil-works/pi-coding-agent@1.4.0`，**非 fork**
 - 6 个 momo 专属 Pi 扩展：
   - `experience` — 自动注入历史验证过的战术
   - `rsi` — 采集工具调用结果与会话指标
@@ -795,7 +795,7 @@ wrapSSE() → Streaming with 8min timeout
 
 ### v2.0.0 (2026-10-11)
 **新增：**
-* Pi 框架集成（`@earendil-works/pi-coding-agent@1.1.0`）作为扩展依赖
+* Pi 框架集成（`@earendil-works/pi-coding-agent@1.4.0`）作为扩展依赖
 * 交互式 REPL，带思维链面板、决策胶囊与键盘快捷键
 * JEV 决策层 — 5 个决策门，影子模式 + ECE 校准
 * RSI 3 级自进化循环（R1/R2/R3），带预算护栏与 STOP 保护

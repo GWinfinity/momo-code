@@ -67,7 +67,7 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.10",
-    "@earendil-works/pi-coding-agent": "1.1.0",
+    "@earendil-works/pi-coding-agent": "1.4.0",
     "ai": "^6.0.205",
     "effect": "^3.14.0",
     "fuzzysort": "^3.1.0",
@@ -80,7 +80,7 @@
     "typescript": "^5.8.0"
   },
   "overrides": {
-    "@earendil-works/pi-codemode": "1.1.0"
+    "@earendil-works/pi-codemode": "1.4.0"
   },
   "engines": {
     "node": ">=22.19.0"

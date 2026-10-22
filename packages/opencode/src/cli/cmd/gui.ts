@@ -27,6 +27,7 @@ import { SignalScorer } from "../../evolve/signals.js"
 import { getPromptPatchPath } from "../../refine/apply.js"
 import { activeGoalsBlock } from "../../goal/store.js"
 import { recordSession } from "../../session/recorder.js"
+import { getCapture, recallMemory } from "../../memory/index.js"
 import { chatComplete, resolveProviderConfig, type Usage } from "../chat.js"
 
 // ---------------------------------------------------------------------------
@@ -195,6 +196,12 @@ async function buildSystemPrompt(): Promise<string> {
   } catch {
     /* best-effort */
   }
+  try {
+    const memBlock = await recallMemory("desktop gui session")
+    if (memBlock) systemPrompt += "\n\n---\n\n" + memBlock
+  } catch {
+    /* best-effort */
+  }
   return systemPrompt
 }
 
@@ -328,6 +335,17 @@ async function handleChatSend(payload: Record<string, unknown>, id: number): Pro
       durationMs: Date.now() - startMs,
       rlmDepth: 0,
     }).catch(() => {})
+
+    // Passive memory write-back (Hy-Memory, throttled, best-effort)
+    try {
+      const capture = getCapture(sessionKey)
+      if (capture) {
+        capture.addTurn(message, response)
+        void capture.maybeFlush()
+      }
+    } catch {
+      /* best-effort */
+    }
   } catch (err) {
     closeThinking()
     const msg = err instanceof Error ? err.message : String(err)
