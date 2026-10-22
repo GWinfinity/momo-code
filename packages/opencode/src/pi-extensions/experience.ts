@@ -16,7 +16,7 @@ import {
  * Injects top-k tactics from momo Experience Store into the agent's system prompt.
  */
 export const experienceExtension: ExtensionFactory = (pi) => {
-  pi.on("before_agent_start", async (event) => {
+  pi.on("before_agent_start", async (event, ctx) => {
     const taskDescription = event.prompt || ""
     if (!taskDescription) return
 
@@ -35,10 +35,16 @@ export const experienceExtension: ExtensionFactory = (pi) => {
       )
 
       if (result.block && result.block.length > 0) {
-        // Log evidence bar (momo style)
-        console.error("\n━━ 注入战术 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        console.error(result.block)
-        console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+        if (ctx.mode === "tui") {
+          ctx.ui.notify(
+            `📥 Injected ${result.tacticIds.length} learned tactic(s) from Experience Store`,
+            "info",
+          )
+        } else if (process.stderr.isTTY) {
+          console.error("\n━━ 注入战术 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+          console.error(result.block)
+          console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+        }
         return { systemPrompt: `${event.systemPrompt}\n\n---\n${result.block}` }
       }
     } catch (err) {

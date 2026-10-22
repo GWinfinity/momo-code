@@ -8,27 +8,39 @@ let cotBuffer: string[] = []
 let isExpanded = process.env.MOMO_UI_COT === "expanded"
 
 export const cotExtension: ExtensionFactory = (pi) => {
-  pi.on("before_agent_start", async () => {
+  pi.on("before_agent_start", async (_event, ctx) => {
     cotBuffer = []
-    if (process.stdout.isTTY && !isExpanded) {
+    if (ctx.mode === "tui") {
+      ctx.ui.setStatus("momo-cot", undefined)
+      if (!isExpanded) {
+        ctx.ui.notify("🧠 Thinking... (⌃T to expand)", "info")
+      }
+      return
+    }
+    if (process.stderr.isTTY && !isExpanded) {
       console.error("🧠 Thinking... (⌃T to expand)")
     }
   })
 
   // Pi doesn't have a direct "thinking" hook, so we intercept tool planning
-  pi.on("tool_call", async (event) => {
+  pi.on("tool_call", async (event, ctx) => {
     const file = "path" in event.input ? event.input.path : undefined
-    const step = `  → ${event.toolName}${file ? ` (${file})` : ""}`
+    const step = `→ ${event.toolName}${file ? ` (${file})` : ""}`
     cotBuffer.push(step)
 
-    if (isExpanded && process.stdout.isTTY) {
-      console.error(step)
+    if (!isExpanded) return
+    if (ctx.mode === "tui") {
+      ctx.ui.setStatus("momo-cot", step)
+    } else if (process.stderr.isTTY) {
+      console.error(`  ${step}`)
     }
   })
 
-  pi.on("agent_settled", async () => {
-    if (!isExpanded && cotBuffer.length > 0 && process.stdout.isTTY) {
-      // Summary mode: show count only
+  pi.on("agent_settled", async (_event, ctx) => {
+    if (isExpanded || cotBuffer.length === 0) return
+    if (ctx.mode === "tui") {
+      ctx.ui.setStatus("momo-cot", `🧠 ${cotBuffer.length} steps`)
+    } else if (process.stderr.isTTY) {
       console.error(`\n  (${cotBuffer.length} steps)`)
     }
   })
