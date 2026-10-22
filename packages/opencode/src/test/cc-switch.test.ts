@@ -303,7 +303,7 @@ describe("cc-switch integration", () => {
     assert.strictEqual(provider!.model, "deepseek-v4")
   })
 
-  it("loadActiveCcSwitchProviderSync returns null when multiple opencode providers exist without a current id", () => {
+  it("loadActiveCcSwitchProviderSync returns the first provider when multiple opencode providers exist without a current id", () => {
     fs.writeFileSync(
       path.join(tmpDir, ".cc-switch", "settings.json"),
       JSON.stringify({}),
@@ -323,7 +323,10 @@ describe("cc-switch integration", () => {
         },
       }),
     )
-    assert.strictEqual(loadActiveCcSwitchProviderSync("opencode"), null)
+    const provider = loadActiveCcSwitchProviderSync("opencode")
+    assert.ok(provider)
+    assert.strictEqual(provider!.id, "a")
+    assert.strictEqual(provider!.apiKey, "sk-a")
   })
 
   it("loadActiveCcSwitchProvider reads the sole opencode row from the SQLite DB", async (t) => {

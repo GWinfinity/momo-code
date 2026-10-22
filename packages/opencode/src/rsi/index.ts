@@ -39,7 +39,7 @@ const DEFAULT_META: RSIMeta = {
   lastPromotionDate: new Date().toDateString(),
 }
 
-function loadMeta(): RSIMeta {
+export function loadMeta(): RSIMeta {
   try {
     const raw = fs.readFileSync(RSI_META, "utf-8")
     return { ...DEFAULT_META, ...JSON.parse(raw) }

@@ -116,6 +116,11 @@ export interface GraphNode {
   approved?: boolean
   /** How many times this node has been sent to its rework agent. */
   reworkCount?: number
+  /** Code artifacts extracted from the node's output and written to disk. */
+  artifacts?: ReadonlyArray<{
+    readonly path: string
+    readonly size: number
+  }>
 }
 
 /** A full persisted graph run. */
@@ -144,4 +149,6 @@ export interface GraphRunOpts {
   readonly timeoutMs?: number
   /** Progress callback after each node finishes. */
   readonly onNode?: (node: GraphNode, index: number, total: number) => void
+  /** Status-change callback (e.g. waiting for approval / failed) — used by the notifier. */
+  readonly onStatusChange?: (run: GraphRun, prev: GraphStatus) => void
 }

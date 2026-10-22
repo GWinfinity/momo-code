@@ -3,17 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>momo sim workbench</title>
+<title>momo 仿真工作台 · sim workbench</title>
 <style>
-  :root { --bg:#0d1117; --panel:#161b22; --border:#30363d; --fg:#e6edf3; --dim:#8b949e; --accent:#c678dd; --green:#3fb950; --red:#f85149; --yellow:#d29922; --cyan:#39c5cf; }
+  :root { --bg:#0a1424; --panel:#101e35; --panel2:#152640; --border:#1c2f4e; --border2:#2b4269; --fg:#e7ecf5; --dim:#8aa0c4; --accent:#ff7a3d; --blue:#3da9fc; --green:#43c68e; --red:#f0685e; --yellow:#e8b53d; --cyan:#4dc9e8; }
   * { box-sizing: border-box; }
   html,body { height:100%; }
   body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; display:flex; flex-direction:column; overflow:hidden; }
-  header { display:flex; align-items:center; gap:14px; padding:8px 16px; background:var(--panel); border-bottom:1px solid var(--border); flex:none; }
+  header { position:relative; display:flex; align-items:center; gap:14px; padding:8px 16px; background:linear-gradient(180deg,var(--panel),var(--bg)); border-bottom:1px solid var(--border); flex:none; }
+  header::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:linear-gradient(90deg,var(--blue),var(--accent)); opacity:.85; pointer-events:none; }
   body.embed header { display:none; }
-  header .logo { color:var(--accent); font-weight:bold; font-size:15px; }
+  header .logo { display:flex; align-items:center; gap:8px; color:var(--fg); font-weight:800; font-size:15px; letter-spacing:2px; white-space:nowrap; }
+  header .logo .mark { width:20px; height:20px; flex:none; border-radius:4px; background:linear-gradient(135deg,var(--blue),var(--cyan)); color:#04101f; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 0 0 1px rgba(255,255,255,.1); }
+  header .logo .prod { font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--dim); border-left:1px solid var(--border2); padding-left:8px; }
   header .meta { color:var(--dim); font-size:12px; }
-  header a { color:var(--cyan); text-decoration:none; font-size:12px; }
+  header a { color:var(--blue); text-decoration:none; font-size:12px; }
   #estopLamp { font-size:12px; } .estop-on { color:var(--red); font-weight:bold; } .estop-off { color:var(--green); }
   #conn { margin-left:auto; font-size:12px; } #conn.ok { color:var(--green); } #conn.bad { color:var(--red); }
   #tokenBox { display:none; gap:6px; }
@@ -28,23 +31,24 @@
   #viewportHint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--dim); pointer-events:none; padding:20px; }
   .tree-item { padding:3px 6px; border-radius:4px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .tree-item:hover { background:var(--bg); }
-  .tree-item.sel { background:var(--bg); color:var(--cyan); }
+  .tree-item.sel { background:var(--panel2); color:var(--blue); box-shadow:inset 3px 0 0 0 var(--accent), inset 0 0 0 1px var(--border2); }
   .tree-item .type { color:var(--dim); font-size:11px; }
   .kv { font-size:12px; margin:2px 0; } .kv b { color:var(--dim); font-weight:normal; display:inline-block; width:70px; }
-  button { background:var(--accent); color:#fff; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; font:inherit; font-size:12px; }
+  button { background:linear-gradient(180deg,#ff8a4d,var(--accent)); color:#1c0f06; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font:inherit; font-size:12px; font-weight:700; box-shadow:inset 0 1px 0 rgba(255,255,255,.25); }
   button.ghost { background:none; border:1px solid var(--border); color:var(--fg); }
   button.danger { background:var(--red); }
   button:disabled { opacity:0.5; cursor:default; }
-  input,textarea { background:var(--bg); color:var(--fg); border:1px solid var(--border); padding:4px 8px; border-radius:4px; font:inherit; font-size:12px; }
+  input,textarea { background:var(--bg); color:var(--fg); border:1px solid var(--border2); padding:4px 8px; border-radius:4px; font:inherit; font-size:12px; }
+  input:focus,textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(255,122,61,.15); }
   input.num { width:52px; }
   .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0; }
   .cam { border:1px solid var(--border); border-radius:6px; padding:6px 8px; margin:6px 0; }
-  .cam .nm { color:var(--cyan); }
-  .cam button.on { border-color:var(--cyan); color:var(--cyan); }
+  .cam .nm { color:var(--blue); }
+  .cam button.on { border-color:var(--blue); color:var(--blue); }
   #timeline { flex:none; background:var(--panel); border-top:1px solid var(--border); padding:8px 16px; }
   #timeline .row { margin:0; }
-  #clockDisplay { min-width:230px; color:var(--cyan); }
-  #playBtn.playing { background:var(--yellow); color:#000; }
+  #clockDisplay { min-width:230px; color:var(--blue); font-variant-numeric:tabular-nums; }
+  #playBtn.playing { background:var(--yellow); color:#1a1205; }
   input[type=range] { width:140px; padding:0; }
   #frames { display:flex; gap:8px; margin-top:8px; overflow-x:auto; min-height:0; }
   #frames figure { margin:0; flex:none; text-align:center; }
@@ -67,32 +71,32 @@
 </head>
 <body>
 <header>
-  <span class="logo">◉ momo workbench</span>
+  <span class="logo"><span class="mark">M</span>MOMO<span class="prod">仿真工作台 SIM WORKBENCH</span></span>
   <span class="meta" id="worldMeta">world: connecting…</span>
   <span id="estopLamp" class="estop-off">ESTOP: off</span>
   <button class="danger" id="estopBtn">ESTOP</button>
   <button class="ghost" id="resumeBtn">Resume</button>
-  <a href="/">← dashboard</a>
+  <a href="/">← 返回工作台</a>
   <span id="tokenBox"><input id="tokenInput" placeholder="token" size="12"><button class="ghost" onclick="saveToken()">set</button></span>
   <span id="conn">…</span>
 </header>
 <div id="main">
   <div class="side left">
-    <h3>Entities <button class="ghost" id="refreshSceneBtn" style="float:right">↻</button></h3>
+    <h3>实体 Entities <button class="ghost" id="refreshSceneBtn" style="float:right">↻</button></h3>
     <div id="tree" class="dim">no scene loaded</div>
   </div>
   <div id="viewport">
     <div id="viewportHint">loading three.js…</div>
   </div>
   <div class="side right">
-    <h3>Inspector</h3>
+    <h3>检查器 Inspector</h3>
     <div id="inspector" class="dim">select an entity</div>
-    <h3 style="margin-top:14px">Asset presets</h3>
+    <h3 style="margin-top:14px">资源预设 Asset presets</h3>
     <div id="assetList" class="dim">loading…</div>
-    <h3 style="margin-top:14px">Cameras <button class="ghost" id="refreshCamsBtn" style="float:right">↻</button></h3>
+    <h3 style="margin-top:14px">相机 Cameras <button class="ghost" id="refreshCamsBtn" style="float:right">↻</button></h3>
     <div id="camList" class="dim">none</div>
     <div class="cam">
-      <div class="nm">add camera</div>
+      <div class="nm">添加相机 add camera</div>
       <div class="row"><input id="camName" placeholder="name" size="8"></div>
       <div class="row">pos <input class="num" id="camPX" value="1.2"><input class="num" id="camPY" value="-1.2"><input class="num" id="camPZ" value="0.8"></div>
       <div class="row">look <input class="num" id="camLX" value="0"><input class="num" id="camLY" value="0"><input class="num" id="camLZ" value="0.3"></div>
@@ -103,23 +107,23 @@
 <div id="timeline">
   <div class="row">
     <span id="clockDisplay">t=0.000s · step 0 · 1.0x</span>
-    <button id="playBtn">▶ play</button>
-    <button class="ghost" id="stepBtn">⏭ step</button>
-    <span class="dim">speed</span>
+    <button id="playBtn">▶ 播放</button>
+    <button class="ghost" id="stepBtn">⏭ 步进</button>
+    <span class="dim">速度 speed</span>
     <input type="range" id="speedSlider" min="0.1" max="10" step="0.1" value="1">
     <span id="speedLabel">1.0x</span>
-    <button class="ghost" id="reloadMeshBtn">reload mesh</button>
-    <button class="ghost" id="rebuildBtn">rebuild world</button>
-    <button id="previewBtn">✎ preview script</button>
+    <button class="ghost" id="reloadMeshBtn">重载网格 reload mesh</button>
+    <button class="ghost" id="rebuildBtn">重建世界 rebuild world</button>
+    <button id="previewBtn">✎ 预览脚本</button>
   </div>
   <div id="frames"></div>
 </div>
 <div id="drawer">
   <div class="row">
-    <b>Pre-simulation preview</b>
+    <b>仿真前预览 · Pre-simulation preview</b>
     <span class="dim">runs the script in the live world, builds the scene, re-exports the mesh — no physics steps</span>
-    <button id="runPreviewBtn">run preview</button>
-    <button class="ghost" id="closeDrawerBtn">close</button>
+    <button id="runPreviewBtn">运行预览 run preview</button>
+    <button class="ghost" id="closeDrawerBtn">关闭 close</button>
   </div>
   <textarea id="previewCode" spellcheck="false"></textarea>
   <div id="previewResult"></div>

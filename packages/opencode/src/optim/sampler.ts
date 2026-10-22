@@ -22,6 +22,7 @@ import { extractJsonObject } from "../refine/propose.js"
 import {
   bestTrial,
   lastNote,
+  type Direction,
   type ParamSpec,
   type ParamValue,
   type StudyConfig,
@@ -153,6 +154,95 @@ export function extractProposal(
 }
 
 // ---------------------------------------------------------------------------
+// Non-convergence intervention (borrowed from dsh-pain-point-check)
+// ---------------------------------------------------------------------------
+
+export interface ProgressAnalysis {
+  /** True when the last `stallN` completed trials brought no improvement. */
+  readonly stalled: boolean
+  /** Consecutive completed trials since the last new best (>= 0). */
+  readonly stallCount: number
+  /** The current best trial (null when nothing completed yet). */
+  readonly best: TrialRecord | null
+  /** Completed trials in chronological order. */
+  readonly completed: readonly TrialRecord[]
+}
+
+/**
+ * Count how many consecutive completed trials have failed to improve on
+ * the best-so-far value. A study is "stalled" once that streak reaches
+ * `stallN` (default 4, MOMO_OPTIM_STALL_N) — the agent is circling a
+ * plateau instead of exploring.
+ */
+export function analyzeProgress(
+  trials: readonly TrialRecord[],
+  direction: Direction,
+  stallN = Number(process.env.MOMO_OPTIM_STALL_N) || 4,
+): ProgressAnalysis {
+  const completed = trials.filter(
+    (t): t is TrialRecord & { value: number } =>
+      t.state === "complete" && t.value !== undefined,
+  )
+  // Forward scan: count completed trials since the last strict improvement.
+  // A trial that merely ties the running best is not an improvement.
+  let stallCount = 0
+  if (completed.length > 0) {
+    let bestSoFar = completed[0].value
+    for (let i = 1; i < completed.length; i++) {
+      const v = completed[i].value
+      const better =
+        direction === "maximize" ? v > bestSoFar : v < bestSoFar
+      if (better) {
+        bestSoFar = v
+        stallCount = 0
+      } else {
+        stallCount++
+      }
+    }
+  }
+  return {
+    stalled: stallCount >= Math.max(stallN, 1),
+    stallCount,
+    best: bestTrial(direction, completed),
+    completed,
+  }
+}
+
+/**
+ * True when a proposed parameter vector is (within tolerance) the same as
+ * one of the recent trials — the "same direction retry" the intervention
+ * is meant to block. Numeric params compare with a relative epsilon,
+ * categoricals must match exactly.
+ */
+export function isRepetitive(
+  params: Record<string, ParamValue>,
+  recent: readonly TrialRecord[],
+  tolerance = 0.02,
+): boolean {
+  for (const t of recent) {
+    let same = true
+    for (const [k, v] of Object.entries(params)) {
+      const prev = t.params[k]
+      if (prev === undefined) {
+        same = false
+        break
+      }
+      if (typeof v === "number" && typeof prev === "number") {
+        const scale = Math.max(Math.abs(prev), 1e-9)
+        if (Math.abs(v - prev) / scale > tolerance) {
+          same = false
+          break
+        }
+      } else if (String(v) !== String(prev)) {
+        same = false
+        break
+      }
+    }
+    if (same) return true
+  }
+  return false
+}
+// ---------------------------------------------------------------------------
 // RandomSampler
 // ---------------------------------------------------------------------------
 
@@ -282,6 +372,16 @@ export function buildHarnessPrompt(input: SamplerInput, history: number): string
 
   const note = lastNote(trials)
   if (note) lines.push(`\nYour previous note: ${note}`)
+  // Non-convergence intervention: once the run stalls, force a strategy change.
+  const progress = analyzeProgress(trials, config.direction)
+  if (progress.stalled) {
+    lines.push(
+      `\n\u26A0 PLATEAU WARNING: no improvement in the last ${progress.stallCount} trials.`,
+    )
+    lines.push(`You are stuck at value=${progress.best?.value} — DO NOT propose a configuration`)
+    lines.push(`similar to any recent trial. Change region, parameter combination, or trade-off.`)
+  }
+
 
   lines.push(`\nPropose the next configuration.`)
   return lines.join("\n")
@@ -333,23 +433,54 @@ export class AgentSampler implements Sampler {
       const reply = await call(prompt)
       try {
         const parsed = extractProposal(reply, input.config.space)
+        assertNonRepetitive(input, parsed.params)
         return { ...parsed, fallback: false }
       } catch (firstErr) {
         // One retry with corrective feedback, then random fallback.
         const correction =
           `${prompt}\n\nYour previous reply was rejected: ` +
           `${firstErr instanceof Error ? firstErr.message : firstErr}. ` +
+          (isStalled(input)
+            ? `The study is on a plateau — propose a configuration that differs ` +
+              `meaningfully from every recent trial (change region or parameter combination). `
+            : ``) +
           `Reply with ONLY the corrected JSON object.`
         const retry = await call(correction)
         const parsed = extractProposal(retry, input.config.space)
+        assertNonRepetitive(input, parsed.params)
         return { ...parsed, fallback: false }
       }
     } catch (err) {
       console.warn(
         `[optim] agent proposal failed (${err instanceof Error ? err.message : err}) — ` +
+          (isStalled(input) ? `stalled study, ` : ``) +
           `falling back to random sampling for this trial`,
       )
       return this.fallback.propose(input)
     }
+  }
+}
+
+function isStalled(input: SamplerInput): boolean {
+  return analyzeProgress(input.trials, input.config.direction).stalled
+}
+
+/**
+ * Reject a proposal that repeats a recent configuration while the study is
+ * stalled — the same-direction retry the intervention exists to block.
+ * Throws so the caller falls into the corrective-retry / random path.
+ */
+function assertNonRepetitive(
+  input: SamplerInput,
+  params: Record<string, ParamValue>,
+): void {
+  const progress = analyzeProgress(input.trials, input.config.direction)
+  if (!progress.stalled) return
+  const recent = progress.completed.slice(-Math.max(input.trials.length, 8))
+  if (isRepetitive(params, recent)) {
+    throw new Error(
+      `proposal repeats a recent configuration while the study is stalled ` +
+        `(${progress.stallCount} trials without improvement)`,
+    )
   }
 }

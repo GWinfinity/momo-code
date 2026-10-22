@@ -67,7 +67,9 @@ describe("chat request deadlines", () => {
       response.flushHeaders()
       later(t, 600, () => response.end("provider unavailable"))
     })
-    await assert.rejects(chatComplete(options(baseUrl, false)), /Request timed out after 150ms/)
+    await assert.rejects(chatComplete({
+      ...options(baseUrl, false), signal: new AbortController().signal,
+    }), /Request timed out after 150ms/)
   })
 
   it("preserves a promptly returned HTTP error", { timeout: 4_000 }, async (t) => {
@@ -77,6 +79,25 @@ describe("chat request deadlines", () => {
     })
     await assert.rejects(chatComplete({ ...options(baseUrl, false), timeout: 1_000 }), /HTTP 503: Service Unavailable \| provider unavailable/)
   })
+
+  for (const bodyKind of ["JSON", "SSE", "HTTP error"] as const) {
+    it(`preserves external cancellation during a stalled ${bodyKind} body`, { timeout: 4_000 }, async (t) => {
+      const controller = new AbortController()
+      const stream = bodyKind === "SSE"
+      const baseUrl = await fixture(t, (_request, response) => {
+        response.writeHead(bodyKind === "HTTP error" ? 503 : 200, {
+          "Content-Type": stream ? "text/event-stream" : "application/json",
+        })
+        response.flushHeaders()
+        if (stream) response.write('data: {"choices":[{"delta":{"content":"started"}}]}\n\n')
+        later(t, 30, () => controller.abort())
+        later(t, 600, () => reply(response, stream))
+      })
+      await assert.rejects(chatComplete({
+        ...options(baseUrl, stream), timeout: 1_000, signal: controller.signal, quiet: true,
+      }), /^Error: Request aborted$/)
+    })
+  }
 
   it("cancels the rejected stream_options body before retrying successfully", { timeout: 4_000 }, async (t) => {
     const requests: Array<{ stream_options?: unknown }> = []
