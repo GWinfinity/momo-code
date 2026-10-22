@@ -148,7 +148,7 @@ async function runSingleTask(
   // Simulated response
   if (!opts.silent) {
     console.log("✅ 任务处理完成（Pi 运行时未安装，显示模拟输出）")
-    console.log("   安装 Pi: npm install @earendil-works/pi-coding-agent@1.1.0")
+    console.log("   安装 Pi: npm install @earendil-works/pi-coding-agent@1.4.0")
   }
 }
 

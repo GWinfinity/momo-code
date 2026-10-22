@@ -18,6 +18,7 @@ import { SignalScorer } from "../../evolve/signals.js"
 import { getPromptPatchPath } from "../../refine/apply.js"
 import { activeGoalsBlock } from "../../goal/store.js"
 import { recordSession } from "../../session/recorder.js"
+import { getCapture, newMemorySessionId, recallMemory } from "../../memory/index.js"
 import { resolveProviderConfig, chatComplete, type Usage } from "../chat.js"
 import * as fs from "fs"
 
@@ -104,6 +105,14 @@ export async function runRepl(): Promise<number> {
     const goalsBlock = activeGoalsBlock()
     if (goalsBlock) systemPrompt += "\n\n---\n\n" + goalsBlock
   } catch { /* best-effort */ }
+
+  // Inject long-term user memory recall (Hy-Memory)
+  try {
+    const memBlock = await recallMemory("interactive session")
+    if (memBlock) systemPrompt += "\n\n---\n\n" + memBlock
+  } catch { /* best-effort */ }
+
+  const memSessionId = newMemorySessionId()
 
   // Print header
   console.log()
@@ -204,6 +213,15 @@ export async function runRepl(): Promise<number> {
           durationMs: Date.now() - startMs,
           rlmDepth: 0,
         }).catch(() => {})
+
+        // Passive memory write-back (Hy-Memory, throttled)
+        try {
+          const capture = getCapture(memSessionId)
+          if (capture) {
+            capture.addTurn(input, response)
+            await capture.maybeFlush()
+          }
+        } catch { /* best-effort */ }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         console.error(`\n${MAGENTA}MOMO CODE${RESET} Error: ${msg}`)
@@ -217,6 +235,10 @@ export async function runRepl(): Promise<number> {
     })
 
     rl.on("close", () => {
+      // Flush any buffered memory write-back on session end (best-effort)
+      try {
+        void getCapture(memSessionId)?.flush()
+      } catch { /* best-effort */ }
       resolve(0)
     })
   })

@@ -40,6 +40,7 @@ async function main(): Promise<void> {
   // P1: Pi Extensions
   console.log("\nP1: Pi Extensions")
   check("experience.ts exists", fs.existsSync(path.join(srcDir, "pi-extensions", "experience.ts")))
+  check("memory.ts exists", fs.existsSync(path.join(srcDir, "pi-extensions", "memory.ts")))
   check("rsi.ts exists", fs.existsSync(path.join(srcDir, "pi-extensions", "rsi.ts")))
   check("brand.ts exists", fs.existsSync(path.join(srcDir, "pi-extensions", "brand.ts")))
   check("permissions.ts exists", fs.existsSync(path.join(srcDir, "pi-extensions", "permissions.ts")))

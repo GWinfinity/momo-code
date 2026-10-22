@@ -103,7 +103,7 @@ async function runPiAgent(args) {
   } catch (err) {
     if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
       console.warn("⚠️  Pi runtime not installed. Using momo native REPL.")
-      console.warn("   Install Pi: npm install @earendil-works/pi-coding-agent@1.1.0")
+      console.warn("   Install Pi: npm install @earendil-works/pi-coding-agent@1.4.0")
       console.warn("")
       await runNativeRepl(args)
     } else {

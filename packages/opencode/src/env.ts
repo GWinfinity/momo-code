@@ -52,6 +52,9 @@ export const ENV_NAMES = {
   /** Disable CC Switch provider inheritance. */
   NO_CC_SWITCH: "MOMO_NO_CC_SWITCH",
 
+  /** Disable syncing momo provider config into Pi's auth/models/settings. */
+  PI_CONFIG_SYNC: "MOMO_PI_CONFIG_SYNC",
+
   /** OpenRouter API key. */
   OPENROUTER_API_KEY: "MOMO_OPENROUTER_API_KEY",
 
@@ -174,6 +177,39 @@ export const ENV_NAMES = {
 
   /** STT model (default: whisper-1). */
   STT_MODEL: "MOMO_STT_MODEL",
+
+  /** Hy-Memory master switch (set to '0' to disable all memory features). */
+  MEMORY: "MOMO_MEMORY",
+
+  /** Hy-Memory server URL (default: http://127.0.0.1:19527). */
+  MEMORY_SERVER_URL: "MOMO_MEMORY_SERVER_URL",
+
+  /** Hy-Memory server port (default: 19527). */
+  MEMORY_SERVER_PORT: "MOMO_MEMORY_SERVER_PORT",
+
+  /** Hy-Memory user id namespace (default: system username). */
+  MEMORY_USER_ID: "MOMO_MEMORY_USER_ID",
+
+  /** Hy-Memory agent id namespace (default: momo). */
+  MEMORY_AGENT_ID: "MOMO_MEMORY_AGENT_ID",
+
+  /** Hy-Memory session id namespace (default: generated per conversation). */
+  MEMORY_SESSION_ID: "MOMO_MEMORY_SESSION_ID",
+
+  /** Hy-Memory processing mode: lite / pro / ultra (default: pro). */
+  MEMORY_MODE: "MOMO_MEMORY_MODE",
+
+  /** Python executable for the Hy-Memory server. */
+  MEMORY_PYTHON: "MOMO_MEMORY_PYTHON",
+
+  /** Max recalled memory items per turn (default: 5). */
+  MEMORY_TOP_K: "MOMO_MEMORY_TOP_K",
+
+  /** Min recall score (default: 0.3). */
+  MEMORY_SEARCH_THRESHOLD: "MOMO_MEMORY_SEARCH_THRESHOLD",
+
+  /** Write-back throttle: flush every N turns (default: 5). */
+  MEMORY_WRITE_TURN_WINDOW: "MOMO_MEMORY_WRITE_TURN_WINDOW",
 } as const
 
 /**
