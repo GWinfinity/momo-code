@@ -3,7 +3,7 @@
  * MOMO CODE v2.0 — CLI Entry Point
  *
  * Converged entry: Pi-based REPL agent for interactive mode,
- * legacy Node.js handlers for /evolve /fine-tune subcommands.
+ * legacy Node.js handlers for built-in subcommands.
  */
 
 import { spawn } from "child_process"
@@ -13,13 +13,30 @@ import { fileURLToPath } from "url"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// ── Legacy commands (handled by existing Node.js CLI) ─────────────
+// ── Built-in commands handled by the legacy Node.js CLI ────────────
 const LEGACY_COMMANDS = new Set([
-  "/evolve", "/fine-tune", "/finetune",
-  "evolve", "fine-tune", "finetune",
-  "models", "/optim", "optim", "/serve", "serve",
-  "help", "--help", "-h",
-  "version", "--version", "-v",
+  "models",
+  "/optim",
+  "optim",
+  "/serve",
+  "serve",
+  "/evolve",
+  "/fine-tune",
+  "/finetune",
+  "evolve",
+  "fine-tune",
+  "finetune",
+  "/setup",
+  "setup",
+  "web",
+  "repl",
+  "gui-bridge",
+  "help",
+  "--help",
+  "-h",
+  "version",
+  "--version",
+  "-v",
 ])
 
 function isLegacyCommand(argv) {
@@ -126,6 +143,69 @@ function showVersion() {
   }
 }
 
+// ── ASCII Banner (MOMO CODE — ANSI Shadow) ────────────────────────
+// NOTE: Keep this in sync with src/cli/banner.ts
+const BANNER = [
+  "\x1b[95m███╗   ███╗ ██████╗ ███╗   ███╗ ██████╗    ██████╗ ██████╗ ██████╗ ███████╗\x1b[0m",
+  "\x1b[95m████╗ ████║██╔═══██╗████╗ ████║██╔═══██╗  ██╔════╝██╔═══██╗██╔══██╗██╔════╝\x1b[0m",
+  "\x1b[95m██╔████╔██║██║   ██║██╔████╔██║██║   ██║  ██║     ██║   ██║██║  ██║█████╗  \x1b[0m",
+  "\x1b[95m██║╚██╔╝██║██║   ██║██║╚██╔╝██║██║   ██║  ██║     ██║   ██║██║  ██║██╔══╝  \x1b[0m",
+  "\x1b[95m██║ ╚═╝ ██║╚██████╔╝██║ ╚═╝ ██║╚██████╔╝  ╚██████╗╚██████╔╝██████╔╝███████╗\x1b[0m",
+  "\x1b[95m╚═╝     ╚═╝ ╚═════╝ ╚═╝     ╚═╝ ╚═════╝    ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝\x1b[0m",
+].join("\n")
+
+function showHelp() {
+  console.log(BANNER)
+  console.log()
+  console.log("\x1b[36m\x1b[1m  The coding agent that evolves\x1b[0m")
+  console.log()
+  console.log(`\x1b[1mDESCRIPTION:\x1b[0m`)
+  console.log(`  momo Code is an AI coding agent that evolves with your codebase.`)
+  console.log(`  Start a chat, run the experience fast loop, or trigger self-evolution.`)
+  console.log(``)
+  console.log(`\x1b[1mUSAGE:\x1b[0m`)
+  console.log(`  momo                         Start interactive chat (REPL)`)
+  console.log(`  momo <prompt>                Single-turn coding session`)
+  console.log(`  momo web                     Open web dashboard in browser`)
+  console.log(`  momo /setup                  Interactive setup wizard (first-time config)`)
+  console.log(`  momo /evolve                 Run experience fast loop (KEP)`)
+  console.log(`  momo /fine-tune <subcommand> Run self-evolution training (MCGS)`)
+  console.log(`  momo models                  List available models & providers`)
+  console.log(`  momo help                    Show this help message`)
+  console.log(`  momo --version               Show version`)
+  console.log(``)
+  console.log(`\x1b[1mEVOLVE COMMANDS:\x1b[0m`)
+  console.log(`  /evolve                      Shortcut for the experience fast loop`)
+  console.log(`  /fine-tune run               Start the MCGS self-evolution loop`)
+  console.log(`  /fine-tune status            Check the current fine-tuning job`)
+  console.log(`  /fine-tune promote <jobId>   Promote a staged model to production`)
+  console.log(`  /fine-tune rollback          Roll back to the previous production model`)
+  console.log(`  /fine-tune eval [modelId]    Run evaluation only (no training)`)
+  console.log(``)
+  console.log(`\x1b[1mEXAMPLES:\x1b[0m`)
+  console.log(`  momo "Refactor auth to use Effect"`)
+  console.log(`  momo /evolve --mode=explore`)
+  console.log(`  momo /fine-tune run --auto`)
+  console.log(`  momo models list`)
+  console.log(``)
+  console.log(`\x1b[1mENVIRONMENT:\x1b[0m`)
+  console.log(`  MOMO_API_KEY                 Generic API key for any provider`)
+  console.log(`  MOMO_<PROVIDER>_API_KEY      Provider-specific API key (e.g. MOMO_ANTHROPIC_API_KEY)`)
+  console.log(`  MOMO_PROVIDER                Default provider (anthropic, openai, ...)`)
+  console.log(`  MOMO_MODEL                   Default model or tier (ultra/standard/lite)`)
+  console.log(`  MOMO_HOME                    momo home directory (default: ~/.momo)`)
+  console.log(`  MOMO_CONFIG                  Path to config file`)
+  console.log(`  MOMO_XP_MODE                 Evolution mode: balanced|explore|harden|convention-only`)
+  console.log(``)
+  console.log(`\x1b[1mQUICK START:\x1b[0m`)
+  console.log(`  1. Run setup wizard:  \x1b[32mmomo /setup\x1b[0m`)
+  console.log(`  2. Start chatting:    \x1b[32mmomo\x1b[0m`)
+  console.log(`  Or web dashboard:     \x1b[32mmomo web\x1b[0m`)
+  console.log(``)
+  console.log(`\x1b[37mDocs: https://momozi.cc\x1b[0m`)
+  console.log(``)
+}
+
 // ── Main ──────────────────────────────────────────────────────────
 const argv = process.argv.slice(2)
 
@@ -135,7 +215,7 @@ if (["version", "--version", "-v"].includes(argv[0])) {
 }
 
 if (["help", "--help", "-h"].includes(argv[0])) {
-  await runLegacy(argv)
+  showHelp()
   process.exit(0)
 }
 

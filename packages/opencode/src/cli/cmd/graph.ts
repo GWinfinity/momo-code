@@ -250,6 +250,10 @@ function cmdStatus(args: GraphArgs): void {
     console.log(`  ${nodeMark(n.state)} ${CYAN}${n.id}${RESET} [${n.state}]${kind}${deps}${tokensLabel(n.tokens)}`)
     if (n.output && n.output.trim()) console.log(`      ${DIM}${n.output.trim().split("\n")[0].slice(0, 120)}${RESET}`)
     if (n.error) console.log(`      ${RED}${n.error.slice(0, 160)}${RESET}`)
+    if (n.artifacts && n.artifacts.length > 0) {
+      const artStr = n.artifacts.map((a) => `${a.path} (${a.size}B)`).join(", ")
+      console.log(`      ${GREEN}artifacts:${RESET} ${artStr}`)
+    }
   }
 }
 

@@ -171,14 +171,14 @@ momo /evolve --demo               # v1.x 遗留命令（兼容）
 
 ### 环境要求
 
-* **macOS** 或 **Linux**（Windows 请用 WSL）
-* **Node.js** ≥ 20.0.0 — 从 [https://nodejs.org](https://nodejs.org) 安装
+* **macOS** 或 **Linux**（Windows 可使用 `install.ps1` 一键安装，见下文；或使用 WSL）
+* **Node.js** ≥ 22.19.0 — 从 [https://nodejs.org](https://nodejs.org) 安装
 * **git** 与 **curl**
 
   检查：
 
 ```
-node -v   # 应输出 v20.x 或更高
+node -v   # 应输出 v22.x 或更高
 npm -v
 git --version
 curl --version
@@ -200,6 +200,15 @@ momo --version    # 1.0.0
 momo --help
 ```
 若提示 `command not found: momo`，说明 PATH 未生效 — 见 [INSTALL.md](./INSTALL.md#troubleshooting)。
+
+### Windows 一键安装
+
+```powershell
+# PowerShell 中运行
+irm https://momozi.cc/install.ps1 | iex
+```
+
+安装完成后自动进入配置向导（`momo /setup`），按提示选择服务商、输入 API Key 即可。
 
 ### 源码安装（手动）
 
@@ -230,25 +239,35 @@ sed -i.bak '/# momo Code CLI/,+1d' \~/.bashrc   # bash
 
 ## Quick Start
 
-### 1. 配置 API Key
-```
-\# 通用 Key（适用于任意服务商）
-export MOMO\_API\_KEY=your-api-key
+### 1. 配置 API 密钥（推荐方式：交互式向导）
 
-\# 或指定服务商
-export MOMO\_ANTHROPIC\_API\_KEY=sk-ant-...
-export MOMO\_OPENAI\_API\_KEY=sk-...
+```bash
+momo /setup
+```
+
+按提示选择服务商（DeepSeek / OpenAI / Anthropic 等），输入 API Key，配置自动保存到 `~/.momo/momo.jsonc`。也可手动配置环境变量：
+
+```bash
+# 通用密钥（适配所有服务商）
+export MOMO_API_KEY=你的API密钥
+
+# 服务商专属密钥（优先级更高）
+export MOMO_DEEPSEEK_API_KEY=sk-...
+export MOMO_ANTHROPIC_API_KEY=sk-...
+export MOMO_OPENAI_API_KEY=sk-...
 ```
 
 ### 2. 开始编码
 
-
-```
-\# 交互式 REPL（v2.0 默认）
+```bash
+# 直接输入 momo 进入交互式对话（多轮上下文，Ctrl+C 退出）
 momo
 
-\# 单次任务
-momo "Refactor auth to use Effect"
+# 打开 Web 工作台（浏览器可视化界面，含 Chat/Graph/Sim/Optim 等面板）
+momo web
+
+# 单次执行任务（无需进入交互模式）
+momo "使用Effect重构鉴权模块"
 
 \# 使用模型档位
 momo --model ultra "Complex architecture review"

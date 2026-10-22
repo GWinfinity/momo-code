@@ -3,26 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>momo workspace</title>
+<title>momo 工作台 · momo workspace</title>
 <style>
   :root {
-    --bg:#0b0e14; --bg2:#0f1420; --panel:#111726; --panel2:#151d30;
-    --border:#1e2839; --border2:#2a3850; --fg:#dbe4f0; --dim:#7e8ba3;
-    --accent:#6ea8fe; --green:#4ade80; --red:#f87171; --yellow:#fbbf24;
-    --cyan:#22d3ee; --purple:#c084fc;
-    --radius:10px;
+    --bg:#0a1424; --bg2:#0d1a2e; --panel:#101e35; --panel2:#152640;
+    --border:#1c2f4e; --border2:#2b4269; --fg:#e7ecf5; --dim:#8aa0c4;
+    --accent:#ff7a3d; --blue:#3da9fc; --green:#43c68e; --red:#f0685e;
+    --yellow:#e8b53d; --cyan:#4dc9e8; --purple:#6b7fd7;
+    --radius:6px;
     --mono:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;
     --sans:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
   }
   * { box-sizing:border-box; }
   html,body { height:100%; }
   body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.55 var(--sans); overflow:hidden; display:flex; flex-direction:column; height:100vh; }
-  a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
-  ::-webkit-scrollbar { width:9px; height:9px; } ::-webkit-scrollbar-thumb { background:#263149; border-radius:5px; } ::-webkit-scrollbar-track { background:transparent; }
+  a { color:var(--blue); text-decoration:none; } a:hover { text-decoration:underline; }
+  ::-webkit-scrollbar { width:9px; height:9px; } ::-webkit-scrollbar-thumb { background:#22395e; border-radius:4px; } ::-webkit-scrollbar-track { background:transparent; }
 
   /* ---- header ---- */
-  header { height:48px; flex:none; display:flex; align-items:center; gap:14px; padding:0 16px; background:linear-gradient(180deg,var(--panel),var(--bg2)); border-bottom:1px solid var(--border); }
-  .logo { font-weight:700; font-size:15px; letter-spacing:.3px; background:linear-gradient(90deg,var(--accent),var(--purple)); -webkit-background-clip:text; background-clip:text; color:transparent; white-space:nowrap; }
+  header { position:relative; height:52px; flex:none; display:flex; align-items:center; gap:14px; padding:0 18px; background:linear-gradient(180deg,var(--panel),var(--bg2)); border-bottom:1px solid var(--border); }
+  header::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:linear-gradient(90deg,var(--blue),var(--accent)); opacity:.85; pointer-events:none; }
+  .logo { display:flex; align-items:center; gap:9px; white-space:nowrap; }
+  .logo .mark { width:22px; height:22px; flex:none; border-radius:4px; background:linear-gradient(135deg,var(--blue),var(--cyan)); color:#04101f; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 0 0 1px rgba(255,255,255,.1); }
+  .logo .word { font-weight:800; font-size:15px; letter-spacing:2.5px; color:var(--fg); }
+  .logo .prod { font-size:9.5px; font-weight:700; letter-spacing:2.2px; text-transform:uppercase; color:var(--dim); border-left:1px solid var(--border2); padding-left:10px; }
   .crumb { font-size:13px; color:var(--dim); } .crumb b { color:var(--fg); font-weight:600; }
   .hmeta { margin-left:auto; display:flex; align-items:center; gap:12px; font-size:12px; color:var(--dim); }
   .hlink { color:var(--dim); } .hlink:hover { color:var(--accent); text-decoration:none; }
@@ -36,9 +40,9 @@
   #rail { width:56px; flex:none; display:flex; flex-direction:column; align-items:center; gap:2px; padding:10px 0 12px; background:var(--bg2); border-right:1px solid var(--border); }
   .rail-btn { width:38px; height:38px; border:none; border-radius:9px; background:transparent; color:var(--dim); cursor:pointer; display:flex; align-items:center; justify-content:center; position:relative; transition:background .15s,color .15s; }
   .rail-btn:hover { background:var(--panel); color:var(--fg); }
-  .rail-btn.active { background:linear-gradient(135deg,rgba(110,168,254,.18),rgba(192,132,252,.14)); color:var(--accent); box-shadow:inset 0 0 0 1px var(--border2); }
+  .rail-btn.active { background:linear-gradient(135deg,rgba(61,169,252,.18),rgba(61,169,252,.04)); color:var(--blue); box-shadow:inset 0 0 0 1px rgba(61,169,252,.35), inset -3px 0 0 0 var(--accent); }
   .rail-btn svg { width:19px; height:19px; }
-  .rail-btn .bdg { position:absolute; top:3px; right:3px; min-width:14px; height:14px; padding:0 3px; border-radius:7px; background:var(--accent); color:#06121f; font-size:9px; font-weight:700; line-height:14px; text-align:center; }
+  .rail-btn .bdg { position:absolute; top:3px; right:3px; min-width:14px; height:14px; padding:0 3px; border-radius:3px; background:var(--accent); color:#1c0f06; font-size:9px; font-weight:700; line-height:14px; text-align:center; }
   .rail-btn .bdg.warn { background:var(--yellow); }
   #rail .spacer { flex:1; }
 
@@ -47,10 +51,12 @@
   .side-body { flex:1; overflow-y:auto; padding:2px 8px 12px; }
   .side-item { display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:8px; cursor:pointer; color:var(--fg); font-size:12.5px; }
   .side-item:hover { background:var(--panel); }
-  .side-item.sel { background:var(--panel2); box-shadow:inset 0 0 0 1px var(--border2); }
+  .side-item.sel { background:var(--panel2); box-shadow:inset 3px 0 0 0 var(--accent), inset 0 0 0 1px var(--border2); }
   .side-item .t { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .side-item .sub { font-size:11px; color:var(--dim); }
   .side-empty { color:var(--dim); font-size:12px; padding:10px 12px; }
+  .mini-del { border:none; background:transparent; color:var(--dim); cursor:pointer; font-size:12px; padding:2px 6px; border-radius:6px; line-height:1; }
+  .mini-del:hover { color:var(--red); background:var(--panel); }
   .side-form { padding:10px 10px 4px; display:flex; flex-direction:column; gap:8px; }
 
   #main { flex:1; min-width:0; overflow-y:auto; padding:20px 24px 60px; }
@@ -68,51 +74,61 @@
   .stat-card .stat { font-size:26px; font-weight:700; line-height:1.1; color:var(--fg); }
   .stat-card .stat-label { color:var(--dim); font-size:12px; margin-top:3px; }
   .stat-card.accent .stat { color:var(--accent); } .stat-card.green .stat { color:var(--green); } .stat-card.red .stat { color:var(--red); } .stat-card.yellow .stat { color:var(--yellow); }
+
+  /* ---- experiment monitor strip ---- */
+  .monitor-strip { display:flex; gap:0; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:14px; overflow:hidden; }
+  .monitor-strip .mon-cell { flex:1; min-width:0; padding:12px 16px; border-right:1px solid var(--border); display:flex; flex-direction:column; gap:2px; }
+  .monitor-strip .mon-cell:last-child { border-right:none; }
+  .monitor-strip .mon-label { color:var(--dim); font-size:10.5px; letter-spacing:.4px; text-transform:uppercase; }
+  .monitor-strip .mon-val { font-size:20px; font-weight:700; color:var(--fg); font-family:var(--mono); }
+  .monitor-strip .mon-sub { color:var(--dim); font-size:11px; }
+  .monitor-strip.warn .mon-cell { animation:monflash 1.6s ease; }
+  @keyframes monflash { 0% { background:rgba(232,181,61,.12); } 100% { background:transparent; } }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .kv { font-size:12px; margin:3px 0; } .kv b { color:var(--dim); font-weight:500; display:inline-block; min-width:86px; }
 
   /* ---- buttons / inputs ---- */
   button { font:inherit; }
-  .act { background:linear-gradient(135deg,var(--accent),var(--purple)); color:#08111f; border:none; padding:7px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:12.5px; }
+  .act { background:linear-gradient(180deg,#ff8a4d,var(--accent)); color:#1c0f06; border:none; padding:7px 16px; border-radius:6px; cursor:pointer; font-weight:700; font-size:12.5px; box-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 1px 2px rgba(0,0,0,.35); }
   .act:hover { filter:brightness(1.1); } .act:disabled { opacity:.55; cursor:default; }
-  .ghost { background:transparent; border:1px solid var(--border2); color:var(--fg); padding:6px 13px; border-radius:8px; cursor:pointer; font-size:12.5px; }
+  .ghost { background:transparent; border:1px solid var(--border2); color:var(--fg); padding:6px 13px; border-radius:6px; cursor:pointer; font-size:12.5px; }
   .ghost:hover { border-color:var(--accent); color:var(--accent); }
-  .danger { background:transparent; border:1px solid rgba(248,113,113,.5); color:var(--red); padding:6px 13px; border-radius:8px; cursor:pointer; font-size:12.5px; }
+  .danger { background:transparent; border:1px solid rgba(240,104,94,.5); color:var(--red); padding:6px 13px; border-radius:6px; cursor:pointer; font-size:12.5px; }
   .danger:hover { background:rgba(248,113,113,.12); }
   .iconbtn { background:transparent; border:none; color:var(--dim); cursor:pointer; border-radius:6px; padding:4px 7px; font-size:12.5px; }
   .iconbtn:hover { background:var(--panel2); color:var(--fg); }
   input,textarea,select { background:var(--bg); color:var(--fg); border:1px solid var(--border2); padding:7px 10px; border-radius:8px; font:inherit; font-size:12.5px; }
-  input:focus,textarea:focus,select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(110,168,254,.18); }
+  input:focus,textarea:focus,select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(255,122,61,.16); }
   textarea { width:100%; resize:vertical; min-height:64px; }
   input.num { width:70px; }
 
   /* ---- table ---- */
   table.tbl { width:100%; border-collapse:collapse; font-size:12.5px; }
-  .tbl th { text-align:left; color:var(--dim); font-weight:600; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .tbl th { text-align:left; color:var(--dim); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.8px; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
   .tbl td { padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
   .tbl tr:hover td { background:rgba(255,255,255,.015); }
   .tbl td.num { text-align:right; font-variant-numeric:tabular-nums; }
 
   /* ---- status chips / dots ---- */
-  .chip { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; border:1px solid var(--border2); color:var(--dim); white-space:nowrap; }
+  .chip { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:4px; font-size:11px; font-weight:600; border:1px solid var(--border2); color:var(--dim); white-space:nowrap; }
   .chip .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
   .chip.ok { color:var(--green); border-color:rgba(74,222,128,.35); } .chip.ok .dot { background:var(--green); }
   .chip.err { color:var(--red); border-color:rgba(248,113,113,.35); } .chip.err .dot { background:var(--red); }
   .chip.warn { color:var(--yellow); border-color:rgba(251,191,36,.35); } .chip.warn .dot { background:var(--yellow); }
   .chip.cyan { color:var(--cyan); border-color:rgba(34,211,238,.35); } .chip.cyan .dot { background:var(--cyan); }
-  .chip.purple { color:var(--purple); border-color:rgba(192,132,252,.35); } .chip.purple .dot { background:var(--purple); }
+  .chip.purple { color:var(--purple); border-color:rgba(107,127,215,.4); } .chip.purple .dot { background:var(--purple); }
   .chip.running { animation:pulse 1.4s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity:.55; } }
   .ok { color:var(--green); } .err { color:var(--red); } .dim { color:var(--dim); } .warn { color:var(--yellow); }
 
-  .badge { font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:20px; border:1px solid; }
+  .badge { font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:3px; border:1px solid; }
   .badge.warn { color:var(--yellow); border-color:rgba(251,191,36,.4); }
   .badge.ok { color:var(--green); border-color:rgba(74,222,128,.4); }
   .badge.err { color:var(--red); border-color:rgba(248,113,113,.4); }
   .hidden { display:none !important; }
 
-  .prog { height:5px; border-radius:3px; background:var(--bg); overflow:hidden; }
-  .prog > i { display:block; height:100%; border-radius:3px; background:linear-gradient(90deg,var(--accent),var(--purple)); transition:width .4s; }
+  .prog { height:6px; border-radius:2px; background:var(--bg); overflow:hidden; }
+  .prog > i { display:block; height:100%; border-radius:2px; background:linear-gradient(90deg,var(--blue),var(--cyan)); transition:width .4s; }
 
   /* ---- activity feed ---- */
   .activity { list-style:none; margin:0; padding:0; }
@@ -124,7 +140,7 @@
   /* ---- chat ---- */
   #chatLog { flex:1; min-height:0; overflow-y:auto; padding:4px 2px 12px; }
   .bubble { max-width:78%; padding:10px 14px; border-radius:14px; margin:6px 0; white-space:pre-wrap; word-break:break-word; font-size:13px; line-height:1.6; }
-  .bubble.user { margin-left:auto; background:linear-gradient(135deg,rgba(110,168,254,.22),rgba(192,132,252,.16)); border:1px solid var(--border2); border-bottom-right-radius:4px; }
+  .bubble.user { margin-left:auto; background:linear-gradient(135deg,rgba(61,169,252,.2),rgba(77,201,232,.1)); border:1px solid var(--border2); border-bottom-right-radius:4px; }
   .bubble.assistant { background:var(--panel); border:1px solid var(--border); border-bottom-left-radius:4px; }
   .bubble .muted { color:var(--dim); font-size:11px; margin-top:6px; }
   .bubble .caret::after { content:"▍"; color:var(--accent); animation:pulse 1s infinite; }
@@ -132,6 +148,19 @@
   .composer { flex:none; border:1px solid var(--border2); border-radius:14px; background:var(--panel); padding:10px 12px; }
   .composer textarea { border:none; background:transparent; min-height:52px; resize:none; padding:2px; box-shadow:none; }
   .composer textarea:focus { box-shadow:none; }
+
+  /* ---- graph progress & subagent monitor ---- */
+  .prog { height:8px; border-radius:4px; background:var(--panel2); overflow:hidden; margin-bottom:6px; }
+  .prog > i { display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,var(--blue),var(--accent)); transition:width .5s; }
+  .mon-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:8px; }
+  .mon-node { background:var(--bg); border:1px solid var(--border); border-left:3px solid var(--border2); border-radius:8px; padding:8px 10px; }
+  .mon-node.running { border-left-color:var(--cyan); }
+  .mon-node.done { border-left-color:var(--green); }
+  .mon-node.failed { border-left-color:var(--red); }
+  .mon-node.waiting { border-left-color:var(--yellow); }
+  .mon-node-top { display:flex; align-items:center; gap:6px; font-size:12px; }
+  .mon-node-task { font-size:11.5px; color:var(--fg); margin:4px 0; min-height:14px; }
+  .mon-node-meta { display:flex; justify-content:space-between; gap:8px; color:var(--dim); font-size:10.5px; }
 
   /* ---- dag ---- */
   .dag-wrap { overflow:auto; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); }
@@ -143,8 +172,8 @@
 
   /* ---- diff ---- */
   pre.diff { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; overflow:auto; font:12px/1.6 var(--mono); margin:0; }
-  pre.diff .add { color:#4ade80; background:rgba(74,222,128,.07); display:block; }
-  pre.diff .del { color:#f87171; background:rgba(248,113,113,.07); display:block; }
+  pre.diff .add { color:var(--green); background:rgba(67,198,142,.08); display:block; }
+  pre.diff .del { color:var(--red); background:rgba(240,104,94,.08); display:block; }
   pre.diff .hunk { color:var(--cyan); display:block; }
   pre.diff .ctx { color:var(--dim); display:block; }
 
@@ -159,6 +188,21 @@
   .frames img { width:120px; height:90px; object-fit:cover; border:1px solid var(--border); border-radius:6px; background:#000; }
   .frames figcaption { font-size:10px; color:var(--dim); margin-top:3px; }
 
+  /* ---- system resource bar ---- */
+  #sysbar { flex:none; display:flex; align-items:center; gap:18px; height:34px; padding:0 18px; background:var(--bg2); border-top:1px solid var(--border); font-size:11.5px; color:var(--dim); }
+  #sysbar .sys-cell { display:flex; align-items:center; gap:7px; white-space:nowrap; }
+  #sysbar .num { font-family:var(--mono); color:var(--fg); min-width:38px; }
+  #sysbar .meter { width:84px; height:5px; border-radius:3px; background:var(--panel2); overflow:hidden; }
+  #sysbar .meter > i { display:block; height:100%; border-radius:3px; background:var(--blue); transition:width .4s, background .4s; }
+  #sysbar .meter.ok > i { background:var(--green); }
+  #sysbar .meter.warn > i { background:var(--yellow); }
+  #sysbar .meter.hot > i { background:var(--red); }
+  #sysbar .tag { margin-left:auto; display:flex; align-items:center; gap:14px; }
+  #sysbar .dot { width:7px; height:7px; border-radius:50%; background:var(--dim); display:inline-block; }
+  #sysbar .dot.ok { background:var(--green); box-shadow:0 0 5px var(--green); }
+  #sysbar .dot.warn { background:var(--yellow); }
+  #sysbar .dot.hot { background:var(--red); box-shadow:0 0 5px var(--red); }
+
   #toast { position:fixed; top:58px; right:18px; z-index:50; display:flex; flex-direction:column; gap:8px; }
   .toast-item { background:var(--panel2); border:1px solid var(--border2); border-left:3px solid var(--accent); border-radius:8px; padding:9px 14px; font-size:12.5px; box-shadow:0 6px 24px rgba(0,0,0,.4); animation:slidein .18s ease; max-width:420px; }
   .toast-item.err { border-left-color:var(--red); }
@@ -166,12 +210,12 @@
 </style>
 </head><body>
 <header>
-  <span class="logo">◉ momo workspace</span>
+  <span class="logo"><span class="mark">M</span><span class="word">MOMO</span><span class="prod">参数工作台 · PARAMETER WORKBENCH</span></span>
   <span class="crumb" id="crumb"></span>
   <div class="hmeta">
-    <span id="mockBadge" class="badge warn hidden">no provider</span>
-    <a class="hlink" href="/workbench" target="_blank">Open sim workbench ↗</a>
-    <span id="tokenBox"><input id="tokenInput" placeholder="token" size="12"><button class="ghost" onclick="saveToken()">set</button></span>
+    <span id="mockBadge" class="badge warn hidden">无模型提供方 · no provider</span>
+    <a class="hlink" href="/workbench" target="_blank">打开仿真工作台 · Open Sim Workbench ↗</a>
+    <span id="tokenBox"><input id="tokenInput" placeholder="token" size="12"><button class="ghost" onclick="saveToken()">设置 set</button></span>
     <span id="conn"><span class="dot"></span><span id="connTxt">connecting…</span></span>
   </div>
 </header>
@@ -180,18 +224,27 @@
   <aside id="sidebar"></aside>
   <main id="main"></main>
 </div>
+<footer id="sysbar">
+  <span class="sys-cell">CPU <span class="meter ok" id="mCpu"><i style="width:0%"></i></span><b class="num" id="vCpu">—</b></span>
+  <span class="sys-cell">内存 MEM <span class="meter ok" id="mMem"><i style="width:0%"></i></span><b class="num" id="vMem">—</b></span>
+  <span class="sys-cell">磁盘 DISK <span class="meter ok" id="mDisk"><i style="width:0%"></i></span><b class="num" id="vDisk">—</b></span>
+  <span class="tag">
+    <span><span class="dot" id="dotRuns"></span> <span id="vRuns">0</span> 运行 runs</span>
+    <span class="dim" id="vUptime">—</span>
+  </span>
+</footer>
 <div id="toast"></div>
 <script>"use strict";
 // ---- views & icons -------------------------------------------------------
 const VIEWS = [
-  { id:"overview", label:"Overview", icon:"grid" },
-  { id:"chat",     label:"Chat",     icon:"chat" },
-  { id:"sessions", label:"Sessions", icon:"clock" },
-  { id:"graph",    label:"Graph",    icon:"nodes" },
-  { id:"sim",      label:"Sim",      icon:"cube" },
-  { id:"optim",    label:"Optim",    icon:"chart" },
-  { id:"schedule", label:"Schedule", icon:"calendar" },
-  { id:"git",      label:"Git",      icon:"git" },
+  { id:"overview", label:"总览 Overview", icon:"grid" },
+  { id:"chat",     label:"对话 Chat",     icon:"chat" },
+  { id:"sessions", label:"会话 Sessions", icon:"clock" },
+  { id:"graph",    label:"图执行 Graph",    icon:"nodes" },
+  { id:"sim",      label:"仿真 Sim",      icon:"cube" },
+  { id:"optim",    label:"优化 Optim",    icon:"chart" },
+  { id:"schedule", label:"计划 Schedule", icon:"calendar" },
+  { id:"git",      label:"版本库 Git",      icon:"git" },
 ];
 const ICON = {
   grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
@@ -216,11 +269,15 @@ const state = {
   graphRunUpdatedAt: null,
   study: null,
   snapshot: null,
-  chat: JSON.parse(localStorage.getItem("momo_chat_thread") || "[]"),
+  chat: [],
+  chatId: null,
+  chats: [],
   chatBusy: false,
   activity: [],
   git: null,
   sessionsFull: null,
+  monitorPrev: null,
+  throughput: 0,
 };
 let streamEs = null;
 
@@ -251,6 +308,8 @@ function timeAgo(iso) {
   return Math.floor(ms / 86400000) + "d";
 }
 function fmtTime(iso) { try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } }
+function fmtTok(n) { n = Number(n) || 0; if (n >= 1e6) return (n / 1e6).toFixed(1) + "M"; if (n >= 1e3) return (n / 1e3).toFixed(1) + "k"; return String(Math.round(n)); }
+function fmtMs(ms) { ms = Number(ms) || 0; if (ms >= 60_000) return (ms / 60_000).toFixed(1) + "m"; if (ms >= 1000) return (ms / 1000).toFixed(1) + "s"; return Math.round(ms) + "ms"; }
 function toast(msg, isErr) {
   const box = document.getElementById("toast");
   const el = document.createElement("div");
@@ -351,6 +410,13 @@ function connectStream() {
 function handleSnapshot(s) {
   const prev = state.snapshot;
   state.snapshot = s;
+  // live token throughput (delta since the last 2s tick)
+  if (s.monitor && state.monitorPrev) {
+    const dt = (Date.now() - state.monitorPrev.t) / 1000;
+    const dTok = (s.monitor.tokens.total || 0) - state.monitorPrev.tokens;
+    state.throughput = dt > 0 ? Math.max(0, Math.round(dTok / dt)) : 0;
+  }
+  state.monitorPrev = s.monitor ? { t: Date.now(), tokens: s.monitor.tokens.total || 0 } : null;
   setBadge("graph", s.graph?.active || 0, (s.graph?.active || 0) > 0);
   setBadge("optim", s.studies?.running || 0, (s.studies?.running || 0) > 0);
   setBadge("sessions", s.sessions?.items?.length || 0, false);
@@ -378,34 +444,41 @@ function runsListHtml(limit) {
 }
 function sideOverview(el) {
   el.innerHTML = `
-    <div class="side-head">Quick start</div>
+    <div class="side-head">快速开始 Quick start</div>
     <div class="side-body">
       <button class="act" style="width:100%;margin-bottom:8px" onclick="showView('graph')">New graph run</button>
       <button class="ghost" style="width:100%" onclick="showView('chat')">Open chat</button>
     </div>
-    <div class="side-head">Graph runs</div>
+    <div class="side-head">图执行记录 Graph runs</div>
     <div class="side-body">${runsListHtml(8)}</div>
-    <div class="side-head">Recent sessions</div>
+    <div class="side-head">最近会话 Recent sessions</div>
     <div class="side-body">${(state.snapshot?.sessions?.items || []).slice(0, 6).map(s => `<div class="side-item" onclick="showView('sessions')"><span class="t">${esc(clip(s.prompt, 24))}<br><span class="sub">${esc(s.provider)} · ${s.exitCode === 0 ? "✓" : "✗"}</span></span></div>`).join("") || `<div class="side-empty">no sessions</div>`}</div>`;
 }
 function sideChat(el) {
-  el.innerHTML = `
-    <div class="side-head">Chat</div>
-    <div class="side-body">
-      <button class="ghost" style="width:100%" onclick="newChat()">＋ new chat</button>
-    </div>`;
+  const list = state.chats || [];
+  const rows = list.map(function (c) {
+    const active = c.id === state.chatId ? " sel" : "";
+    const n = Array.isArray(c.messages) ? c.messages.length : 0;
+    return "<div class=\"side-item" + active + "\" onclick=\"selectChat('" + c.id + "')\" style=\"justify-content:space-between\">" +
+      "<span class=\"t\">" + esc(c.title || "conversation") + "<br><span class=\"sub\">" + n + " msgs · " + timeAgo(c.ts) + "</span></span>" +
+      "<button class=\"mini-del\" title=\"删除 delete\" onclick=\"event.stopPropagation();deleteChat('" + c.id + "')\">✕</button></div>";
+  }).join("");
+  el.innerHTML =
+    "<div class=\"side-head\">对话 Chat</div>" +
+    "<div class=\"side-body\"><button class=\"ghost\" style=\"width:100%\" onclick=\"newChat()\">＋ new chat</button></div>" +
+    (list.length ? "<div class=\"side-head\">历史 History · " + list.length + "</div><div class=\"side-body\">" + rows + "</div>" : "<div class=\"side-body\"><div class=\"side-empty\">no conversations yet</div></div>");
 }
 function sideSessions(el) {
   const items = state.sessionsFull || state.snapshot?.sessions?.items || [];
   const ok = items.filter(s => s.exitCode === 0).length;
   el.innerHTML = `
-    <div class="side-head">Filters</div>
+    <div class="side-head">筛选 Filters</div>
     <div class="side-body"><div class="row" style="gap:6px">
       <button class="ghost" onclick="setSessFilter('all')">all ${items.length}</button>
       <button class="ghost" onclick="setSessFilter('ok')">✓ ${ok}</button>
       <button class="ghost" onclick="setSessFilter('fail')">✗ ${items.length - ok}</button>
     </div></div>
-    <div class="side-head">Info</div>
+    <div class="side-head">信息 Info</div>
     <div class="side-body"><div class="side-item" style="cursor:default"><span class="t"><span class="sub">Sessions are recorded automatically by the agent loop (trajectory recorder).</span></span></div></div>`;
 }
 function sideGraph(el) {
@@ -416,7 +489,7 @@ function sideGraph(el) {
       <div class="row"><input id="graphMaxNodes" class="num" type="number" value="12" min="1" max="50" title="max nodes">
         <button class="act" style="flex:1" onclick="startGraph()">run</button></div>
     </div>
-    <div class="side-head">Runs <span class="dim" style="text-transform:none">${runs.length}</span></div>
+    <div class="side-head">运行 Runs <span class="dim" style="text-transform:none">${runs.length}</span></div>
     <div class="side-body">
       ${runs.length ? runs.map(r => `<div class="side-item ${r.id === state.graphRunId ? "sel" : ""}" onclick="selectGraphRun('${esc(r.id)}')">
         <span class="t"><span style="display:block">${esc(clip(r.task, 22))}</span><span class="sub">${r.done}/${r.total} nodes · ${timeAgo(r.updatedAt)}</span></span>
@@ -427,7 +500,7 @@ function sideGraph(el) {
 function sideOptim(el) {
   const studies = state.snapshot?.studies?.items || [];
   el.innerHTML = `
-    <div class="side-head">Studies</div>
+    <div class="side-head">优化研究 Studies</div>
     <div class="side-body">${studies.length ? studies.map(s => `<div class="side-item ${state.study === s.name ? "sel" : ""}" onclick="openStudy('${esc(s.name)}')">
       <span class="t">${esc(s.name)}<br><span class="sub">${s.completed}/${s.trials} trials${s.best ? " · best " + esc(s.best.value) : ""}</span></span>
       ${s.running ? `<span class="chip cyan running"><span class="dot"></span>run</span>` : `<span class="chip">${s.trials}</span>`}</div>`).join("") : `<div class="side-empty">no studies — try /optim init</div>`}</div>`;
@@ -436,26 +509,26 @@ function sideSched(el) {
   const g = state.snapshot?.goals?.active;
   const sc = state.snapshot?.schedule?.enabled;
   el.innerHTML = `
-    <div class="side-head">Goals</div>
+    <div class="side-head">目标 Goals</div>
     <div class="side-body"><div class="kv"><b>active</b><span>${g ?? "…"}</span></div></div>
-    <div class="side-head">Schedule</div>
+    <div class="side-head">计划 Schedule</div>
     <div class="side-body"><div class="kv"><b>enabled</b><span>${sc ?? "…"}</span></div></div>
-    <div class="side-head">Info</div>
+    <div class="side-head">信息 Info</div>
     <div class="side-body"><div class="side-item" style="cursor:default"><span class="t"><span class="sub">Recurring tasks run via /schedule + /daemon on a heartbeat.</span></span></div></div>`;
 }
 function sideGit(el) {
   const g = state.git;
-  if (!g) { el.innerHTML = `<div class="side-head">Repository</div><div class="side-body"><div class="side-empty">loading…</div></div>`; return; }
-  if (g.error) { el.innerHTML = `<div class="side-head">Repository</div><div class="side-body"><div class="side-empty err">${esc(g.error)}</div></div>`; return; }
+  if (!g) { el.innerHTML = `<div class="side-head">仓库 Repository</div><div class="side-body"><div class="side-empty">loading…</div></div>`; return; }
+  if (g.error) { el.innerHTML = `<div class="side-head">仓库 Repository</div><div class="side-body"><div class="side-empty err">${esc(g.error)}</div></div>`; return; }
   const files = g.changes || [];
   el.innerHTML = `
-    <div class="side-head">Repository</div>
+    <div class="side-head">仓库 Repository</div>
     <div class="side-body">
       <div class="kv"><b>branch</b>${esc(g.branch)} ${(g.ahead || g.behind) ? `<span class="dim">↕ ${g.ahead}/${g.behind}</span>` : ""}</div>
       <div class="kv"><b>changes</b>${files.length} files</div>
       <button class="ghost" style="width:100%;margin-top:6px" onclick="loadGit()">refresh</button>
     </div>
-    <div class="side-head">Commits</div>
+    <div class="side-head">提交 Commits</div>
     <div class="side-body">${(g.commits || []).slice(0, 6).map(c => `<div class="side-item" style="cursor:default"><span class="t"><span style="color:var(--cyan)">${esc(c.hash)}</span> ${esc(clip(c.subject, 20))}<br><span class="sub">${esc(c.date)}</span></span></div>`).join("") || `<div class="side-empty">no commits</div>`}</div>`;
 }
 const SIDES = { overview: sideOverview, chat: sideChat, sessions: sideSessions, graph: sideGraph, optim: sideOptim, schedule: sideSched, git: sideGit };
@@ -468,6 +541,7 @@ function renderSidebar() {
 // ---- overview ------------------------------------------------------------
 function renderOverview() {
   const s = state.snapshot;
+  const mon = s?.monitor;
   const runs = s?.graph?.runs || [];
   const active = s?.graph?.active || 0;
   const nodeProg = s?.graph?.nodeProgress || [];
@@ -477,7 +551,8 @@ function renderOverview() {
   const studies = s?.studies?.items || [];
   const main = document.getElementById("main");
   main.innerHTML = `
-    <div class="view-title"><h1>Overview</h1><span class="sub">live workspace — everything refreshes automatically</span></div>
+    <div class="view-title"><h1>总览 Overview</h1><span class="sub">live workspace — everything refreshes automatically</span></div>
+    <div class="monitor-strip">      <div class="mon-cell"><span class="mon-label">tokens · 实验 token</span><span class="mon-val">${mon ? fmtTok(mon.tokens.total) : "—"}</span><span class="mon-sub">${state.throughput ? state.throughput + " tok/s · 实时吞吐" : "—"}</span></div>      <div class="mon-cell"><span class="mon-label">active runs · 运行中</span><span class="mon-val">${mon ? mon.runs.active : "—"}</span><span class="mon-sub">graph + optim</span></div>      <div class="mon-cell"><span class="mon-label">agent nodes</span><span class="mon-val">${mon ? mon.runs.done + "/" + mon.runs.nodes : "—"}</span><span class="mon-sub">${mon && mon.runs.failed ? mon.runs.failed + " failed" : "sub-agent 进度"}</span></div>      <div class="mon-cell"><span class="mon-label">avg session · 平均耗时</span><span class="mon-val">${mon ? fmtMs(mon.sessions.avgMs) : "—"}</span><span class="mon-sub">${mon ? mon.sessions.recent + " recent · 最近会话" : ""}</span></div>      <div class="mon-cell"><span class="mon-label">est cost · 成本估算</span><span class="mon-val">${mon ? "$" + mon.estCost.toFixed(3) : "—"}</span><span class="mon-sub">blended rate</span></div>    </div>
     <div class="grid">
       <div class="stat-card accent"><div class="stat">${active}</div><div class="stat-label">active graph runs</div></div>
       <div class="stat-card green"><div class="stat">${doneNodes}<span class="dim" style="font-size:14px">/${totalNodes}</span></div><div class="stat-label">agent nodes working</div></div>
@@ -504,7 +579,7 @@ function renderChat() {
   const main = document.getElementById("main");
   main.innerHTML = `<div id="chatWrap">
     <div class="row" style="flex:none;justify-content:space-between;margin-bottom:8px">
-      <span class="dim" id="chatMeta">conversation · ${state.chat.length} messages</span>
+      <span class="dim" id="chatMeta">${esc(currentChatTitle())} · ${state.chat.length} messages</span>
       <button class="ghost" onclick="newChat()">new chat</button>
     </div>
     <div id="chatLog"></div>
@@ -530,7 +605,100 @@ function renderChat() {
   inp.addEventListener("keydown", e => { if (e.key !== "Enter" || e.shiftKey || e.isComposing) return; e.preventDefault(); sendChat(); });
   inp.focus();
 }
-function newChat() { state.chat = []; localStorage.removeItem("momo_chat_thread"); if (state.view === "chat") renderChat(); }
+// ---- chat sessions (multi-conversation history) --------------------------
+const CHAT_STORE_KEY = "momo_chats_v1";
+function nextChatId() { return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function firstUserText(msgs) {
+  for (const m of msgs || []) {
+    if (m && m.role === "user" && m.text) return String(m.text).split("\n")[0].trim().slice(0, 28);
+  }
+  return "";
+}
+function currentChat() {
+  return (state.chats || []).find(c => c.id === state.chatId) || null;
+}
+function currentChatTitle() {
+  const cur = currentChat();
+  return cur && cur.title ? cur.title : "conversation";
+}
+function loadChats() {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(CHAT_STORE_KEY) || "[]"); } catch { list = []; }
+  const legacy = JSON.parse(localStorage.getItem("momo_chat_thread") || "[]");
+  if (Array.isArray(legacy) && legacy.length && !list.some(c => Array.isArray(c.messages) && c.messages.length)) {
+    list.push({ id: nextChatId(), title: firstUserText(legacy) || "conversation", ts: (legacy[0] && legacy[0].ts) || new Date().toISOString(), messages: legacy.slice(0, 60) });
+    localStorage.removeItem("momo_chat_thread");
+  }
+  return Array.isArray(list) ? list.filter(c => c && Array.isArray(c.messages)) : [];
+}
+function saveChats() {
+  try {
+    const cur = currentChat();
+    if (cur) {
+      cur.messages = state.chat.slice(0, 60);
+      cur.title = cur.title || firstUserText(state.chat) || "conversation";
+      cur.ts = new Date().toISOString();
+    }
+    while (state.chats.length > 50) state.chats.shift();
+    localStorage.setItem(CHAT_STORE_KEY, JSON.stringify(state.chats));
+  } catch { }
+}
+function ensureCurrentSaved() {
+  if (!state.chat.length) return;
+  let cur = currentChat();
+  if (!cur) {
+    cur = { id: state.chatId, title: firstUserText(state.chat) || "conversation", ts: new Date().toISOString(), messages: [] };
+    state.chats.unshift(cur);
+  }
+  cur.messages = state.chat.slice(0, 60);
+  cur.title = cur.title || firstUserText(state.chat) || "conversation";
+  cur.ts = new Date().toISOString();
+  saveChats();
+}
+function touchChatTitle() {
+  if (!state.chat.length) return;
+  let cur = currentChat();
+  if (!cur) {
+    state.chats.unshift({ id: state.chatId, title: firstUserText(state.chat) || "conversation", ts: new Date().toISOString(), messages: state.chat.slice(0, 60) });
+  } else {
+    cur.title = cur.title || firstUserText(state.chat) || "conversation";
+    saveChats();
+  }
+}
+function newChat() {
+  if (state.chatBusy) return;
+  ensureCurrentSaved();
+  state.chatId = nextChatId();
+  state.chat = [];
+  if (state.view === "chat") renderChat();
+  renderSidebar();
+}
+function selectChat(id) {
+  if (state.chatBusy) return;
+  if (id === state.chatId) { if (state.view !== "chat") showView("chat"); return; }
+  ensureCurrentSaved();
+  const c = state.chats.find(x => x.id === id);
+  if (!c) return;
+  state.chatId = id;
+  state.chat = Array.isArray(c.messages) ? c.messages : [];
+  if (state.view !== "chat") showView("chat"); else renderChat();
+  renderSidebar();
+}
+function deleteChat(id) {
+  if (state.chatBusy) return;
+  if (!confirm("删除这段对话？Delete this conversation?")) return;
+  state.chats = (state.chats || []).filter(c => c.id !== id);
+  if (state.chatId === id) {
+    state.chatId = state.chats.length ? state.chats[0].id : nextChatId();
+    const n = currentChat();
+    state.chat = n ? n.messages : [];
+    saveChats();
+    if (state.view === "chat") renderChat();
+  } else {
+    saveChats();
+  }
+  renderSidebar();
+}
 function appendBubble(role, text) {
   const log = document.getElementById("chatLog");
   const div = document.createElement("div");
@@ -548,6 +716,7 @@ async function sendChat() {
   if (!prompt) return;
   input.value = "";
   state.chat.push({ role: "user", text: prompt, ts: new Date().toISOString() });
+  touchChatTitle();
   appendBubble("user", prompt);
   const bubble = appendBubble("assistant", "");
   bubble.classList.add("streaming");
@@ -563,7 +732,7 @@ async function sendChat() {
     const r = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ prompt, stream: true }),
+      body: JSON.stringify({ prompt, messages: state.chat.map(m => ({ role: m.role, content: m.text })).slice(-30), stream: true }),
     });
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
@@ -601,7 +770,7 @@ async function sendChat() {
     bubble.classList.remove("streaming");
     bubble.textContent = full || "(empty reply)";
     state.chat.push({ role: "assistant", text: full, ts: new Date().toISOString() });
-    localStorage.setItem("momo_chat_thread", JSON.stringify(state.chat.slice(-40)));
+    saveChats();
     status.textContent = state.chat.length + " messages";
   } catch (e) {
     bubble.classList.remove("streaming");
@@ -646,7 +815,7 @@ async function renderSessions(useCache) {
   const list = items.filter(s => f === "all" || (f === "ok" ? s.exitCode === 0 : s.exitCode !== 0));
   const ok = items.filter(s => s.exitCode === 0).length;
   const main = document.getElementById("main");
-  main.innerHTML = `<div class="view-title"><h1>Sessions</h1><span class="sub">${items.length} recent · ${ok} ok · ${items.length - ok} failed</span></div>` +
+  main.innerHTML = `<div class="view-title"><h1>会话 Sessions</h1><span class="sub">${items.length} recent · ${ok} ok · ${items.length - ok} failed</span></div>` +
     (list.length ? `<div class="card"><table class="tbl"><tr><th></th><th>provider / model</th><th>prompt</th><th>when</th><th>duration</th></tr>` +
       list.map(s => `<tr><td class="${s.exitCode === 0 ? "ok" : "err"}">${s.exitCode === 0 ? "✓" : "✗"}</td>
         <td><b>${esc(s.provider)}</b> <span class="dim">${esc(s.model)}</span></td>
@@ -679,11 +848,11 @@ function selectGraphRun(id) {
 function renderGraph() {
   const main = document.getElementById("main");
   if (!state.graphRunId) {
-    main.innerHTML = `<div class="view-title"><h1>Graph</h1><span class="sub">multi-agent long-horizon runs — each node is an independent sub-agent</span></div>
+    main.innerHTML = `<div class="view-title"><h1>图执行 Graph</h1><span class="sub">multi-agent long-horizon runs — each node is an independent sub-agent</span></div>
       <div class="empty">select a run from the sidebar, or start a new one from the form on the left</div>`;
     return;
   }
-  main.innerHTML = `<div class="view-title"><h1>Graph run</h1><span class="sub" id="graphRunMeta">loading…</span></div>
+  main.innerHTML = `<div class="view-title"><h1>图执行 · Graph run</h1><span class="sub" id="graphRunMeta">loading…</span></div>
     <div id="graphDetail"><div class="empty">loading…</div></div>`;
   loadGraphDetail();
 }
@@ -695,7 +864,10 @@ async function loadGraphDetail() {
     const run = await api("/api/graph/runs/" + encodeURIComponent(state.graphRunId));
     state.graphRunUpdatedAt = run.updatedAt;
     const meta = document.getElementById("graphRunMeta");
-    if (meta) meta.innerHTML = statusChip(run.status) + ` · ${run.nodes.length} nodes · ${run.tokens && run.tokens.total ? run.tokens.total + " tokens · " : ""}updated ${timeAgo(run.updatedAt)}`;
+    const doneN = run.nodes.filter(n => n.state === "done").length;
+    const waitingN = run.nodes.filter(n => n.state === "waiting").length;
+    const runEl = run.createdAt ? Math.max(0, Math.round((Date.now() - new Date(run.createdAt).getTime()) / 1000)) : 0;
+    if (meta) meta.innerHTML = statusChip(run.status) + ` · ${doneN}/${run.nodes.length} nodes · ${run.tokens && run.tokens.total ? fmtTok(run.tokens.total) + " tokens · " : ""}${run.executions ? run.executions + " exec · " : ""}${waitingN ? waitingN + " waiting · " : ""}${runEl ? fmtMs(runEl * 1000) + " · " : ""}updated ${timeAgo(run.updatedAt)}`;
     holder.innerHTML = `
       <div class="row" style="margin-bottom:10px">
         <button class="ghost" onclick="state.graphRunId=null;renderGraph()">← back to list</button>
@@ -703,12 +875,23 @@ async function loadGraphDetail() {
         ${run.status === "waiting" ? `<button class="act" onclick="decideGraphRun('${esc(run.id)}','approve')">approve</button>
         <button class="ghost" onclick="decideGraphRun('${esc(run.id)}','reject')">reject</button>` : ""}
       </div>
+      <div class="card"><h3>进度 Progress</h3><div class="prog"><i style="width:${run.nodes.length ? Math.round(doneN / run.nodes.length * 100) : 0}%"></i></div>
+        <div class="row" style="justify-content:space-between"><span class="dim">${doneN}/${run.nodes.length} done · ${waitingN ? waitingN + " waiting" : ""}</span><span class="dim">${run.executions || 0} executions · ${fmtTok(run.tokens?.total || 0)} tokens</span></div></div>
+      <div class="card"><h3>子代理监视 · Subagent monitor</h3><div class="mon-grid">` +
+      run.nodes.map(n => {
+        const dur = n.startedAt ? fmtMs(Date.now() - new Date(n.startedAt).getTime()) : "—";
+        const endDur = n.finishedAt && n.startedAt ? fmtMs(new Date(n.finishedAt).getTime() - new Date(n.startedAt).getTime()) : "";
+        const attempts = n.attempts || 1;
+        return `<div class="mon-node ${n.state}"><div class="mon-node-top">${statusChip(n.state)}<b>${esc(n.id)}</b><span class="dim">${esc(n.kind || "agent")}</span></div>` +
+          `<div class="mon-node-task">${esc(clip(n.task, 46))}</div>` +
+          `<div class="mon-node-meta"><span>${n.state === "running" ? dur + " · 运行中" : endDur || dur}</span><span>${attempts}×${n.retries ? " r" + n.retries : ""}</span>${n.tokens?.total ? `<span>${fmtTok(n.tokens.total)} tok</span>` : ""}</div></div>`;
+      }).join("") + `</div></div>
       <div class="card"><div class="dim" style="margin-bottom:10px">${esc(run.task)}</div>
         <div class="dag-wrap">${dagSvg(run)}</div></div>
-      <div class="card"><h3>Nodes</h3><table class="tbl"><tr><th>id</th><th>kind</th><th>state</th><th>after</th><th>task</th><th>result</th></tr>` +
-      run.nodes.map(n => { const res = n.error ? `<span class="err">✗ ${esc(clip(cleanNodeText(n.error), 140))}</span>` : (n.output ? `<span class="dim">${esc(clip(cleanNodeText(n.output), 140))}</span>` : `<span class="dim">—</span>`); const tok = n.tokens && n.tokens.total ? ` · <span class="dim">${n.tokens.total} tok</span>` : ""; return `<tr><td><b>${esc(n.id)}</b></td><td>${esc(n.kind || "agent")}</td>
-        <td>${statusChip(n.state)}</td><td class="dim">${esc((n.dependsOn || []).join(", ") || "—")}</td>
-        <td>${esc(clip(n.task, 90))}</td><td>${res}${tok}</td></tr>`; }).join("") + `</table>
+      <div class="card"><h3>Nodes</h3><table class="tbl"><tr><th>id</th><th>kind</th><th>state</th><th>耗时</th><th>attempts</th><th>task</th><th>result</th></tr>` +
+      run.nodes.map(n => { const res = n.error ? `<span class="err">✗ ${esc(clip(cleanNodeText(n.error), 140))}</span>` : (n.output ? `<span class="dim">${esc(clip(cleanNodeText(n.output), 140))}</span>` : `<span class="dim">—</span>`); const tok = n.tokens && n.tokens.total ? ` · <span class="dim">${fmtTok(n.tokens.total)} tok</span>` : ""; const dur = n.finishedAt && n.startedAt ? fmtMs(new Date(n.finishedAt).getTime() - new Date(n.startedAt).getTime()) : (n.startedAt ? fmtMs(Date.now() - new Date(n.startedAt).getTime()) : "—"); const attempts = `${n.attempts || 1}${n.retries ? " (r" + n.retries + ")" : ""}`; return `<tr><td><b>${esc(n.id)}</b></td><td>${esc(n.kind || "agent")}</td>
+        <td>${statusChip(n.state)}</td><td class="dim">${dur}</td><td class="dim">${attempts}</td><td class="dim">${esc((n.dependsOn || []).join(", ") || "—")}</td>
+        <td>${esc(clip(n.task, 80))}</td><td>${res}${tok}</td></tr>`; }).join("") + `</table>
       ${run.nodes.map(n => {
         const body = n.output ? `<pre>${esc(cleanNodeText(n.output))}</pre>` : "";
         const err = n.error ? `<pre class="err">✗ ${esc(cleanNodeText(n.error))}</pre>` : "";
@@ -759,8 +942,8 @@ function dagSvg(run) {
   const h = Math.max(...layers.map(l => l.length), 1) * H + PAD * 2;
   const pos = {};
   layers.forEach((ids, li) => ids.forEach((id, ri) => { pos[id] = { x: PAD + li * W, y: PAD + ri * H }; }));
-  const fill = { pending: "#161d2e", running: "#123047", done: "#0f2b1c", failed: "#301818", skipped: "#2e2412", waiting: "#332a10" };
-  const stroke = { pending: "#2a3850", running: "#22d3ee", done: "#2e8b57", failed: "#c1443f", skipped: "#a8842c", waiting: "#eab308" };
+  const fill = { pending: "#0f1c30", running: "#0e2c42", done: "#0f2b1c", failed: "#301818", skipped: "#2e2412", waiting: "#332a10" };
+  const stroke = { pending: "#2b4269", running: "#4dc9e8", done: "#2e8b57", failed: "#c1443f", skipped: "#a8842c", waiting: "#eab308" };
   let edges = "";
   for (const n of run.nodes) for (const d of (n.dependsOn || [])) {
     const p = pos[d], q = pos[n.id];
@@ -771,11 +954,18 @@ function dagSvg(run) {
   }
   const nodes = run.nodes.map(n => {
     const p = pos[n.id];
+    const icon = n.kind === "approval" ? "⏸ " : n.kind === "sim" ? "⚙ " : "▶ ";
+    const badge = n.attempts && n.attempts > 1
+      ? `<text class="dag-label" x="${p.x + 168}" y="${p.y + 10}" text-anchor="end" style="fill:var(--yellow);font-size:8.5px">${n.attempts}×</text>`
+      : (n.tokens?.total ? `<text class="dag-label" x="${p.x + 168}" y="${p.y + 10}" text-anchor="end" style="fill:var(--dim);font-size:8.5px">${fmtTok(n.tokens.total)}</text>` : "");
+    const live = n.state === "running" && n.startedAt
+      ? `<text class="dag-label" x="${p.x + 168}" y="${p.y + 32}" text-anchor="end" style="fill:var(--cyan);font-size:8.5px">${fmtMs(Date.now() - new Date(n.startedAt).getTime())}</text>`
+      : "";
     return `<g><rect x="${p.x}" y="${p.y}" width="176" height="40" rx="9" stroke-width="1.4"
       fill="${fill[n.state] || "#161d2e"}" stroke="${stroke[n.state] || "#2a3850"}"
       ${n.state === "running" ? 'style="stroke-dasharray:5 3;animation:pulse 1.2s infinite"' : ""}/>
-      <text class="dag-label" x="${p.x + 10}" y="${p.y + 17}">${n.kind === "approval" ? "⏸ " : ""}${esc(n.id)}</text>
-      <text class="dag-label" x="${p.x + 10}" y="${p.y + 31}" style="fill:var(--dim);font-weight:400;font-size:9.5px">${esc(clip(n.task, 24))}</text></g>`;
+      <text class="dag-label" x="${p.x + 10}" y="${p.y + 17}">${icon}${esc(n.id)}</text>
+      <text class="dag-label" x="${p.x + 10}" y="${p.y + 31}" style="fill:var(--dim);font-weight:400;font-size:9.5px">${esc(clip(n.task, 22))}</text>${badge}${live}</g>`;
   }).join("");
   return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:${w}px">${edges}${nodes}</svg>`;
 }
@@ -794,7 +984,7 @@ function openStudy(name) { state.study = name; renderSidebar(); renderOptim(); }
 async function renderOptim() {
   const main = document.getElementById("main");
   if (!state.study) {
-    main.innerHTML = `<div class="view-title"><h1>Optim</h1><span class="sub">reasoning-driven parameter optimization</span></div>
+    main.innerHTML = `<div class="view-title"><h1>优化 Optim</h1><span class="sub">reasoning-driven parameter optimization</span></div>
       <div class="empty">select a study from the sidebar</div>`;
     return;
   }
@@ -840,7 +1030,7 @@ function appendTrialRow(t, live) {
   const table = document.getElementById("trialTable");
   if (!table) return;
   const tr = document.createElement("tr");
-  if (live) tr.style.background = "rgba(110,168,254,.06)";
+  if (live) tr.style.background = "rgba(61,169,252,.08)";
   const mark = t.state === "complete" ? `<span class="ok">✓</span>` : `<span class="err">✗</span>`;
   const val = t.value !== undefined && t.value !== null ? String(t.value) : "—";
   tr.innerHTML = `<td class="num">${t.number}</td><td>${mark} ${esc(t.state)}</td><td class="num">${esc(val)}</td>
@@ -856,12 +1046,12 @@ function drawChart(trials, direction) {
   if (!vals.length) return;
   const W = canvas.width, H = canvas.height, P = 14;
   ctx.clearRect(0, 0, W, H);
-  ctx.strokeStyle = "#1e2839";
+  ctx.strokeStyle = "#1c2f4e";
   ctx.beginPath(); ctx.moveTo(P, H - P); ctx.lineTo(W - P, H - P); ctx.stroke();
   const min = Math.min(...vals), max = Math.max(...vals);
   const rng = max - min || 1;
   const best = direction === "min" ? Math.min : Math.max;
-  ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "#4dc9e8"; ctx.lineWidth = 1.5;
   ctx.beginPath();
   let bestV = vals[0];
   vals.forEach((v, i) => {
@@ -869,7 +1059,7 @@ function drawChart(trials, direction) {
     const y = H - P - ((v - min) / rng) * (H - 2 * P);
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     bestV = best(bestV, v);
-    ctx.fillStyle = v === bestV ? "#4ade80" : "#6ea8fe";
+    ctx.fillStyle = v === bestV ? "#43c68e" : "#3da9fc";
     ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI * 2); ctx.fill();
   });
   ctx.stroke();
@@ -890,7 +1080,7 @@ async function startRun() {
 // ---- schedule & goals ----------------------------------------------------
 async function renderSched() {
   const main = document.getElementById("main");
-  main.innerHTML = `<div class="view-title"><h1>Schedule & Goals</h1><span class="sub">timed tasks + persistent goals</span></div>
+  main.innerHTML = `<div class="view-title"><h1>计划与目标 Schedule & Goals</h1><span class="sub">timed tasks + persistent goals</span></div>
     <div id="schedBody"><div class="empty">loading…</div></div>`;
   try {
     const [goals, sched] = await Promise.all([api("/api/goals"), api("/api/schedule")]);
@@ -919,7 +1109,7 @@ async function renderGit() {
   const g = state.git;
   const main = document.getElementById("main");
   if (g.error) {
-    main.innerHTML = `<div class="view-title"><h1>Git</h1></div><div class="empty err">${esc(g.error)}</div>`;
+    main.innerHTML = `<div class="view-title"><h1>版本库 Git</h1></div><div class="empty err">${esc(g.error)}</div>`;
     return;
   }
   const files = g.changes || [];
@@ -931,7 +1121,7 @@ async function renderGit() {
       <span><span class="${f.staged ? "ok" : f.worktree === "?" ? "warn" : "dim"}">${esc(f.index + f.worktree)}</span>
       <span style="font-family:var(--mono);font-size:12px">${esc(f.path)}</span></span>
       <span class="dim" style="font-size:11px">${f.staged ? "staged" : f.worktree === "?" ? "untracked" : "modified"}</span></div>`).join("") + `</div>` : "";
-  main.innerHTML = `<div class="view-title"><h1>Git</h1>
+  main.innerHTML = `<div class="view-title"><h1>版本库 Git</h1>
       <span class="sub">${esc(g.branch)}${g.upstream ? " → " + esc(g.upstream) : ""}${(g.ahead || g.behind) ? ` · ahead ${g.ahead} behind ${g.behind}` : ""}</span>
       <button class="ghost" style="margin-left:auto" onclick="loadGit()">refresh</button></div>
     ${group("Staged", staged)}${group("Modified", unstaged)}${group("Untracked", untracked)}
@@ -961,7 +1151,53 @@ function diffHtml(diff) {
 
 // ---- boot ----------------------------------------------------------------
 let connOk = false;
+// ---- system resource monitor (polled) ----
+const SYS_WARN = { cpu: 80, mem: 85, disk: 90 };
+let sysWarned = {};
+function meterClass(v, warnKey) {
+  const lim = SYS_WARN[warnKey];
+  return v >= lim ? "hot" : v >= lim - 15 ? "warn" : "ok";
+}
+async function pollSysmon() {
+  try {
+    const r = await fetch("/api/sysmon" + tokenQuery(), { headers: authHeaders() });
+    const d = await r.json();
+    if (!d || typeof d.cpu !== "number") return;
+    const setMeter = (mid, vid, v, key) => {
+      const m = document.getElementById(mid);
+      if (!m) return;
+      const lvl = meterClass(v, key);
+      m.className = "meter " + lvl;
+      const bar = m.querySelector("i"); if (bar) bar.style.width = v + "%";
+      const num = document.getElementById(vid); if (num) num.textContent = v + "%";
+      if (lvl === "hot" && !sysWarned[key]) {
+        sysWarned[key] = true;
+        toast(key.toUpperCase() + " " + v + "% — 资源占用过高 resource high", true);
+      }
+      if (lvl !== "hot") sysWarned[key] = false;
+    };
+    setMeter("mCpu", "vCpu", d.cpu, "cpu");
+    setMeter("mMem", "vMem", d.mem, "mem");
+    setMeter("mDisk", "vDisk", d.disk, "disk");
+    const up = document.getElementById("vUptime");
+    if (up) up.textContent = "uptime " + fmtMs(Math.round(d.uptimeSec * 1000));
+    const runs = (state.snapshot?.graph?.active || 0) + (state.snapshot?.studies?.running || 0);
+    const dotRuns = document.getElementById("dotRuns");
+    if (dotRuns) dotRuns.className = "dot" + (runs > 0 ? " ok" : "");
+    const vRuns = document.getElementById("vRuns");
+    if (vRuns) vRuns.textContent = runs;
+  } catch { /* best-effort */ }
+}
+
 async function boot() {
+  state.chats = loadChats();
+  if (state.chats.length) {
+    state.chatId = state.chats[0].id;
+    state.chat = state.chats[0].messages || [];
+  } else {
+    state.chatId = nextChatId();
+    state.chat = [];
+  }
   buildRail();
   if (state.token) document.getElementById("tokenInput").value = state.token;
   connectStream();
@@ -976,6 +1212,8 @@ async function boot() {
   }
   showView("overview");
   setInterval(() => { if (!connOk && !streamEs) connectStream(); }, 5000);
+  setInterval(pollSysmon, 2000);
+  pollSysmon();
 }
 boot();
 </script>

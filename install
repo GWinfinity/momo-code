@@ -289,7 +289,7 @@ install_from_source() {
         print_message error "${RED}Failed to install dependencies. Last 20 lines:${NC}"
         tail -20 /tmp/momo-install.log
         print_message info "${MUTED}Full log: /tmp/momo-install.log${NC}"
-        print_message info "${MUTED}Install Node.js >= 20 from https://nodejs.org${NC}"
+        print_message info "${MUTED}Install Node.js >= 22 from https://nodejs.org${NC}"
         exit 1
     fi
 

@@ -35,7 +35,7 @@
 
 ### Prerequisites
 
-- **Node.js** >= 20.0.0
+- **Node.js** >= 22.19.0
 - **npm** >= 10.0
 
 ### From curl

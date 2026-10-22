@@ -13,6 +13,7 @@ import { createStudy, appendTrial } from "../optim/study"
 
 let tmp: string
 let saved: string | undefined
+let savedNotify: string | undefined
 let app: ServeApp
 
 function seedFixtures(dir: string): void {
@@ -52,6 +53,9 @@ before(async () => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "momo-serve-"))
   saved = process.env.MOMO_CONFIG_DIR
   process.env.MOMO_CONFIG_DIR = tmp
+  // Never spawn OS notifiers during tests (notify-send ENOENT on headless CI).
+  savedNotify = process.env.MOMO_NOTIFY
+  process.env.MOMO_NOTIFY = "0"
   seedFixtures(tmp)
   createStudy({
     name: "svc",
@@ -67,6 +71,8 @@ after(async () => {
   await app.close()
   if (saved === undefined) delete process.env.MOMO_CONFIG_DIR
   else process.env.MOMO_CONFIG_DIR = saved
+  if (savedNotify === undefined) delete process.env.MOMO_NOTIFY
+  else process.env.MOMO_NOTIFY = savedNotify
   fs.rmSync(tmp, { recursive: true, force: true })
 })
 
@@ -79,7 +85,7 @@ describe("serve GET endpoints", () => {
     const r = await fetch(`${app.url}/`)
     const html = await r.text()
     assert.strictEqual(r.status, 200)
-    assert.match(html, /<title>momo workspace<\/title>/)
+    assert.match(html, /<title>momo 工作台 · momo workspace<\/title>/)
   })
 
   it("GET /api/health", async () => {
@@ -295,7 +301,7 @@ describe("serve sim workbench endpoints", () => {
     const r = await fetch(`${app.url}/workbench`)
     const html = await r.text()
     assert.strictEqual(r.status, 200)
-    assert.match(html, /<title>momo sim workbench<\/title>/)
+    assert.match(html, /<title>momo 仿真工作台 · sim workbench<\/title>/)
   })
 
   it("GET /api/sim/scene/info and /poses proxy the world", async () => {

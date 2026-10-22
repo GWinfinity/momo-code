@@ -23,7 +23,8 @@ import { fileURLToPath } from "url"
 import { getMomoHome } from "../session/recorder.js"
 import { resolveProviderConfig } from "../cli/chat.js"
 import { getRoutes } from "./routes.js"
-import { getActions } from "./actions.js"
+import { getActions, closeSimBridge } from "./actions.js"
+import { DASHBOARD_HTML, WORKBENCH_HTML } from "./assets.generated.js"
 
 const require = createRequire(import.meta.url)
 
@@ -166,8 +167,12 @@ function getVersion(): string {
 // ---------------------------------------------------------------------------
 
 function serveHtmlFile(filename: string): string {
+  // Embedded assets (works in both compiled binaries and Node.js)
+  if (filename === "dashboard.html" && DASHBOARD_HTML) return DASHBOARD_HTML
+  if (filename === "workbench.html" && WORKBENCH_HTML) return WORKBENCH_HTML
+
+  // Fallback: filesystem (dev mode before assets.generated.ts exists)
   const here = path.dirname(fileURLToPath(import.meta.url))
-  // tsc does not copy assets: from dist/serve/ fall back to src/serve/
   for (const candidate of [
     path.join(here, filename),
     path.resolve(here, "..", "..", "src", "serve", filename),
@@ -288,10 +293,15 @@ export async function createServeApp(opts: ServeOptions = {}): Promise<ServeApp>
     url,
     host,
     port: actualPort,
-    close: () =>
-      new Promise<void>((resolve) => {
+    close: async () => {
+      // Tear down background work the routes may have started (the sim world
+      // bridge spawns a Python child process) so nothing outlives the app and
+      // emits async activity after tests finish.
+      await closeSimBridge()
+      await new Promise<void>((resolve) => {
         server.close(() => resolve())
         server.closeAllConnections?.()
-      }),
+      })
+    },
   }
 }

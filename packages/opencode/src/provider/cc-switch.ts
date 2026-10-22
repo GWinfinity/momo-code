@@ -18,10 +18,10 @@
  *   (~/.config/opencode/opencode.json) is the primary source — CC Switch
  *   merges every opencode provider into its additive "provider" map. The
  *   current provider ID comes from CC Switch settings.json
- *   (currentProviderOpencode); when that is missing we fall back to the
- *   SQLite is_current flag, then to the sole opencode row (CC Switch does
- *   not maintain is_current for the additive opencode mode), then to the
- *   live file when it contains exactly one usable provider.
+ *   (currentProviderOpencode); when that is missing we read the first
+ *   usable provider from the live file, then fall back to the SQLite
+ *   is_current flag and the sole opencode row (CC Switch does not maintain
+ *   is_current for the additive opencode mode).
  */
 
 import fs from "fs"
@@ -428,8 +428,13 @@ function loadActiveProviderFromClaudeSettings(
 
 /**
  * Resolve the active opencode provider: explicit current ID from settings
- * (live file, then SQLite), else the SQLite is_current flag, else a single
- * unambiguous provider from the live file.
+ * (live file, then SQLite), else the live opencode.json (CC Switch writes
+ * every opencode provider there), else the SQLite is_current flag, else the
+ * sole DB row.
+ *
+ * The live file is the primary source for the additive opencode mode because
+ * CC Switch writes all opencode providers into opencode.json but does not
+ * maintain `is_current` or `currentProviderOpencode` for that mode.
  */
 async function loadActiveOpencodeProvider(
   currentId: string | undefined,
@@ -442,9 +447,11 @@ async function loadActiveOpencodeProvider(
     return null
   }
 
-  // No explicit current provider: prefer the DB is_current flag, then the
-  // sole opencode row (CC Switch does not maintain is_current for the
-  // additive opencode mode), then a single usable live provider.
+  // No explicit current provider: prefer the live file (CC Switch's source
+  // of truth for opencode), then the DB.
+  const fromLive = resolveOpencodeFromLive()
+  if (fromLive) return fromLive
+
   const fromDb = await loadProviderFromDb("opencode")
   if (fromDb) return normalizeOpencodeProvider(fromDb)
 
@@ -454,13 +461,21 @@ async function loadActiveOpencodeProvider(
     if (normalized) return normalized
   }
 
-  return resolveOpencodeFromLive()
+  // Multiple DB rows and no live file — pick the first usable one.
+  for (const row of rows) {
+    const normalized = normalizeOpencodeProvider(row)
+    if (normalized) return normalized
+  }
+
+  return null
 }
 
 /**
  * Resolve a provider from the live opencode.json. With an explicit provider
- * ID the matching entry is used; otherwise only a single usable provider is
- * unambiguous enough to auto-select.
+ * ID the matching entry is used; otherwise the first usable provider is
+ * returned.  CC Switch writes all opencode providers to the live file in
+ * insertion order, so the first entry is the natural default when no
+ * explicit current ID is set.
  */
 function resolveOpencodeFromLive(
   currentId?: string,
@@ -490,8 +505,11 @@ function resolveOpencodeFromLive(
     const extracted = extractOpencodeEntry(entry)
     if (extracted) candidates.push({ id, entry, extracted })
   }
-  if (candidates.length !== 1) return null
+  if (candidates.length === 0) return null
 
+  // When multiple providers exist without an explicit current ID, return the
+  // first usable one.  CC Switch writes providers in insertion order so the
+  // first entry is the natural default.
   const { id, entry, extracted } = candidates[0]
   return {
     id,
