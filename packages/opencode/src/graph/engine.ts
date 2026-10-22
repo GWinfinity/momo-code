@@ -281,17 +281,10 @@ export async function executeGraph(
 
   // A resumed run may have crashed mid-batch: reset interrupted nodes
   // so they can be re-executed (they never produced a result).
-  // Also reset failed and skipped nodes so resume can retry them — the user
-  // is explicitly choosing to continue, so give every non-done node another
-  // shot (the in-node retry loop still enforces maxRetries per attempt).
   for (const n of run.nodes) {
     if (n.state === "running") {
       n.state = "pending"
       n.startedAt = undefined
-    } else if (n.state === "failed" || n.state === "skipped") {
-      n.state = "pending"
-      n.error = undefined
-      n.finishedAt = undefined
     }
   }
 
@@ -330,31 +323,31 @@ export async function executeGraph(
       break
     }
 
-    // 3. Nodes blocked by failed dependencies can never run — skip them.
-    for (const n of blockedNodes(run.nodes)) {
-      n.state = "skipped"
-      n.error = "blocked by failed dependency"
-      n.finishedAt = new Date().toISOString()
+    // 3. Skip blocked nodes. When idle, propagate skips until no more
+    //    nodes change, without consuming another rework attempt.
+    while (true) {
+      const blocked = blockedNodes(run.nodes)
+      for (const n of blocked) {
+        n.state = "skipped"
+        n.error = "blocked by failed dependency"
+        n.finishedAt = new Date().toISOString()
+      }
+
+      // Preserve batch/route ordering while work (including rework) is ready.
+      if (readyNodes(run.nodes).length > 0) break
+      const stuck = stuckDormantNodes(run.nodes)
+      for (const n of stuck) {
+        n.state = "skipped"
+        n.error = "condition never fired"
+        n.finishedAt = new Date().toISOString()
+      }
+      if (blocked.length === 0 && stuck.length === 0) break
     }
     saveRun(run)
 
     // 4. Run the next batch of ready nodes.
     const batch = readyNodes(run.nodes).slice(0, concurrency)
-    if (batch.length === 0) {
-      // Nothing ready: dormant targets whose sources are all terminal will
-      // never activate (e.g. a condition never fired) — finalize them.
-      const stuck = stuckDormantNodes(run.nodes)
-      if (stuck.length > 0) {
-        const now = new Date().toISOString()
-        for (const n of stuck) {
-          n.state = "skipped"
-          n.error = "condition never fired"
-          n.finishedAt = now
-        }
-        saveRun(run)
-      }
-      break
-    }
+    if (batch.length === 0) break
 
     if ((run.executions ?? 0) + batch.length > budget) {
       const now = new Date().toISOString()
@@ -518,6 +511,19 @@ export async function resumeGraph(
   const run = loadRun(id)
   if (!run) return null
 
+  // Only explicit resume retries settled failures. Approval decisions continue
+  // the current attempt, so a rejection must remain failed.
+  for (const n of run.nodes) {
+    if (n.state === "failed" || n.state === "skipped") {
+      n.state = "pending"
+      n.error = undefined
+      n.finishedAt = undefined
+    }
+  }
+  return continueRun(run, opts)
+}
+
+async function continueRun(run: GraphRun, opts: GraphRunOpts): Promise<GraphRun> {
   await executeGraph(run, opts)
   run.output = await synthesizeRun(run, opts)
   run.updatedAt = new Date().toISOString()
@@ -549,7 +555,7 @@ export async function approveRun(
     run.updatedAt = now
     saveRun(run)
   }
-  return resumeGraph(id, opts)
+  return continueRun(run, opts)
 }
 
 /** Mark waiting approval nodes rejected (failed), then continue the run. */
@@ -576,5 +582,5 @@ export async function rejectRun(
     run.updatedAt = now
     saveRun(run)
   }
-  return resumeGraph(id, opts)
+  return continueRun(run, opts)
 }

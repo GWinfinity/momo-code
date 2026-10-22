@@ -12,9 +12,11 @@ import {
   type CreateAgentSessionRuntimeFactory,
 } from "@earendil-works/pi-coding-agent"
 import { getConfigDir } from "./config/config.js"
+import { syncMomoConfigToPi } from "./pi-config-sync.js"
 import {
   brandExtension,
   experienceExtension,
+  memoryExtension,
   permissionsExtension,
   decisionsExtension,
   cotExtension,
@@ -22,14 +24,26 @@ import {
 } from "./pi-extensions/index.js"
 
 export async function createMomoRuntime() {
+  // Bridge momo's provider config (CC Switch → momo.jsonc → MOMO_* env) into
+  // Pi's auth.json / models.json / settings.json so the Pi engine starts
+  // with working credentials instead of "No API key found for the model".
+  await syncMomoConfigToPi(getConfigDir())
+
   const createRuntime: CreateAgentSessionRuntimeFactory = async (options) => {
     const services = await createAgentSessionServices({
       cwd: options.cwd,
       agentDir: options.agentDir,
       resourceLoaderOptions: {
+        // Named inline extensions so the startup "[Extensions]" list shows
+        // meaningful names instead of <inline:1>…<inline:7> fallbacks.
         extensionFactories: [
-          brandExtension, experienceExtension, permissionsExtension,
-          decisionsExtension, cotExtension, rsiExtension,
+          { name: "momo-brand", factory: brandExtension },
+          { name: "momo-experience", factory: experienceExtension },
+          { name: "momo-memory", factory: memoryExtension },
+          { name: "momo-permissions", factory: permissionsExtension },
+          { name: "momo-decisions", factory: decisionsExtension },
+          { name: "momo-cot", factory: cotExtension },
+          { name: "momo-rsi", factory: rsiExtension },
         ],
       },
     })

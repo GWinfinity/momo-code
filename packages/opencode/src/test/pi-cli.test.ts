@@ -54,6 +54,10 @@ function childEnv() {
     MOMO_CONFIG_DIR: configDir,
     MOMO_NO_CC_SWITCH: "true",
     MOMO_CC_SWITCH_INHERIT: "false",
+    // Keep the developer machine's momo.jsonc from overwriting fixture files.
+    MOMO_PI_CONFIG_SYNC: "false",
+    // Never let the Hy-Memory integration bootstrap a Python venv in tests.
+    MOMO_MEMORY: "0",
     PI_OFFLINE: "1",
   }
 }

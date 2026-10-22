@@ -4,6 +4,20 @@ All notable changes to momo Code are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Pi config bridge** (`src/pi-config-sync.ts`) — the v2.0 Pi runtime now inherits momo's provider config (CC Switch → `momo.jsonc` → `MOMO_*` env). The resolved key/endpoint/model are written to Pi's `auth.json` / `models.json` / `settings.json` under the Pi agent directory, so `momo` starts with working credentials instead of "No API key found for the selected model". Built-in providers get an `auth.json` entry; relays and non-bundled providers (zhipu/doubao/stepfun/alibaba/moonshot/custom) are declared as a `momo` custom provider. Existing OAuth credentials are never overwritten. Kill switch: `MOMO_PI_CONFIG_SYNC=false`
+
+### Changed
+
+- **Pi SDK 1.1.0 → 1.4.0** (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-codemode`) — adapts to the Pi 1.2 `before_agent_start` union (`messageType: "user" | "custom"`) in the experience and memory extensions; version pins in README / CLI hints updated
+
+### Fixed
+
+- `src/cli/chat.ts` now imports `os` as a default import so tests can mock the home directory (same convention as `src/provider/cc-switch.ts`)
+
 ## [2.0.0] - 2026-10-11
 
 Major architecture upgrade: converged Pi-based agent architecture.

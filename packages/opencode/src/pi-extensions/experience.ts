@@ -17,6 +17,8 @@ import {
  */
 export const experienceExtension: ExtensionFactory = (pi) => {
   pi.on("before_agent_start", async (event, ctx) => {
+    // Pi 1.2+: the event is a union — only "user" runs carry a prompt.
+    if (event.messageType !== "user") return
     const taskDescription = event.prompt || ""
     if (!taskDescription) return
 

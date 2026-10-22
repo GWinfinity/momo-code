@@ -27,9 +27,9 @@ async function load(factories: ExtensionFactory[]) {
 }
 
 describe("Pi SDK extensions", () => {
-  it("loads all six factories with the SDK's actual loader", async () => {
+  it("loads all seven factories with the SDK's actual loader", async () => {
     const extensions = await load(Object.values(factories).filter((value) => typeof value === "function"))
-    assert.strictEqual(extensions.length, 6)
+    assert.strictEqual(extensions.length, 7)
     for (const extension of extensions) assert.ok(extension.handlers.size > 0)
   })
 
