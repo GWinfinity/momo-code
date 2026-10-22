@@ -116,7 +116,8 @@ export const memoryExtension: ExtensionFactory = (pi) => {
   let lastPrompt = ""
 
   pi.on("before_agent_start", async (event) => {
-    lastPrompt = event.prompt || ""
+    // Pi 1.2+: "custom" runs (pi.sendMessage with triggerTurn) carry no prompt.
+    lastPrompt = event.messageType === "user" ? event.prompt || "" : ""
     try {
       const memBlock = await recallMemory(lastPrompt)
       if (memBlock) {
