@@ -12,7 +12,6 @@
 import * as fs from "fs"
 import * as path from "path"
 import { getSkillsDir } from "./store"
-import { substituteTaskDir } from "./verifier"
 import type { SkillTask } from "./schema"
 
 /** Which role the prompt package is for. */
@@ -128,7 +127,7 @@ export function stageWorkerPrompt(opts: {
   parts.push("Check command (exit 0 = task solved):")
   parts.push("")
   parts.push("```sh")
-  parts.push(substituteTaskDir(opts.task.check, taskDir))
+  parts.push(opts.task.check)
   parts.push("```")
 
   if (role === "heldout") {

@@ -68,8 +68,6 @@ function printUsage(): void {
   console.log(`                                         Run the campaign (workers → gate → library)`)
   console.log(`  momo /aspire campaign status [dir] [--json]`)
   console.log(`                                         Manifest + per-task table`)
-  console.log(`  sim tasks: check = python -m sim_eval --task <name> --seed <N> --program {task_dir}/program.py`)
-  console.log(`                                         ({task_dir} expands to the task's campaign dir in agent prompts)`)
   console.log(`  momo /aspire evosearch init <task.json> [--k=N] [--out=dir]`)
   console.log(`                                         Start evolutionary search over strategies`)
   console.log(`  momo /aspire evosearch run [dir] [--max-iterations=N] [--threshold=T]`)
@@ -632,11 +630,6 @@ async function runCampaignInit(flags: Flags): Promise<void> {
   console.log(`  runId:   ${manifest.runId}`)
   console.log(`  dev:     ${state.bands.dev.length} task(s): ${state.bands.dev.join(", ")}`)
   console.log(`  heldout: ${state.bands.heldout.length} task(s): ${state.bands.heldout.join(", ")}`)
-  if (state.tasks.some((t) => t.check.includes("sim_eval"))) {
-    console.log(
-      `${DIM}  sim_eval task(s) detected — '{task_dir}' in a check expands to <campaignDir>/tasks/<taskId> when staged for agents${RESET}`,
-    )
-  }
   console.log(`${DIM}Run it with: momo /aspire campaign run ${state.dir}${RESET}`)
 }
 
