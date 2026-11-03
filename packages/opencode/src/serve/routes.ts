@@ -7,6 +7,7 @@
 import { loadGoals } from "../goal/store.js"
 import { loadSchedule } from "../schedule/store.js"
 import { readRecentSessions, getMomoHome } from "../session/recorder.js"
+import { listPiSessions, readPiSession } from "./pi-sessions.js"
 import { execFile } from "child_process"
 import * as fs from "fs"
 import * as os from "os"
@@ -337,6 +338,20 @@ export function getRoutes(): Record<string, RouteHandler> {
     "/api/sessions": ({ res, query }) => {
       const limit = Math.min(Number(query.get("limit")) || 50, 500)
       sendJson(res, 200, { sessions: readRecentSessions(limit) })
+    },
+
+    // Episode replay: pi-coding-agent session trajectories (tool calls,
+    // thinking, tokens, timestamps) — read-only views over the JSONL trees.
+    "/api/pi-sessions": ({ res }) => {
+      sendJson(res, 200, { sessions: listPiSessions() })
+    },
+
+    "/api/pi-sessions/:key": ({ res, params }) => {
+      try {
+        sendJson(res, 200, readPiSession(params.key))
+      } catch (err) {
+        sendError(res, 404, err instanceof Error ? err.message : "session not found")
+      }
     },
 
     "/api/sysmon": ({ res }) => {

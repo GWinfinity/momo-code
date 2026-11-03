@@ -240,6 +240,7 @@ const VIEWS = [
   { id:"overview", label:"总览 Overview", icon:"grid" },
   { id:"chat",     label:"对话 Chat",     icon:"chat" },
   { id:"sessions", label:"会话 Sessions", icon:"clock" },
+  { id:"replay",   label:"回放 Replay",   icon:"play" },
   { id:"graph",    label:"图执行 Graph",    icon:"nodes" },
   { id:"sim",      label:"仿真 Sim",      icon:"cube" },
   { id:"optim",    label:"优化 Optim",    icon:"chart" },
@@ -256,6 +257,9 @@ const ICON = {
   calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   git: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="5" r="2.2"/><circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="9" r="2.2"/><path d="M6 7.2v9.6M7.5 6.5l8 1.8M6 17.5l10.5-6"/></svg>',
   play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 5l12 7-12 7z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
+  rew: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 19l-7-7 7-7M20 19l-7-7 7-7"/></svg>',
+  fwd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 5l7 7-7 7M4 5l7 7-7 7"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 5l-7 7 7 7"/></svg>',
   refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4"/></svg>',
@@ -278,6 +282,13 @@ const state = {
   sessionsFull: null,
   monitorPrev: null,
   throughput: 0,
+  replaySessions: null,
+  replayKey: null,
+  replayDetail: null,
+  replayIndex: 0,
+  replayPlaying: false,
+  replaySpeed: 1,
+  replayTimer: null,
 };
 let streamEs = null;
 
@@ -394,6 +405,7 @@ function showView(id) {
 }
 const RENDER = {
   overview: renderOverview, chat: renderChat, sessions: renderSessions,
+  replay: renderReplay,
   graph: renderGraph, sim: renderSim, optim: renderOptim,
   schedule: renderSched, git: renderGit,
 };
@@ -531,7 +543,7 @@ function sideGit(el) {
     <div class="side-head">提交 Commits</div>
     <div class="side-body">${(g.commits || []).slice(0, 6).map(c => `<div class="side-item" style="cursor:default"><span class="t"><span style="color:var(--cyan)">${esc(c.hash)}</span> ${esc(clip(c.subject, 20))}<br><span class="sub">${esc(c.date)}</span></span></div>`).join("") || `<div class="side-empty">no commits</div>`}</div>`;
 }
-const SIDES = { overview: sideOverview, chat: sideChat, sessions: sideSessions, graph: sideGraph, optim: sideOptim, schedule: sideSched, git: sideGit };
+const SIDES = { overview: sideOverview, chat: sideChat, sessions: sideSessions, replay: sideReplay, graph: sideGraph, optim: sideOptim, schedule: sideSched, git: sideGit };
 function renderSidebar() {
   if (state.view === "sim") return; // 3D workbench owns its own chrome
   SIDES[state.view]?.(document.getElementById("sidebar"));
@@ -823,7 +835,162 @@ async function renderSessions(useCache) {
         <td class="dim" style="white-space:nowrap">${timeAgo(s.ts)}</td><td class="num">${(s.durationMs / 1000).toFixed(1)}s</td></tr>`).join("") + `</table></div>`
     : `<div class="empty">no sessions recorded yet</div>`);
 }
-function setSessFilter(f) { state.sessFilter = f; renderSidebar(); renderSessions(true); }// ---- graph ---------------------------------------------------------------
+function setSessFilter(f) { state.sessFilter = f; renderSidebar(); renderSessions(true); }
+// ---- replay (episode playback over pi session trajectories) --------------
+async function loadReplaySessions(force) {
+  if (!force && state.replaySessions) return;
+  try { const d = await api("/api/pi-sessions"); state.replaySessions = d.sessions || []; }
+  catch (e) { state.replaySessions = []; }
+}
+function sideReplay(el) {
+  const list = state.replaySessions || [];
+  el.innerHTML = `
+    <div class="side-head">轨迹 Episodes <span class="dim" style="text-transform:none">${list.length}</span></div>
+    <div class="side-body">
+      <button class="ghost" style="width:100%;margin-bottom:6px" onclick="loadReplaySessions(true).then(renderSidebar)">refresh</button>
+      ${list.length ? list.map(s => `<div class="side-item ${s.key === state.replayKey ? "sel" : ""}" onclick="selectReplay('${esc(s.key)}')">
+        <span class="t">${esc(clip(s.file, 26))}<br><span class="sub">${timeAgo(s.ts)} · ${(s.sizeBytes / 1024).toFixed(0)} KB${s.cwd ? " · " + esc(clip(s.cwd, 16)) : ""}</span></span></div>`).join("")
+      : `<div class="side-empty">no pi session trajectories found</div>`}
+    </div>
+    <div class="side-head">信息 Info</div>
+    <div class="side-body"><div class="side-item" style="cursor:default"><span class="t"><span class="sub">把 agent 轨迹当视频回放：播放/暂停、拖动进度、在任意 tool call 间跳转（pi-coding-agent trajectories）。</span></span></div></div>`;
+}
+function isToolEntry(e) { return e && e.kind === "message" && ((e.toolCalls && e.toolCalls.length) || e.role === "toolResult"); }
+async function selectReplay(key) {
+  state.replayKey = key;
+  state.replayIndex = 0;
+  replayPause();
+  try { state.replayDetail = await api("/api/pi-sessions/" + encodeURIComponent(key)); }
+  catch (e) { state.replayDetail = null; toast(e.message, true); }
+  renderSidebar();
+  renderReplay();
+}
+function seekReplay(v) {
+  state.replayIndex = Number(v) || 0;
+  renderReplay();
+}
+function replayStep(dir) {
+  const entries = state.replayDetail?.entries || [];
+  if (!entries.length) return;
+  state.replayIndex = Math.max(0, Math.min(entries.length - 1, (state.replayIndex || 0) + dir));
+  renderReplay();
+}
+function replayJumpTool(dir) {
+  const entries = state.replayDetail?.entries || [];
+  if (!entries.length) return;
+  let j = (state.replayIndex || 0) + dir;
+  while (j >= 0 && j < entries.length) {
+    if (isToolEntry(entries[j])) break;
+    j += dir;
+  }
+  state.replayIndex = Math.max(0, Math.min(entries.length - 1, j));
+  renderReplay();
+}
+function replayPlay() {
+  if (!state.replayDetail) return;
+  const entries = state.replayDetail.entries || [];
+  if ((state.replayIndex || 0) >= entries.length - 1) state.replayIndex = 0; // replay from the top
+  state.replayPlaying = true;
+  scheduleReplayTick();
+  renderReplay();
+}
+function replayPause() {
+  state.replayPlaying = false;
+  if (state.replayTimer) { clearTimeout(state.replayTimer); state.replayTimer = null; }
+}
+function replayToggle() { state.replayPlaying ? replayPause() : replayPlay(); }
+function setReplaySpeed(v) { state.replaySpeed = Number(v) || 1; }
+function scheduleReplayTick() {
+  if (state.replayTimer) clearTimeout(state.replayTimer);
+  if (!state.replayPlaying) return;
+  state.replayTimer = setTimeout(() => {
+    const entries = state.replayDetail?.entries || [];
+    if ((state.replayIndex || 0) >= entries.length - 1) {
+      state.replayPlaying = false;
+      renderReplay();
+      return;
+    }
+    state.replayIndex = (state.replayIndex || 0) + 1;
+    renderReplay();
+    scheduleReplayTick();
+  }, 900 / (state.replaySpeed || 1));
+}
+function replayToolChips(entries, cur) {
+  const tools = entries.filter(isToolEntry);
+  if (!tools.length) return "";
+  return `<div class="row" style="gap:4px;flex-wrap:wrap;margin-top:8px">` + tools.map(e => {
+    const label = e.role === "toolResult" ? ("↳ " + esc(clip(e.toolName || "result", 18))) : esc(clip(e.toolCalls[0].name, 18));
+    const active = e.seq === cur ? "style=\"border-color:var(--cyan);color:var(--cyan)\"" : "";
+    return `<button class="ghost" ${active} onclick="seekReplay(${e.seq})">${label}</button>`;
+  }).join("") + `</div>`;
+}
+function replayEntryCard(e, total) {
+  if (!e) return "";
+  const head = e.ts ? fmtTime(e.ts) : "";
+  const meta = [head, e.durationMs ? fmtMs(e.durationMs) : "", e.tokens ? fmtTok(e.tokens) + " tok" : ""].filter(Boolean).join(" · ");
+  const roleChip = e.role
+    ? `<span class="chip ${e.role === "assistant" ? "cyan" : e.role === "toolResult" ? (e.isError ? "err" : "ok") : ""}"><span class="dot"></span>${esc(e.role)}</span>`
+    : e.kind === "model" ? `<span class="chip"><span class="dot"></span>model → ${esc(e.model || "")}</span>`
+    : e.kind === "session" ? `<span class="chip ok"><span class="dot"></span>session</span>`
+    : `<span class="chip dim"><span class="dot"></span>${esc(e.kind)}</span>`;
+  const tools = (e.toolCalls || []).map(tc => `<div class="card" style="padding:8px 10px;margin:6px 0">
+      <b style="color:var(--cyan)">🔧 ${esc(tc.name)}</b>
+      ${tc.args !== undefined ? `<pre style="max-height:220px;overflow:auto">${esc(clip(JSON.stringify(tc.args, null, 2), 4000))}</pre>` : ""}
+    </div>`).join("");
+  const thinking = e.thinking ? `<details style="margin:6px 0"><summary style="cursor:pointer;color:var(--dim)">💭 thinking</summary><pre style="max-height:260px;overflow:auto">${esc(e.thinking)}</pre></details>` : "";
+  const text = e.text ? `<pre style="white-space:pre-wrap;max-height:420px;overflow:auto">${esc(e.text)}</pre>` : "";
+  return `<div class="card" style="padding:14px">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div class="row" style="gap:8px">${roleChip}<span class="dim" style="font-size:12px">step ${e.seq + 1} / ${total}</span></div>
+      <span class="dim" style="font-size:12px">${esc(meta)}</span>
+    </div>
+    ${thinking}${text}${tools}
+  </div>`;
+}
+async function renderReplay() {
+  await loadReplaySessions();
+  const main = document.getElementById("main");
+  const d = state.replayDetail;
+  if (!state.replayKey || !d) {
+    main.innerHTML = `<div class="view-title"><h1>回放 Replay</h1><span class="sub">把轨迹当视频回放 — play/pause · scrub · jump to tool call</span></div><div class="empty">从左侧选一个 episode</div>`;
+    return;
+  }
+  const entries = d.entries || [];
+  const i = Math.max(0, Math.min(state.replayIndex || 0, entries.length - 1));
+  state.replayIndex = i;
+  const cur = entries[i];
+  const pct = entries.length > 1 ? Math.round((i / (entries.length - 1)) * 100) : 0;
+  const playIcon = state.replayPlaying ? ICON.pause : ICON.play;
+  const wall = (d.stats.firstTs && cur?.ts)
+    ? ((new Date(cur.ts) - new Date(d.stats.firstTs)) / 1000).toFixed(1) + "s into episode"
+    : "";
+  main.innerHTML = `
+    <div class="view-title"><h1>回放 Replay</h1><span class="sub">${esc(d.id)} · ${d.stats.messages} messages · ${d.stats.toolCalls} tool calls · ${fmtTok(d.stats.tokens)} tok${d.cwd ? " · " + esc(d.cwd) : ""}</span></div>
+    <div class="card" style="padding:12px">
+      <div class="row" style="gap:6px;align-items:center">
+        <button class="ghost" title="previous tool call" onclick="replayJumpTool(-1)">${ICON.rew}</button>
+        <button class="ghost" title="previous step" onclick="replayStep(-1)">‹</button>
+        <button class="act" style="padding:6px 14px" title="play/pause (space)" onclick="replayToggle()">${playIcon}</button>
+        <button class="ghost" title="next step" onclick="replayStep(1)">›</button>
+        <button class="ghost" title="next tool call" onclick="replayJumpTool(1)">${ICON.fwd}</button>
+        <input type="range" min="0" max="${Math.max(0, entries.length - 1)}" value="${i}" style="flex:1" oninput="seekReplay(this.value)">
+        <span class="dim" style="font-size:12px;white-space:nowrap">${i + 1}/${entries.length} · ${pct}%</span>
+        <select onchange="setReplaySpeed(this.value)" style="background:var(--bg2);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:3px 6px">
+          ${[0.5, 1, 2, 4].map(s => `<option value="${s}" ${s === state.replaySpeed ? "selected" : ""}>${s}×</option>`).join("")}
+        </select>
+      </div>
+      <div class="dim" style="font-size:12px;margin-top:4px">${esc(wall)}</div>
+      ${replayToolChips(entries, i)}
+    </div>
+    <div style="margin-top:10px">${replayEntryCard(cur, entries.length)}</div>`;
+}
+document.addEventListener("keydown", ev => {
+  if (state.view !== "replay" || ev.target.tagName === "TEXTAREA" || ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT") return;
+  if (ev.key === " ") { ev.preventDefault(); replayToggle(); }
+  else if (ev.key === "ArrowLeft") replayStep(-1);
+  else if (ev.key === "ArrowRight") replayStep(1);
+});
+// ---- graph ---------------------------------------------------------------
 async function startGraph() {
   const input = document.getElementById("graphTask");
   const task = input ? input.value.trim() : "";
