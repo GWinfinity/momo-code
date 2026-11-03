@@ -1191,6 +1191,12 @@ class GenesisAdapter:
     # Success predicate and teardown
     # ------------------------------------------------------------------
 
+    def list_tasks(self) -> tuple[dict[str, Any], ...]:
+        """Enumerate runnable tasks (harness-side discovery only)."""
+        return tuple(
+            task.to_manifest_record() for task in self.registry.enumerate_tasks()
+        )
+
     def check_success(self) -> bool:
         """True when the cube has been lifted above its reset height."""
         cube = self._cube

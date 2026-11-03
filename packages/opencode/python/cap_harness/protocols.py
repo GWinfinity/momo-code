@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Protocol, runtime_checkable
 
 import numpy as np
@@ -143,7 +143,19 @@ class IntegratedPosePlanningProvider(Protocol):
 
 @runtime_checkable
 class EnvironmentAdapter(Protocol):
-    """Embodiment boundary with one-control-period ``step`` semantics."""
+    """Embodiment boundary with one-control-period ``step`` semantics.
+
+    This Protocol is the harness's environment-integration interface: a new
+    backend (simulator or real robot) implements it plus a task registry,
+    and plugs in via ``run.run_program``. The contract:
+
+    - ``reset`` / ``get_*`` / ``step`` / ``execute_trajectory`` /
+      ``set_gripper(s)`` / ``close`` form the agent-facing observation and
+      control surface — they must never expose privileged simulator state
+      (ground truth, reward, solver internals) to the evaluated program.
+    - ``list_tasks`` and ``check_success`` are harness-side discovery and
+      scoring; their results go to the recorder/verifier only.
+    """
 
     @property
     def embodiment(self) -> str:
@@ -152,6 +164,21 @@ class EnvironmentAdapter(Protocol):
 
     def reset(self, task_ref: object, seed: int) -> Observation:
         """Select and reset one task to a deterministic initial state."""
+        ...
+
+    def list_tasks(self) -> Sequence[Mapping[str, object]]:
+        """Enumerate runnable tasks as metadata mappings.
+
+        Harness-side discovery: never exposed to the evaluated program.
+        """
+        ...
+
+    def check_success(self) -> bool:
+        """Evaluate the task success predicate on the current state.
+
+        Harness-side scoring: called after the program finishes. Raise
+        ``NotImplementedError`` when the environment has no oracle.
+        """
         ...
 
     def get_task_context(self) -> TaskContext:

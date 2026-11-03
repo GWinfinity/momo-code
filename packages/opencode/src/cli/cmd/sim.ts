@@ -13,6 +13,11 @@
 import * as fs from "fs"
 import * as path from "path"
 import { SimBridge } from "../../sim/bridge.js"
+import {
+  listIntegrations,
+  resolveIntegration,
+  type SimIntegration,
+} from "../../sim/integrations.js"
 import { runSimLoop } from "../../sim/loop.js"
 import { runEval, saveReport, type EvalTask } from "../../sim/eval.js"
 import { recordSession, getMomoHome } from "../../session/recorder.js"
@@ -39,9 +44,9 @@ function printUsage(): void {
   console.log(`  momo /sim skills                       List installed world skills`)
   console.log(`  momo /sim eval --tasks=x.json [-episodes=N]  Batch evaluation`)
   console.log(``)
-  console.log(`Options: --steps=N  --viewer  --backend=cpu|gpu  --file=x.py  --json`)
+  console.log(`Options: --steps=N  --viewer  --backend=cpu|gpu  --integration=NAME  --file=x.py  --json`)
   console.log(``)
-  console.log(`Env: MOMO_SIM_PYTHON, MOMO_SIM_BACKEND, MOMO_SIM_MAX_STEPS (20)`)
+  console.log(`Env: MOMO_SIM_PYTHON, MOMO_SIM_BACKEND, MOMO_SIM_MAX_STEPS (20), MOMO_SIM_INTEGRATION`)
   console.log(`Skills: drop .py files into ~/.momo/sim/skills/ — they load into every world`)
 }
 
@@ -53,14 +58,23 @@ async function simDoctor(): Promise<void> {
   console.log(`${MAGENTA}/sim doctor${RESET}`)
   console.log(``)
 
-  const python = process.env.MOMO_SIM_PYTHON || "python"
+  console.log(`integrations: ${CYAN}${listIntegrations().map((i) => i.name).join(", ")}${RESET}`)
+  let integration: SimIntegration | undefined
+  try {
+    integration = resolveIntegration()
+    console.log(`integration: ${CYAN}${integration.name}${RESET} ${DIM}(${integration.label})${RESET}`)
+  } catch (err) {
+    console.log(`integration: ${MAGENTA}✗${RESET} ${err instanceof Error ? err.message : err}`)
+  }
+
+  const python = process.env.MOMO_SIM_PYTHON || integration?.python || "python"
   console.log(`python:   ${CYAN}${python}${RESET}`)
 
   const bridge = new SimBridge()
   const start = Date.now()
   try {
     await bridge.request("ping", {}, { timeoutMs: 30_000 })
-    console.log(`server:   ${GREEN}✓${RESET} genesis_world server responds`)
+    console.log(`server:   ${GREEN}✓${RESET} world server responds (${integration?.name ?? "genesis"})`)
   } catch (err) {
     console.log(`server:   ${MAGENTA}✗${RESET} ${err instanceof Error ? err.message : err}`)
     console.log(`          ${DIM}server path: ${SimBridge.defaultServerPath()}${RESET}`)
@@ -114,14 +128,18 @@ async function simRun(task: string, args: string[]): Promise<void> {
   let viewer = false
   let backend: string | undefined
   let json = false
-  for (const a of args) {
+  let integration: string | undefined
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]
     if (a.startsWith("--steps=")) maxSteps = Number(a.slice(8)) || undefined
     else if (a === "--viewer") viewer = true
     else if (a.startsWith("--backend=")) backend = a.slice(10)
+    else if (a.startsWith("--integration=")) integration = a.slice(14)
+    else if (a === "--integration") integration = args[++i]
     else if (a === "--json") json = true
   }
 
-  const bridge = new SimBridge()
+  const bridge = new SimBridge({ ...(integration ? { integration } : {}) })
   const startMs = Date.now()
   try {
     console.error(`${DIM}→ starting world + agent loop (budget: ${maxSteps ?? (Number(process.env.MOMO_SIM_MAX_STEPS || 20) || 20)} steps)…${RESET}`)

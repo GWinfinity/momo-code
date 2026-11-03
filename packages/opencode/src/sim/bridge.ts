@@ -13,6 +13,12 @@ import { spawn, type ChildProcess } from "child_process"
 import * as fs from "fs"
 import * as path from "path"
 import { fileURLToPath } from "url"
+import {
+  DEFAULT_SIM_INTEGRATION,
+  SIM_INTEGRATIONS,
+  resolveIntegration,
+  type SimIntegration,
+} from "./integrations.js"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,10 +30,12 @@ export interface BridgeRequestOpts {
 }
 
 export interface SimBridgeOpts {
-  /** Python executable (default: MOMO_SIM_PYTHON or "python") */
+  /** Python executable (default: MOMO_SIM_PYTHON, integration default, or "python") */
   readonly python?: string
-  /** Server script path (default: bundled genesis_world/server.py) */
+  /** Server script path (default: the resolved integration's bundled server) */
   readonly serverPath?: string
+  /** Integration name (default: MOMO_SIM_INTEGRATION or "genesis") */
+  readonly integration?: string
   /** Extra env for the child */
   readonly env?: Record<string, string>
 }
@@ -122,22 +130,35 @@ export class SimBridge {
 
   constructor(private readonly opts: SimBridgeOpts = {}) {}
 
-  /** Default path of the bundled world server. */
+  /** Default path of the bundled world server (resolved integration). */
   static defaultServerPath(): string {
     const here = path.dirname(fileURLToPath(import.meta.url))
     // src/sim/ → ../../python/genesis_world/server.py (works from src and dist)
     return path.resolve(here, "..", "..", "python", "genesis_world", "server.py")
   }
 
+  /** Resolve the active integration (explicit name → env → default). */
+  private resolveIntegrationSafe(): SimIntegration {
+    try {
+      return resolveIntegration(this.opts.integration)
+    } catch {
+      // Unknown integration: fall back to the bundled genesis server so the
+      // error surfaces as a request failure with a clear message instead of
+      // breaking construction.
+      return SIM_INTEGRATIONS[DEFAULT_SIM_INTEGRATION]
+    }
+  }
+
   /**
    * Resolve the interpreter command for the world server.
    *
-   * Order: explicit MOMO_SIM_PYTHON / opts.python → `uv run --project <python/>`
-   * when the world directory is a uv project (MOMO_SIM_UV=0 disables) →
-   * plain `python`.
+   * Order: explicit MOMO_SIM_PYTHON / opts.python → integration default →
+   * `uv run --project <python/>` when the world directory is a uv project
+   * (MOMO_SIM_UV=0 disables) → plain `python`.
    */
   resolvePythonCommand(serverPath: string): { cmd: string; args: string[] } {
-    const explicit = this.opts.python || process.env.MOMO_SIM_PYTHON
+    const explicit =
+      this.opts.python || process.env.MOMO_SIM_PYTHON || this.resolveIntegrationSafe().python
     if (explicit) return { cmd: explicit, args: ["-u", serverPath] }
     if (process.env.MOMO_SIM_UV !== "0") {
       const pythonDir = path.resolve(path.dirname(serverPath), "..")
@@ -158,14 +179,15 @@ export class SimBridge {
   /** Spawn the world server process. Idempotent. */
   start(): void {
     if (this.child) return
+    const integration = this.resolveIntegrationSafe()
     const serverPath =
       this.opts.serverPath ||
       process.env.MOMO_SIM_SERVER ||
-      SimBridge.defaultServerPath()
+      integration.serverPath
     const { cmd, args } = this.resolvePythonCommand(serverPath)
 
     this.child = spawn(cmd, args, {
-      env: { ...process.env, ...this.opts.env },
+      env: { ...process.env, ...integration.env, ...this.opts.env },
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     })

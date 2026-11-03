@@ -4,6 +4,11 @@ import * as path from "path"
 import * as os from "os"
 import * as fs from "fs"
 import { SimBridge } from "../sim/bridge"
+import {
+  SIM_INTEGRATIONS,
+  listIntegrations,
+  resolveIntegration,
+} from "../sim/integrations"
 
 /**
  * These tests use a tiny fake Python server that echoes NDJSON RPC
@@ -97,6 +102,61 @@ describe("sim/bridge", () => {
     const p = SimBridge.defaultServerPath()
     assert.ok(p.endsWith(path.join("genesis_world", "server.py")))
     assert.ok(fs.existsSync(p), `bundled server should exist at ${p}`)
+  })
+
+  it("resolves integrations: default, explicit, env, unknown", () => {
+    const origEnv = process.env.MOMO_SIM_INTEGRATION
+    try {
+      assert.equal(resolveIntegration().name, "genesis")
+      assert.equal(resolveIntegration("genesis").name, "genesis")
+      process.env.MOMO_SIM_INTEGRATION = "genesis"
+      assert.equal(resolveIntegration().name, "genesis")
+      assert.throws(() => resolveIntegration("libero"), /unknown sim integration "libero".*available: genesis/)
+      assert.equal(listIntegrations().length >= 1, true)
+      assert.equal(SIM_INTEGRATIONS.genesis.serverPath, SimBridge.defaultServerPath())
+    } finally {
+      if (origEnv === undefined) delete process.env.MOMO_SIM_INTEGRATION
+      else process.env.MOMO_SIM_INTEGRATION = origEnv
+    }
+  })
+
+  it(
+    "an explicit integration env and opts flow into server startup",
+    withFakeServer(async (bridge) => {
+      // fake server path given explicitly — integration only contributes
+      // default env, so requests still round-trip
+      const result = await bridge.request<{ method: string }>("ping")
+      assert.strictEqual(result.method, "ping")
+    }),
+  )
+
+  it("integration default env merges into the spawned server env", async () => {
+    const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "momo-simtest-")), "env_probe.py")
+    // writes the received MOMO_SIM_INTEGRATION_TEST env value as JSON to stdout as an RPC result
+    fs.writeFileSync(
+      tmp,
+      `import sys, json, os
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    req = json.loads(line)
+    print("@@RPC@@" + json.dumps({"id": req.get("id"), "ok": True, "result": {"val": os.environ.get("MOMO_SIM_INTEGRATION_TEST", "")}}), flush=True)
+`,
+      "utf-8",
+    )
+    const bridge = new SimBridge({
+      serverPath: tmp,
+      integration: "genesis",
+      env: { MOMO_SIM_INTEGRATION_TEST: "from-bridge-opts" },
+    })
+    try {
+      const result = (await bridge.request("probe")) as { val: string }
+      assert.strictEqual(result.val, "from-bridge-opts")
+    } finally {
+      await bridge.close()
+      fs.rmSync(path.dirname(tmp), { recursive: true, force: true })
+    }
   })
 
   it(
