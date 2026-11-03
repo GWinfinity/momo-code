@@ -27,6 +27,7 @@ from cap_harness.contracts import (
     StepResult,
     SynchronizedPlanResult,
     SynchronizedTrajectory,
+    TaskContext,
     Trajectory,
 )
 from cap_harness.errors import ApiError, ErrorCode
@@ -406,6 +407,35 @@ def _public_value(value: object) -> object:
     if isinstance(value, tuple):
         return tuple(_public_value(item) for item in value)
     return value
+
+
+def sanitize_task_context(context: TaskContext) -> TaskContext:
+    """Strip privileged keys from an agent-visible ``TaskContext``.
+
+    Defense-in-depth for the realistic-eval guarantee: adapters must never
+    put verifier state (ground truth, reward, simulator internals) into
+    task metadata in the first place, but anything that slips through into
+    the Mapping-typed ``metadata`` is removed here before the context
+    reaches the evaluated program.
+    """
+    metadata = context.metadata
+    if not isinstance(metadata, Mapping):
+        return context
+    filtered = {
+        key: value
+        for key, value in metadata.items()
+        if isinstance(key, str) and not any(term in key.lower() for term in _SENSITIVE_KEYS)
+    }
+    if len(filtered) == len(metadata):
+        return context
+    return TaskContext(
+        suite=context.suite,
+        task_id=context.task_id,
+        task_name=context.task_name,
+        language=context.language,
+        family=context.family,
+        metadata=filtered,
+    )
 
 
 def _value_summary(value: object) -> Mapping[str, object]:

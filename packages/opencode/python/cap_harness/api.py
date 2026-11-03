@@ -36,6 +36,7 @@ from cap_harness.contracts import (
     Trajectory,
 )
 from cap_harness.registry import ToolRegistry
+from cap_harness.runtime import sanitize_task_context
 
 from .errors import ApiError, ErrorCode
 from .geometry import (
@@ -180,8 +181,11 @@ class CapApi:
         1950, spending none of the extra and finishing on exactly the same tick
         as before. Publishing the number costs nothing and removes a whole class
         of silently stale constant.
+
+        Verifier ground truth is stripped before the context reaches the
+        program (realistic-eval guarantee).
         """
-        context = self._adapter.get_task_context()
+        context = sanitize_task_context(self._adapter.get_task_context())
         if self._recorder is None:
             return context
         total = getattr(self._recorder, "max_steps", None)
@@ -204,6 +208,11 @@ class CapApi:
 
     def get_observation(self, camera_names: Sequence[str] | str | None = None) -> Observation:
         observation = self._adapter.get_observation()
+        if observation.task_context is not None:
+            observation = replace(
+                observation,
+                task_context=sanitize_task_context(observation.task_context),
+            )
         if camera_names is not None:
             names = (camera_names,) if isinstance(camera_names, str) else tuple(camera_names)
             if not names or any(name not in observation.cameras for name in names):

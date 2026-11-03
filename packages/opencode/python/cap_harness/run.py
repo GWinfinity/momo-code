@@ -416,6 +416,10 @@ def run_program(
         sanitized_stdout = redact(execution.stdout)
         (recorder.root / "logs/program.stdout").write_text(str(sanitized_stdout), encoding="utf-8")
         (recorder.root / "logs/program.stderr").write_text("", encoding="utf-8")
+        # Realistic-eval contract: the success predicate runs here, after the
+        # program finishes, from adapter-side state. The evaluated program
+        # never sees verifier internals (no reward channel, no ground-truth
+        # task metadata in realistic mode — see genesis/adapter.py).
         task_success = adapter.check_success()  # type: ignore[attr-defined]
         save_protocol_evidence(bool(task_success))
         if recorder.terminal_reason == "step_limit":

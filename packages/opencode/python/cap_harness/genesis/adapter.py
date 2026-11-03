@@ -94,6 +94,48 @@ _GRIPPER_TOLERANCE = 0.05
 #: Cube must rise this far above its reset height for task success.
 SUCCESS_LIFT_M = 0.05
 
+#: Set ``MOMO_CAP_REALISTIC=0`` to publish verifier ground truth (spawn
+#: position, initial cube height) in the agent-visible task context for
+#: harness debugging. Realistic mode (default) keeps it harness-only —
+#: the success predicate is defined against that state, so leaking it
+#: would let the evaluated program read the verifier's scoring inputs.
+REALISTIC_ENV_VAR = "MOMO_CAP_REALISTIC"
+
+#: Metadata keys that hold verifier ground truth in non-realistic mode.
+GROUND_TRUTH_METADATA_KEYS = ("cube_xy_m", "initial_cube_z_m")
+
+
+def realistic_enabled() -> bool:
+    """True unless ``MOMO_CAP_REALISTIC=0`` opts into debug ground truth."""
+    return os.environ.get(REALISTIC_ENV_VAR, "1") != "0"
+
+
+def task_context_metadata(
+    *,
+    metadata: GenesisTaskMetadata,
+    seed: int,
+    horizon: int,
+    backend: str,
+    ground_truth: Mapping[str, Any],
+    realistic: bool,
+) -> dict[str, Any]:
+    """Compose the agent-visible task-context metadata.
+
+    Pure so the realistic-eval guarantee is unit-testable without a scene:
+    in realistic mode ``ground_truth`` entries are withheld; the verifier
+    reads them from the adapter instance instead.
+    """
+    base: dict[str, Any] = {
+        "task_ref": metadata.task_ref,
+        "seed": seed,
+        "horizon": horizon,
+        "cube_size_m": metadata.cube_size_m,
+        "backend": backend,
+    }
+    if realistic:
+        return base
+    return {**base, **ground_truth}
+
 
 def _quat_wxyz_to_matrix(quat_wxyz: np.ndarray) -> np.ndarray:
     w, x, y, z = (float(v) for v in quat_wxyz)
@@ -230,6 +272,7 @@ class GenesisAdapter:
         self._task_context: TaskContext | None = None
         self._seed: int | None = None
         self._episode_initial_cube_z: float | None = None
+        self._episode_ground_truth: dict[str, Any] = {}
         self._closed = False
 
     # ------------------------------------------------------------------
@@ -470,21 +513,27 @@ class GenesisAdapter:
         self._episode_initial_cube_z = float(
             np.asarray(cube.get_pos(), dtype=np.float64).reshape(-1)[2]
         )
+        # Verifier ground truth: kept on the instance for check_success and
+        # protocol evidence, withheld from the agent-visible task context in
+        # realistic mode (default).
+        self._episode_ground_truth = {
+            "cube_xy_m": (float(x), float(y)),
+            "initial_cube_z_m": self._episode_initial_cube_z,
+        }
         self._task_context = TaskContext(
             suite=metadata.suite_name,
             task_id=metadata.task_id,
             task_name=metadata.task_name,
             language=metadata.language,
             family=metadata.family,
-            metadata={
-                "task_ref": metadata.task_ref,
-                "seed": seed,
-                "horizon": self.horizon,
-                "cube_size_m": metadata.cube_size_m,
-                "cube_xy_m": (float(x), float(y)),
-                "initial_cube_z_m": self._episode_initial_cube_z,
-                "backend": self.backend,
-            },
+            metadata=task_context_metadata(
+                metadata=metadata,
+                seed=seed,
+                horizon=self.horizon,
+                backend=self.backend,
+                ground_truth=self._episode_ground_truth,
+                realistic=realistic_enabled(),
+            ),
         )
         observation = self.get_observation()
         if self._run_observer is not None:
