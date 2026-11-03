@@ -41,6 +41,8 @@ export function parseGraphPlan(raw: unknown): GraphPlan | null {
       kind?: unknown
       routes?: unknown
       rework?: unknown
+      resources?: unknown
+      command?: unknown
     }
     if (typeof rec.id !== "string" || !rec.id.trim()) continue
     if (typeof rec.task !== "string" || !rec.task.trim()) continue
@@ -50,7 +52,15 @@ export function parseGraphPlan(raw: unknown): GraphPlan | null {
           .map((d) => (d as string).trim())
       : undefined
     const kind: GraphNodeKind | undefined =
-      rec.kind === "sim" ? "sim" : rec.kind === "approval" ? "approval" : undefined
+      rec.kind === "sim"
+        ? "sim"
+        : rec.kind === "approval"
+          ? "approval"
+          : rec.kind === "cmd"
+            ? "cmd"
+            : undefined
+    const command =
+      typeof rec.command === "string" && rec.command.trim() ? rec.command.trim() : undefined
     const routes = Array.isArray(rec.routes)
       ? rec.routes
           .map((r): GraphRoute | null => {
@@ -69,6 +79,13 @@ export function parseGraphPlan(raw: unknown): GraphPlan | null {
       : undefined
     const rework =
       typeof rec.rework === "string" && rec.rework.trim() ? rec.rework.trim() : undefined
+    const resources = Array.isArray(rec.resources)
+      ? [...new Set(
+          rec.resources
+            .filter((r): r is unknown => typeof r === "string" && r.trim().length > 0)
+            .map((r) => (r as string).trim()),
+        )]
+      : undefined
     nodes.push({
       id: rec.id.trim(),
       task: rec.task.trim(),
@@ -76,6 +93,8 @@ export function parseGraphPlan(raw: unknown): GraphPlan | null {
       ...(deps && deps.length > 0 ? { dependsOn: deps } : {}),
       ...(routes && routes.length > 0 ? { routes } : {}),
       ...(rework ? { rework } : {}),
+      ...(resources && resources.length > 0 ? { resources } : {}),
+      ...(command ? { command } : {}),
     })
   }
   return nodes.length > 0 ? { nodes } : null
@@ -133,6 +152,17 @@ export function validatePlan(plan: GraphPlan): string[] {
     }
     if (n.rework && !ids.has(n.rework)) {
       errors.push(`node "${n.id}" rework targets unknown node "${n.rework}"`)
+    }
+    for (const r of n.resources ?? []) {
+      if (typeof r !== "string" || !r.trim()) {
+        errors.push(`node "${n.id}" has an empty resource`)
+      }
+    }
+    if (n.kind === "cmd" && !(typeof n.command === "string" && n.command.trim())) {
+      errors.push(`node "${n.id}" has kind "cmd" but no command`)
+    }
+    if (n.command && n.kind !== "cmd") {
+      errors.push(`node "${n.id}" sets command but kind is not "cmd"`)
     }
     for (const r of n.routes ?? []) {
       if (r.to === n.id) errors.push(`node "${n.id}" has a route to itself`)
@@ -275,6 +305,29 @@ export function readyNodes(nodes: readonly GraphNode[]): GraphNode[] {
   })
 }
 
+/**
+ * Pick the next execution batch from ready nodes: greedy in plan order up to
+ * `concurrency`, skipping any node whose declared resources overlap a node
+ * already picked into this batch. Skipped nodes stay pending and are picked
+ * in a later batch, so operations sharing a resource (e.g. the same file)
+ * serialize while independent work keeps overlapping.
+ */
+export function pickBatch(
+  ready: readonly GraphNode[],
+  concurrency: number,
+): GraphNode[] {
+  const batch: GraphNode[] = []
+  const used = new Set<string>()
+  for (const n of ready) {
+    if (batch.length >= Math.max(1, concurrency)) break
+    const res = n.resources ?? []
+    if (res.some((r) => used.has(r))) continue
+    for (const r of res) used.add(r)
+    batch.push(n)
+  }
+  return batch
+}
+
 /** Pending nodes whose static dependencies failed/skipped — they can never run. */
 export function blockedNodes(nodes: readonly GraphNode[]): GraphNode[] {
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -356,6 +409,8 @@ export function planToNodes(
     dependsOn: n.dependsOn ?? [],
     ...(n.routes && n.routes.length > 0 ? { routes: n.routes } : {}),
     ...(n.rework ? { rework: n.rework } : {}),
+    ...(n.resources && n.resources.length > 0 ? { resources: n.resources } : {}),
+    ...(n.command ? { command: n.command } : {}),
     state: "pending",
     retries: 0,
     maxRetries,

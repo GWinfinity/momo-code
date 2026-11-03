@@ -359,3 +359,43 @@ export class ExperienceGuard extends Effect.Service<ExperienceGuard>()(
 ) {}
 
 export const ExperienceGuardLive = ExperienceGuard.Default
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Plain (non-Effect) command validation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Validate a shell command without the Effect runtime, for plain-async
+ * callers such as the graph engine's deterministic `cmd` nodes. Mirrors
+ * `validateCheckCommand`: sane length, allowed prefix, no banned shell
+ * patterns, no path traversal, no environment expansion.
+ */
+export function isCommandAllowed(cmd: string): { ok: boolean; reason?: string } {
+  const trimmed = (cmd ?? "").trim()
+  if (!trimmed) return { ok: false, reason: "empty command" }
+  if (trimmed.length > 2000) {
+    return { ok: false, reason: "command exceeds maximum length (2000 chars)" }
+  }
+  const firstToken = trimmed.split(/\s+/)[0]
+  const hasAllowedPrefix = ALLOWED_CHECK_PREFIXES.some(
+    (prefix) => firstToken === prefix || firstToken.startsWith(prefix),
+  )
+  if (!hasAllowedPrefix) {
+    return {
+      ok: false,
+      reason: `command prefix '${firstToken}' not in allowed list: ${ALLOWED_CHECK_PREFIXES.join(", ")}`,
+    }
+  }
+  for (const pattern of BANNED_SHELL_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return { ok: false, reason: `command contains banned shell pattern: ${pattern.source}` }
+    }
+  }
+  if (trimmed.includes("..") || trimmed.includes("~")) {
+    return { ok: false, reason: "path traversal sequences not allowed" }
+  }
+  if (/\$[A-Z_][A-Z0-9_]*/i.test(trimmed)) {
+    return { ok: false, reason: "environment variable expansion not allowed" }
+  }
+  return { ok: true }
+}

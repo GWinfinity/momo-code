@@ -56,9 +56,21 @@ Rules:
   fixer agent (which receives the error and fixes it); the fixer should
   route back with "routes": [{"to": "<original-node-id>", "when": "done"}]
   so the failing path re-executes. Only that path re-runs.
+- Shared resources: if two nodes would write the same file or mutate the
+  same external resource, they must NOT run in parallel. Declare the same
+  "resources" token on each of them, e.g. "resources": ["file:src/x.ts"].
+  The engine serializes nodes that share a resource token. Independent
+  nodes must not declare overlapping tokens.
+- Deterministic steps: for a step that is a known, unambiguous shell
+  command (running tests, a typecheck, a linter), prefer "kind": "cmd"
+  with "command": "<exact command>". cmd nodes execute directly — no
+  subagent and no tokens. Commands are restricted to
+  node/npm/pnpm/npx/tsc/eslint, must not use shell metacharacters
+  (pipes, ";", "&", ">", "$()", backticks) and must be cross-platform.
+  Keep judgement and code-editing work in "agent" nodes.
 
 Respond with ONLY a JSON object (no prose, no fences):
-{"nodes": [{"id": "a", "task": "self-contained task", "dependsOn": ["b"], "kind": "agent", "routes": [...], "rework": "fixer"}, ...]}`
+{"nodes": [{"id": "a", "task": "self-contained task", "dependsOn": ["b"], "kind": "agent", "resources": ["file:src/x.ts"], "routes": [...], "rework": "fixer"}, ...]}`
 
 /** Convert a chat usage callback payload into graph token counters. */
 function toGraphTokens(u: Usage): GraphTokens {

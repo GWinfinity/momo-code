@@ -35,8 +35,9 @@ export type GraphStatus =
   | "waiting"
 
 /** How a node executes. "agent" = chat subagent, "sim" = /sim world agent,
- * "approval" = human checkpoint (the run pauses until approved/rejected). */
-export type GraphNodeKind = "agent" | "sim" | "approval"
+ * "approval" = human checkpoint (the run pauses until approved/rejected),
+ * "cmd" = deterministic shell command (no subagent, no LLM tokens). */
+export type GraphNodeKind = "agent" | "sim" | "approval" | "cmd"
 
 /** Token usage counters (OpenAI-compatible `usage` object). */
 export interface GraphTokens {
@@ -75,6 +76,11 @@ export interface GraphPlanNode {
   /** Node id to route failures to (rework agent). The rework agent should
    *  declare a route back to this node so the failing path re-executes. */
   readonly rework?: string
+  /** Shared mutable resources this node touches (e.g. "file:src/x.ts").
+   *  Nodes that declare an overlapping resource never run in the same batch. */
+  readonly resources?: string[]
+  /** Shell command for `kind: "cmd"` nodes (executed directly by the engine). */
+  readonly command?: string
 }
 
 /** The LLM-produced plan: a DAG of nodes. */
@@ -92,6 +98,10 @@ export interface GraphNode {
   readonly routes?: readonly GraphRoute[]
   /** Failure routing target (copied from the plan). */
   readonly rework?: string
+  /** Shared mutable resources (copied from the plan) used for batch serialization. */
+  readonly resources?: readonly string[]
+  /** Shell command (copied from the plan) for `kind: "cmd"` nodes. */
+  readonly command?: string
   state: GraphNodeState
   output?: string
   error?: string

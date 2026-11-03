@@ -7,6 +7,9 @@
  *      `momo` processes in parallel (capped by concurrency), with the
  *      outputs of dependency nodes passed in as context.
  *   3. Graph Engineering primitives:
+ *      - `kind: "cmd"` nodes run a deterministic shell command directly —
+ *        no subagent, no tokens (the hybrid layering: the planner decides
+ *        what to run, the engine executes it).
  *      - `kind: "approval"` nodes pause the run until a human approves or
  *        rejects them (`momo /graph approve|reject <id>` or the dashboard).
  *      - conditional `routes` branch on node results (deterministic
@@ -22,7 +25,9 @@
  * @module graph/engine
  */
 
+import { exec } from "node:child_process"
 import { spawnSubagent } from "../subagent/spawn.js"
+import { isCommandAllowed } from "../experience/guard.js"
 import { chatComplete, resolveProviderConfig, type Usage } from "../cli/chat.js"
 import { extractArtifacts } from "./extract.js"
 import {
@@ -30,6 +35,7 @@ import {
   blockedNodes,
   computeStatus,
   isTerminal,
+  pickBatch,
   pickDeterministicRoute,
   planToNodes,
   readyNodes,
@@ -219,6 +225,13 @@ function routeFailure(run: GraphRun, node: GraphNode): void {
 
 async function runNode(node: GraphNode, run: GraphRun, timeoutMs: number): Promise<void> {
   node.attempts = (node.attempts ?? 0) + 1
+  // cmd nodes are the deterministic layer of the hybrid split: the planner
+  // (LLM) decided WHAT to run; the engine runs it directly — no subagent,
+  // no tokens.
+  if (node.kind === "cmd") {
+    await runCmdNode(node, timeoutMs)
+    return
+  }
   const deps = run.nodes.filter((d) => node.dependsOn.includes(d.id))
   const context = deps
     .filter((d) => d.state === "done" && d.output)
@@ -260,6 +273,67 @@ async function runNode(node: GraphNode, run: GraphRun, timeoutMs: number): Promi
     }
   }
 
+  node.state = "failed"
+  node.error = lastError
+  node.finishedAt = new Date().toISOString()
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic cmd nodes
+// ---------------------------------------------------------------------------
+
+interface CmdResult {
+  stdout: string
+  stderr: string
+  exitCode: number
+  timedOut: boolean
+}
+
+/** Run a shell command with a hard timeout. Never throws. */
+function execCommand(command: string, timeoutMs: number): Promise<CmdResult> {
+  return new Promise((resolve) => {
+    exec(
+      command,
+      { timeout: timeoutMs, windowsHide: true, encoding: "utf-8", maxBuffer: 16 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        const timedOut = Boolean(err && typeof err.killed === "boolean" && err.killed)
+        const exitCode = timedOut ? 124 : typeof err?.code === "number" ? err.code : err ? 1 : 0
+        resolve({ stdout: String(stdout ?? ""), stderr: String(stderr ?? ""), exitCode, timedOut })
+      },
+    )
+  })
+}
+
+/**
+ * Execute a `kind: "cmd"` node: run the planned command directly, capturing
+ * stdout as the node output. Commands must pass the experience guard
+ * (prefix allowlist + banned shell patterns) — a rejected command fails the
+ * node without executing. Retries re-run the same command.
+ */
+async function runCmdNode(node: GraphNode, timeoutMs: number): Promise<void> {
+  const command = (node.command ?? "").trim()
+  let lastError = ""
+  for (let attempt = 0; attempt <= node.maxRetries; attempt++) {
+    node.retries = attempt + 1
+    const verdict = isCommandAllowed(command)
+    if (!verdict.ok) {
+      node.state = "failed"
+      node.error = `command rejected by guard: ${verdict.reason}`
+      node.finishedAt = new Date().toISOString()
+      return
+    }
+    const result = await execCommand(command, timeoutMs)
+    if (result.exitCode === 0) {
+      node.output = cleanNodeOutput(result.stdout.trim() || "(exit 0, no output)")
+      node.state = "done"
+      node.finishedAt = new Date().toISOString()
+      node.fields = parseFields(node.output)
+      return
+    }
+    lastError = result.timedOut
+      ? `command timed out after ${Math.round(timeoutMs / 1000)}s`
+      : cleanNodeError(result.stderr.trim() || result.stdout.trim() || `exited with code ${result.exitCode}`).slice(0, 500)
+  }
   node.state = "failed"
   node.error = lastError
   node.finishedAt = new Date().toISOString()
@@ -345,8 +419,10 @@ export async function executeGraph(
     }
     saveRun(run)
 
-    // 4. Run the next batch of ready nodes.
-    const batch = readyNodes(run.nodes).slice(0, concurrency)
+    // 4. Run the next batch of ready nodes. pickBatch keeps nodes that
+    //    declare overlapping resources out of the same batch, so they
+    //    serialize while independent nodes still run in parallel.
+    const batch = pickBatch(readyNodes(run.nodes), concurrency)
     if (batch.length === 0) break
 
     if ((run.executions ?? 0) + batch.length > budget) {
