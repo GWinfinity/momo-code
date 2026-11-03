@@ -406,6 +406,7 @@ export async function runCampaign(opts: RunCampaignOpts): Promise<CampaignManife
           proposalFile: file,
           libraryDir: getSkillsDir(),
           outDir,
+          taskDir,
           spawn: run,
         })
         entry.trials += vReport.trials

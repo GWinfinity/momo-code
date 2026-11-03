@@ -44,6 +44,12 @@ export interface VerificationOpts {
   attempts?: number
   /** Run directory: receives verifier_prompt.md + verification_report.json. */
   outDir: string
+  /**
+   * Campaign task directory (`<campaignDir>/tasks/<taskId>`). When given,
+   * `{task_dir}` placeholders in the check command expand to it in the
+   * staged verifier prompt.
+   */
+  taskDir?: string
   /** Child-process runner (default: the real spawnSubagent). */
   spawn?: VerificationSpawn
 }
@@ -87,6 +93,8 @@ export function buildVerificationPrompt(opts: {
   libraryDir: string
   proposalFile: string
   task: SkillTask
+  /** Campaign task dir; `{task_dir}` in the check expands to it. */
+  taskDir?: string
 }): string {
   const { libraryDir, proposalFile, task } = opts
   const sha = librarySha(libraryDir)
@@ -97,6 +105,8 @@ export function buildVerificationPrompt(opts: {
   }
 
   const proposal = fs.readFileSync(proposalFile, "utf-8").trim()
+
+  const check = opts.taskDir ? substituteTaskDir(task.check, opts.taskDir) : task.check
 
   return [
     "# Skill Verification (transmission test)",
@@ -132,7 +142,7 @@ export function buildVerificationPrompt(opts: {
     `Check command (run it; exit 0 means success):`,
     "",
     "```sh",
-    task.check,
+    check,
     "```",
     "",
     "## Contract",
@@ -163,17 +173,47 @@ function trialErrored(result: {
   )
 }
 
-/** Throw when the task check command is outside the guard whitelist. */
-export function assertCheckAllowed(check: string): void {
-  const firstToken = check.trim().split(/\s+/)[0] ?? ""
-  const allowed = ALLOWED_CHECK_PREFIXES.some(
+/**
+ * Narrow aspire-layer exception to the experience guard whitelist: the
+ * vendored Genesis sim evaluator. Allowed strictly as
+ * `python -m sim_eval ...` / `python3 -m sim_eval ...` — argv[1] must be
+ * `-m` and argv[2] exactly `sim_eval`; every other python/python3
+ * invocation stays rejected. This exception lives ONLY in the aspire skill
+ * layer — experience/guard.ts ALLOWED_CHECK_PREFIXES is untouched.
+ */
+export function isCheckAllowed(cmd: string): boolean {
+  const argv = cmd.trim().split(/\s+/)
+  const firstToken = argv[0] ?? ""
+  if (
+    (firstToken === "python" || firstToken === "python3") &&
+    argv[1] === "-m" &&
+    argv[2] === "sim_eval"
+  ) {
+    return true
+  }
+  return ALLOWED_CHECK_PREFIXES.some(
     (prefix) => firstToken === prefix || firstToken.startsWith(prefix),
   )
-  if (!allowed) {
-    throw new Error(
-      `task check command '${firstToken}' not in whitelist: ${ALLOWED_CHECK_PREFIXES.join(", ")}`,
-    )
-  }
+}
+
+/**
+ * Expand every literal `{task_dir}` occurrence in a task check command to
+ * the task's campaign directory. Applied ONLY when the check is staged
+ * into an agent prompt (verification prompt, worker/heldout prompt
+ * packages) — the raw placeholder stays in tasks.json, campaign.json, and
+ * status/log output.
+ */
+export function substituteTaskDir(check: string, taskDir: string): string {
+  return check.split("{task_dir}").join(taskDir)
+}
+
+/** Throw when the task check command is outside the guard whitelist. */
+export function assertCheckAllowed(check: string): void {
+  if (isCheckAllowed(check)) return
+  const firstToken = check.trim().split(/\s+/)[0] ?? ""
+  throw new Error(
+    `task check command '${firstToken}' not in whitelist: ${ALLOWED_CHECK_PREFIXES.join(", ")}`,
+  )
 }
 
 /**
