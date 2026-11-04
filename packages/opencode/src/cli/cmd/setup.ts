@@ -8,11 +8,19 @@ import * as fs from "fs"
 import * as path from "path"
 import * as readline from "readline"
 import { getConfigDir, getConfigFilePath } from "../../config/config.js"
+import {
+  SETUP_INTEGRATIONS,
+  applyConfigPatch,
+  listSetupIntegrations,
+  runIntegrationSetup,
+  type IntegrationRunResult,
+} from "../../config/integrations.js"
 
 const MAGENTA = "\x1b[95m"
 const CYAN = "\x1b[36m"
 const GREEN = "\x1b[32m"
 const YELLOW = "\x1b[33m"
+const RED = "\x1b[31m"
 const DIM = "\x1b[2m"
 const RESET = "\x1b[0m"
 const BOLD = "\x1b[1m"
@@ -100,12 +108,86 @@ function prompt(rl: readline.Interface, question: string): Promise<string> {
 }
 
 /**
+ * `momo setup --integration <name>` — one-command integration onboarding:
+ * run the integration's checks, print fixes, optionally patch the config.
+ * Returns 0 when every check passes, 1 otherwise.
+ */
+async function runIntegrationFlow(integrationName: string): Promise<number> {
+  let result: IntegrationRunResult
+  try {
+    result = await runIntegrationSetup(integrationName)
+  } catch (err) {
+    console.error(`${RED}  ✗${RESET} ${err instanceof Error ? err.message : err}`)
+    return 1
+  }
+  const integration = SETUP_INTEGRATIONS[result.name]
+  console.log()
+  console.log(`${MAGENTA}${BOLD}  MOMO CODE${RESET} — Setup integration: ${CYAN}${integration.name}${RESET}`)
+  console.log(`${DIM}  ${integration.description}${RESET}`)
+  console.log()
+
+  for (const r of result.results) {
+    const mark = r.ok ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`
+    console.log(`  ${mark} ${r.name}: ${r.detail}`)
+    if (!r.ok && r.fix) console.log(`    ${DIM}fix: ${r.fix}${RESET}`)
+  }
+  console.log()
+
+  if (!result.ok) {
+    console.log(`${YELLOW}  Integration "${integration.name}" is not fully configured.${RESET}`)
+    return 1
+  }
+
+  // Optional config patch (merge-write, same pattern as the provider wizard).
+  const configPath = getConfigFilePath()
+  let existingConfig: Record<string, unknown> = {}
+  if (fs.existsSync(configPath)) {
+    try {
+      const raw = fs.readFileSync(configPath, "utf-8")
+      existingConfig = JSON.parse(raw.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, ""))
+    } catch {
+      /* start from empty on parse errors */
+    }
+  }
+  const merged = applyConfigPatch(integration, existingConfig)
+  if (merged) {
+    fs.mkdirSync(getConfigDir(), { recursive: true })
+    fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), "utf-8")
+    console.log(`${GREEN}  Configuration updated:${RESET} ${configPath}`)
+    console.log()
+  }
+
+  for (const hint of integration.hints ?? []) {
+    console.log(`${DIM}  · ${hint}${RESET}`)
+  }
+  console.log()
+  console.log(`${GREEN}${BOLD}  Integration "${integration.name}" ready.${RESET}`)
+  return 0
+}
+
+/**
  * Run the interactive setup wizard.
  * Returns 0 on success, 1 on abort.
  */
 export async function runSetupCommand(args: string[]): Promise<number> {
   const isQuiet = args.includes("--quiet") || args.includes("-q")
   const isNonInteractive = args.includes("--non-interactive")
+
+  // One-command integration onboarding: `momo setup --integration <name>`
+  const integrationFlag = args.indexOf("--integration")
+  const integrationName =
+    integrationFlag !== -1
+      ? args[integrationFlag + 1] ?? ""
+      : args.find((a) => a.startsWith("--integration="))?.slice(14)
+  if (integrationName !== undefined) {
+    if (!integrationName) {
+      console.error(
+        `${RED}  ✗${RESET} --integration needs a name ${DIM}(${listSetupIntegrations().map((i) => i.name).join(", ")})${RESET}`,
+      )
+      return 1
+    }
+    return runIntegrationFlow(integrationName)
+  }
 
   console.log()
   console.log(`${MAGENTA}${BOLD}  MOMO CODE${RESET} — Setup Wizard`)

@@ -168,6 +168,7 @@ function showHelp() {
   console.log(`  momo <prompt>                Single-turn coding session`)
   console.log(`  momo web                     Open web dashboard in browser`)
   console.log(`  momo /setup                  Interactive setup wizard (first-time config)`)
+  console.log(`  momo /setup --integration <name>   One-command onboarding (sim | voice)`)
   console.log(`  momo /evolve                 Run experience fast loop (KEP)`)
   console.log(`  momo /fine-tune <subcommand> Run self-evolution training (MCGS)`)
   console.log(`  momo models                  List available models & providers`)

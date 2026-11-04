@@ -36,6 +36,7 @@ export function renderHelp(): string {
   lines.push(`  ${C.c}momo <prompt>${C.B}                Single-turn coding session`)
   lines.push(`  ${C.c}momo web${C.B}                     Open web dashboard in browser`)
   lines.push(`  ${C.c}momo /setup${C.B}                  Interactive setup wizard (first-time config)`)
+  lines.push(`  ${C.c}momo /setup --integration <name>${C.B}   One-command onboarding (${["sim", "voice"].join(" | ")})`)
   lines.push(`  ${C.c}momo /evolve${C.B}                 Run experience fast loop (KEP)`)
   lines.push(`  ${C.c}momo /fine-tune <subcommand>${C.B} Run self-evolution training (MCGS)`)
   lines.push(`  ${C.c}momo /refine${C.B}                 Evidence-driven self-improvement proposals`)
