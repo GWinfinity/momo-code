@@ -20,7 +20,7 @@ export const experienceExtension: InlineExtension = {
 
   factory: (pi) => {
     pi.on("before_agent_start", async (event) => {
-      const taskDescription = event.prompt || ""
+      const taskDescription = event.messageType === "user" ? event.prompt : ""
       if (!taskDescription) return
 
       try {
